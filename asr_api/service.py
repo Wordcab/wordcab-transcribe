@@ -1,2 +1,2 @@
 # Copyright (c) 2023, The Wordcab team. All rights reserved.
-"""Tests for the Wordcab package."""
+"""Service module to handle AI model interactions."""
