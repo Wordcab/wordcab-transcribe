@@ -1,13 +1,17 @@
 [tool.poetry]
 name = "asr-api"
 version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
+description = "Docker + FastAPI ASR project"
+authors = ["Wordcab <info@wordcab.com>"]
 readme = "README.md"
-packages = [{include = "asr_api"}]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = ">=3.10,<4.0"
+fastapi = ">=0.95.0"
+loguru = ">=0.6.0"
+pydantic = ">=1.10.7"
+python-dotenv = ">=1.0.0"
+uvicorn = ">=0.21.1"
 
 
 [build-system]
