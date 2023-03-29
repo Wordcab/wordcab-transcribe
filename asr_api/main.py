@@ -9,9 +9,9 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi import status as http_status
 from fastapi.responses import HTMLResponse
 
-from config import settings
-from models import ASRRequest, ASRResponse
-from service import ASRService
+from asr_api.config import settings
+from asr_api.models import ASRRequest, ASRResponse
+from asr_api.service import ASRService
 
 
 app = FastAPI(
