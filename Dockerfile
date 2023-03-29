@@ -21,5 +21,4 @@ RUN chmod +x /docker-entrypoint.sh
 COPY . /app
 WORKDIR /app
 
-ENTRYPOINT /docker-entrypoint.sh $0 $@
 CMD ["uvicorn", "--reload", "--host=0.0.0.0", "--port=5001", "asr_api.main:app"]
