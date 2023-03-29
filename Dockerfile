@@ -1,42 +1,25 @@
 # Copyright (c) 2023, The Wordcab team. All rights reserved.
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
-FROM nvcr.io/nvidia/pytorch:22.01-py3
-
-ENV TZ=Europe/Paris
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-ENV PYTHONFAULTHANDLER=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONHASHSEED=random \
-    PIP_NO_CACHE_DIR=off \
-    PIP_DISABLE_PIP_VERSION_CHECK=on \
-    PIP_DEFAULT_TIMEOUT=100 \
-    POETRY_VERSION=1.4.1 \
-    POETRY_HOME="/opt/poetry" \
-    POETRY_VIRTUALENVS_IN_PROJECT=true \
-    POETRY_NO_INTERACTION=1 \
-    PYSETUP_PATH="/opt/pysetup" \
-    VENV_PATH="/opt/pysetup/.venv"
-ENV PATH="$POETRY_HOME/bin:$VENV_PATH/bin:$PATH"
-
-RUN pip install "poetry==$POETRY_VERSION"
-
-WORKDIR $PYSETUP_PATH
-COPY ./poetry.lock ./pyproject.toml ./
-RUN poetry lock --no-update
-RUN poetry install --only main
+COPY requirements.txt /requirements.txt
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    wget \
+    cmake \
+    software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt install -y python3.10 \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 \
+    && python3.10 -m pip install -r requirements.txt \
+    && python3.10 -m pip install numpy --pre torch torchaudio --force-reinstall --index-url https://download.pytorch.org/whl/nightly/cu118
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-# venv already has runtime deps installed we get a quicker install
-WORKDIR $PYSETUP_PATH
-RUN poetry install
-
-COPY asr_api /app/api
-COPY .env /app/.env
-
+COPY . /app
 WORKDIR /app
 
 ENTRYPOINT /docker-entrypoint.sh $0 $@
-CMD ["uvicorn", "--reload", "--host=0.0.0.0", "--port=5001", "api.main:app"]
+CMD ["uvicorn", "--reload", "--host=0.0.0.0", "--port=5001", "asr_api.main:app"]
