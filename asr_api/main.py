@@ -2,14 +2,16 @@
 """Main API module of the Wordcab ASR API."""
 
 import asyncio
+import io
 from loguru import logger
 
-from fastapi import BackgroundTasks, FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi import BackgroundTasks, FastAPI, File, Form, UploadFile
 from fastapi import status as http_status
+from fastapi.responses import HTMLResponse
 
 from config import settings
 from models import ASRRequest, ASRResponse
+from service import ASRService
 
 
 app = FastAPI(
@@ -19,7 +21,7 @@ app = FastAPI(
     debug=settings.debug,
 )
 
-service = None
+service = ASRService()
 
 
 @app.on_event("startup")
@@ -57,12 +59,22 @@ async def health_check():
 @app.post(
     f"{settings.api_prefix}/inference",
     tags=["inference"],
-    response_model=SignedUrl,
+    response_model=ASRResponse,
     status_code=http_status.HTTP_200_OK
 )
-async def inference(data: ArtCreate, background_tasks: BackgroundTasks):
+async def inference(data: ASRRequest, file: UploadFile = File(...)):
     """Inference endpoint."""
-    return None
+    if data.url:
+        # TODO: Implement URL inference
+        return ASRResponse(text=[{"text": "YouTube links are not implemented yet."}])
+    else:
+        audio_bytes = await file.read()
+        audio_file = io.BytesIO(audio_bytes)
+        audio_file.seek(0)
+
+    output = await service.process_input(audio_file)
+
+    return ASRResponse(text=output)
 
 
 if __name__ == "__main__":

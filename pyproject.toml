@@ -8,10 +8,16 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
 fastapi = ">=0.95.0"
+faster-whisper = ">=0.3.0"
+ffmpeg-python = ">=0.2.0"
 loguru = ">=0.6.0"
+pyannote-audio = { version = ">=2.1.1", platform = "linux" }
 pydantic = ">=1.10.7"
 python-dotenv = ">=1.0.0"
+python-multipart = ">=0.0.6"
+scikit-learn = ">=1.2.2"
 uvicorn = ">=0.21.1"
+yt-dlp = ">=2023.3.4"
 
 
 [build-system]
