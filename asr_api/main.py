@@ -63,7 +63,29 @@ async def health_check():
     status_code=http_status.HTTP_200_OK
 )
 async def inference(data: ASRRequest, file: UploadFile = File(...)):
-    """Inference endpoint."""
+    """
+    Inference endpoint.
+
+    Args:
+        data (ASRRequest): Request data.
+        file (UploadFile): Audio file.
+
+    Returns:
+        ASRResponse: Response data.
+
+    Examples:
+        >>> # Using a local audio file
+        >>> import requests
+        >>> files = {"file": ("test.wav", open("test.wav", "rb"))}
+        >>> response = requests.post("url.../api/v1/inference", files=files)
+        >>> print(response.json())
+
+        >>> # Using a YouTube link
+        >>> import requests
+        >>> data = {"url": "https://www.youtube.com/watch?v=..."}
+        >>> response = requests.post("url.../api/v1/inference", data=data)
+        >>> print(response.json())
+    """
     if data.url:
         # TODO: Implement URL inference
         return ASRResponse(text=[{"text": "YouTube links are not implemented yet."}])
