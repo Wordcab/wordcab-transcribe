@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     description: str
     api_prefix: str
     debug: bool
+    batch_size: int
+    max_wait: float
     
 
 
@@ -24,4 +26,6 @@ settings = Settings(
     description=getenv("DESCRIPTION"),
     api_prefix=getenv("API_PREFIX"),
     debug=getenv("DEBUG"),
+    batch_size=getenv("BATCH_SIZE"),
+    max_wait=getenv("MAX_WAIT"),
 )

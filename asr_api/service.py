@@ -6,8 +6,7 @@ import functools
 import io
 import numpy as np
 from loguru import logger
-from pathlib import Path
-from typing import Any, Dict, List
+from typing import List
 
 import torch
 
@@ -20,8 +19,7 @@ from pyannote.core import Segment
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
 
-from yt_dlp import YoutubeDL
-
+from asr_api.config import settings
 from asr_api.utils import format_segments
 
 
@@ -60,8 +58,8 @@ class ASRService():
         self.needs_processing = None
         self.needs_processing_timer = None
 
-        self.max_batch_size = 1  # Max number of requests to process at once
-        self.max_wait = 0.1
+        self.max_batch_size = settings.batch_size  # Max number of requests to process at once
+        self.max_wait = settings.max_wait  # Max time to wait for more requests before processing
 
 
     def schedule_processing_if_needed(self):

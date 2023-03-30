@@ -3,10 +3,8 @@
 
 import aiofiles
 import asyncio
-import functools
 import random
 from loguru import logger
-from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, File, UploadFile
 from fastapi import status as http_status
