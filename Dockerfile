@@ -5,6 +5,7 @@ COPY requirements.txt /requirements.txt
 RUN apt-get update && apt-get install -y \
     git \
     curl \
+    ffmpeg \
     libsndfile1 \
     software-properties-common \
     && add-apt-repository ppa:deadsnakes/ppa \

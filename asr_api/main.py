@@ -3,8 +3,10 @@
 
 import aiofiles
 import asyncio
+import functools
 import random
 from loguru import logger
+from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, File, UploadFile
 from fastapi import status as http_status
@@ -13,7 +15,7 @@ from fastapi.responses import HTMLResponse
 from asr_api.config import settings
 from asr_api.models import ASRResponse
 from asr_api.service import ASRService
-from asr_api.utils import delete_file
+from asr_api.utils import convert_file_to_wav, delete_file, download_file_from_youtube
 
 
 app = FastAPI(
@@ -23,13 +25,13 @@ app = FastAPI(
     debug=settings.debug,
 )
 
-service = ASRService()
+asr = ASRService()
 
 
 @app.on_event("startup")
 async def startup_event():
     logger.debug("Starting up...")
-    asyncio.create_task(service.runner())
+    asyncio.create_task(asr.runner())
 
 
 @app.get("/", tags=["status"])
@@ -90,17 +92,69 @@ async def inference_with_audio(
             print(response.json())
     """
     num_speakers = num_speakers or 0
+    extension = file.filename.split(".")[-1]
 
-    if file.filename.split(".")[-1] != "wav":
-        return ASRResponse(text=[{"text": "File extension not supported. Use WAV format."}])
-
-    # Save audio file to disk
-    filename = f"audio_{''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=32))}.wav"
+    filename = f"audio_{''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=32))}.{extension}"
     async with aiofiles.open(filename, "wb") as f:
         audio_bytes = await file.read()
         await f.write(audio_bytes)
 
-    utterances = await service.process_input(filepath=filename, num_speakers=num_speakers)
+    if extension != "wav":
+        filepath = await convert_file_to_wav(filename)
+        background_tasks.add_task(delete_file, filepath=filename)
+    else:
+        filepath = filename
+
+    utterances = await asr.process_input(filepath, num_speakers)
+    utterances = [
+        {
+            "start": float(utterance["start"]),
+            "text": str(utterance["text"]),
+            "end": float(utterance["end"]),
+            "speaker": int(utterance["speaker"]),
+        }
+        for utterance in utterances
+    ]
+
+    background_tasks.add_task(delete_file, filepath=filename)
+
+    return ASRResponse(utterances=utterances)
+
+
+@app.post(
+    f"{settings.api_prefix}/youtube",
+    tags=["inference"],
+    response_model=ASRResponse,
+    status_code=http_status.HTTP_200_OK
+)
+async def inference_with_youtube(
+    background_tasks: BackgroundTasks,
+    url: str,
+    num_speakers: int | None = None,
+):
+    """
+    Inference endpoint.
+
+    Args:
+        background_tasks (BackgroundTasks): Background tasks dependency.
+        url (str): Youtube URL.
+        num_speakers (int): Number of speakers in the audio file. Default: 0.
+
+    Returns:
+        ASRResponse: Response data.
+
+    Examples:
+
+        # Example using a local audio file
+        import requests
+        r = requests.post("url.../api/v1/youtube", json={"youtube_url": "https://www.youtube.com/watch?v=QH2-TGUlwu4"})
+    """
+    num_speakers = num_speakers or 0
+
+    filename = f"audio_{''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=32))}"
+    filepath = await download_file_from_youtube(url, filename)
+
+    utterances = await asr.process_input(filepath, num_speakers)
     utterances = [
         {
             "start": float(utterance["start"]),

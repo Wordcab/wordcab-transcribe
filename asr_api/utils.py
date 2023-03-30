@@ -1,7 +1,79 @@
 # Copyright (c) 2023, The Wordcab team. All rights reserved.
 """Utils module of the Wordcab ASR API."""
 
+import asyncio
+import subprocess
 from pathlib import Path
+from typing import List
+
+from yt_dlp import YoutubeDL
+
+
+async def run_subprocess(command: List[str]) -> tuple:
+    """
+    Run a subprocess asynchronously.
+
+    Args:
+        command (List[str]): Command to run.
+
+    Returns:
+        tuple: Tuple with the return code, stdout and stderr.
+    """
+    process = await asyncio.create_subprocess_exec(*command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = await process.communicate()
+
+    return process.returncode, stdout, stderr
+
+
+async def convert_file_to_wav(filepath: str) -> str:
+    """
+    Convert a file to wav format using ffmpeg.
+
+    Args:
+        filepath (str): Path to the file to convert.
+
+    Returns:
+        str: Path to the converted file.
+    """
+    if isinstance(filepath, str):
+        filepath = Path(filepath)
+
+    if not filepath.exists():
+        raise FileNotFoundError(f"File {filepath} does not exist.")
+
+    new_filepath = filepath.with_suffix(".wav")
+    cmd = [
+        "ffmpeg", "-i", str(filepath), "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", "-y", str(new_filepath)
+    ]
+    result = await run_subprocess(cmd)
+    
+    if result[0] != 0:
+        raise Exception(f"Error converting file {filepath} to wav format: {result[2]}")
+
+    return str(new_filepath)
+
+
+async def download_file_from_youtube(url: str, filename: str) -> str:
+    """
+    Download a file from YouTube using youtube-dl.
+
+    Args:
+        url (str): URL of the YouTube video.
+        filename (str): Filename to save the file as.
+
+    Returns:
+        str: Path to the downloaded file.
+    """
+    with YoutubeDL(
+        {
+            "format": "bestaudio",
+            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "wav"}],
+            "outtmpl": f"{filename}",
+        }
+    ) as ydl:
+        ydl.download([url])
+
+    return filename + ".wav"
 
 
 def delete_file(filepath: str) -> None:

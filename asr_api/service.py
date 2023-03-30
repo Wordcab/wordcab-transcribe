@@ -6,7 +6,8 @@ import functools
 import io
 import numpy as np
 from loguru import logger
-from typing import List
+from pathlib import Path
+from typing import Any, Dict, List
 
 import torch
 
@@ -18,6 +19,8 @@ from pyannote.core import Segment
 
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
+
+from yt_dlp import YoutubeDL
 
 from asr_api.utils import format_segments
 
