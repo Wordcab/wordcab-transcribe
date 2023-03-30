@@ -62,7 +62,7 @@ class ASRService():
         self.max_wait = settings.max_wait  # Max time to wait for more requests before processing
 
 
-    def schedule_processing_if_needed(self):
+    def schedule_processing_if_needed(self) -> None:
         """Method to schedule processing if needed."""
         if len(self.queue) >= self.max_batch_size:
             self.needs_processing.set()
@@ -72,13 +72,16 @@ class ASRService():
             )
 
 
-    async def process_input(self, filepath: str, num_speakers: int) -> None:
+    async def process_input(self, filepath: str, num_speakers: int) -> List[dict]:
         """
         Process the input request and return the result.
 
         Args:
             filepath (str): Path to the audio file.
             num_speakers (int): Number of speakers to detect.
+
+        Returns:
+            List[dict]: List of speaker segments.
         """
         our_task = {
             "done_event": asyncio.Event(),
@@ -95,7 +98,7 @@ class ASRService():
         return our_task["result"]
 
 
-    async def runner(self):
+    async def runner(self) -> None:
         """Process the input requests in the queue."""
         self.queue_lock = asyncio.Lock()
         self.needs_processing = asyncio.Event()
