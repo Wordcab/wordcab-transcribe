@@ -1,18 +1,11 @@
-# Wordcab ASR API
+# Wordcab Transcribe
+
+FastAPI based API for transcribing audio files using [`faster-whisper`](https://github.com/guillaumekln/faster-whisper) and [`pyannote-audio`](https://github.com/pyannote/pyannote-audio)
 
 ## Requirements
 
 Python 3.10
 
-
-## Local commands
-```bash
-poetry install
-poetry shell
-
-# Run the API
-poetry run python -m asr_api.main
-```
 
 ## Docker commands
 
