@@ -1,4 +1,9 @@
-# ASR API
+# Wordcab ASR API
+
+## Requirements
+
+Python 3.10
+
 
 ## Local commands
 ```bash

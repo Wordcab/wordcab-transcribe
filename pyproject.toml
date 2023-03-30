@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "asr-api"
+name = "wordcab-transcribe"
 version = "0.1.0"
-description = "Docker + FastAPI ASR project"
+description = "ASR FastAPI server using faster-whisper and pyannote-audio."
 authors = ["Wordcab <info@wordcab.com>"]
 readme = "README.md"
 
@@ -18,8 +18,3 @@ python-multipart = ">=0.0.6"
 scikit-learn = ">=1.2.2"
 uvicorn = ">=0.21.1"
 yt-dlp = ">=2023.3.4"
-
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
