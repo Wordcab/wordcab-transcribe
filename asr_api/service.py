@@ -78,7 +78,7 @@ class ASRService():
             audio_obj (io.BytesIO): Audio file to process.
         """
         our_task = {
-            "done_event": asyncio.Event(loop=asyncio.get_event_loop()),
+            "done_event": asyncio.Event(),
             "input": audio_obj,
             "time": asyncio.get_event_loop().time(),
         }
@@ -89,8 +89,8 @@ class ASRService():
 
     async def runner(self):
         """Process the input requests in the queue."""
-        self.queue_lock = asyncio.Lock(loop=asyncio.get_event_loop())
-        self.needs_processing = asyncio.Event(loop=asyncio.get_event_loop())
+        self.queue_lock = asyncio.Lock()
+        self.needs_processing = asyncio.Event()
         while True:
             await self.needs_processing.wait()
             self.needs_processing.clear()
