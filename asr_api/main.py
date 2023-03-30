@@ -86,9 +86,10 @@ async def inference_with_audio(
 
         # Example using a local audio file
         import requests
-        with open("test.wav", "rb") as f:
-            files = {"file": ("test.wav", f)}
-            response = requests.post("url.../api/v1/inference", files=files)
+        filepath = "sample_1.mp3"
+        with open(file, "rb") as f:
+            files = {"file": (filepath, f)}
+            response = requests.post("url/api/v1/audio", files=files)
             print(response.json())
     """
     num_speakers = num_speakers or 0
@@ -147,7 +148,8 @@ async def inference_with_youtube(
 
         # Example using a local audio file
         import requests
-        r = requests.post("url.../api/v1/youtube", json={"youtube_url": "https://www.youtube.com/watch?v=QH2-TGUlwu4"})
+        url = "https://www.youtube.com/..."
+        r = requests.post(f"http://localhost:5001/api/v1/youtube?url={url}")
     """
     num_speakers = num_speakers or 0
 
