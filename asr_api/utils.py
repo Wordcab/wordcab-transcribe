@@ -1,23 +1,21 @@
 # Copyright (c) 2023, The Wordcab team. All rights reserved.
 """Utils module of the Wordcab ASR API."""
 
-import io
-import soundfile as sf
+from pathlib import Path
 
 
-def get_duration(audio_bytes: io.BytesIO) -> float:
+def delete_file(filepath: str) -> None:
     """
-    Get the duration of the audio file.
+    Delete a file.
 
     Args:
-        audio_bytes (io.BytesIO): Audio file.
-
-    Returns:
-        float: Duration of the audio file.
+        filepath (str): Path to the file to delete.
     """
-    data, samplerate = sf.read(audio_bytes)
+    if isinstance(filepath, str):
+        filepath = Path(filepath)
 
-    return len(data) / samplerate
+    if filepath.exists():
+        filepath.unlink()
 
 
 def format_segments(segments: list, use_dict: bool = False, include_words: bool = False) -> list:

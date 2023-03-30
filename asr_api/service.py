@@ -5,20 +5,21 @@ import asyncio
 import functools
 import io
 import numpy as np
-import torch
 from loguru import logger
-from typing import List, Tuple
+from typing import List
+
+import torch
 
 from faster_whisper import WhisperModel
 
 from pyannote.audio import Audio
-from pyannote.core import Segment
 from pyannote.audio.pipelines.speaker_verification import PretrainedSpeakerEmbedding
+from pyannote.core import Segment
 
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
 
-from asr_api.utils import get_duration, format_segments
+from asr_api.utils import format_segments
 
 
 class ASRService():
@@ -70,21 +71,27 @@ class ASRService():
             )
 
 
-    async def process_input(self, audio_obj: io.BytesIO) -> None:
+    async def process_input(self, filepath: str, num_speakers: int) -> None:
         """
         Process the input request and return the result.
 
         Args:
-            audio_obj (io.BytesIO): Audio file to process.
+            filepath (str): Path to the audio file.
+            num_speakers (int): Number of speakers to detect.
         """
         our_task = {
             "done_event": asyncio.Event(),
-            "input": audio_obj,
+            "input": filepath,
+            "num_speakers": num_speakers,
             "time": asyncio.get_event_loop().time(),
         }
         async with self.queue_lock:
             self.queue.append(our_task)
             self.schedule_processing_if_needed()
+
+        await our_task["done_event"].wait()
+
+        return our_task["result"]
 
 
     async def runner(self):
@@ -105,14 +112,17 @@ class ASRService():
                 else:
                     longest_wait = None
                 file_batch = self.queue[:self.max_batch_size]
-                del self.queue[:len(batch)]
+                del self.queue[:len(file_batch)]
                 self.schedule_processing_if_needed()
 
             try:
-                batch = [task["input"] for task in batch]
-                results = await asyncio.get_event_loop().run_in_executor(
-                    None, functools.partial(self.inference, batch)
-                )
+                batch = [(task["input"], task["num_speakers"]) for task in file_batch]
+                results = []
+                for input_file, num_speakers in batch:
+                    res = await asyncio.get_event_loop().run_in_executor(
+                        None, functools.partial(self.inference, input_file, num_speakers)
+                    )
+                    results.append(res)
                 for task, result in zip(file_batch, results):
                     task["result"] = result
                     task["done_event"].set()
@@ -120,45 +130,31 @@ class ASRService():
                 del results
 
             except Exception as e:
-                logger.error("Error processing batch: %s", e)
+                logger.error(f"Error processing batch: {e}")
                 for task in file_batch:  # Error handling
                     task["result"] = e
                     task["done_event"].set()
 
 
-    def inference(self, audio_obj: io.BytesIO) -> List[dict]:
+    def inference(self, filepath: str, num_speakers: int) -> List[dict]:
         """
         Inference method to process the audio file.
 
         Args:
-            audio_obj (io.BytesIO): Audio file object.
+            filepath (str): Path to the audio file.
+            num_speakers (int): Number of speakers to detect.
 
         Returns:
             List[dict]: List of diarized segments.
         """
-        duration = get_duration(audio_obj)
-
-        segments = self.transcribe(audio_obj)
-
-        diarized_segments = self.diarize(audio_obj, segments, duration)
-
-        return diarized_segments
-
-
-    def transcribe(self, audio_obj: io.BytesIO) -> Tuple[List[dict], float, dict]:
-        """
-        Transcribe the audio file using Whisper.
-
-        Args:
-            audio_obj (io.BytesIO): Audio file object.
-
-        Returns:
-            Tuple[List[dict], float, dict]: List of segments, duration of the audio file and info.
-        """
-        segments, _ = self.model.transcribe(audio_obj, language="en", beam_size=5, word_timestamps=True)
+        segments, _ = self.model.transcribe(filepath, language="en", beam_size=5, word_timestamps=True)
         segments = format_segments(list(segments))
 
-        return segments
+        duration = segments[-1]["end"]
+
+        diarized_segments = self.diarize(filepath, segments, duration, num_speakers)
+
+        return diarized_segments
 
 
     def diarize(
@@ -249,6 +245,8 @@ class ASRService():
             current_utterance["end"] = segments[idx]["end"]
             current_utterance["text"] = text.strip()
             utterance_list.append(current_utterance)
+
+        return utterance_list
 
 
     def _get_num_speakers(self, embeddings: np.ndarray, num_speakers: int) -> int:

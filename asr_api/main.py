@@ -1,17 +1,19 @@
 # Copyright (c) 2023, The Wordcab team. All rights reserved.
 """Main API module of the Wordcab ASR API."""
 
+import aiofiles
 import asyncio
-import io
+import random
 from loguru import logger
 
-from fastapi import FastAPI, File, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, UploadFile
 from fastapi import status as http_status
 from fastapi.responses import HTMLResponse
 
 from asr_api.config import settings
-from asr_api.models import ASRRequest, ASRResponse
+from asr_api.models import ASRResponse
 from asr_api.service import ASRService
+from asr_api.utils import delete_file
 
 
 app = FastAPI(
@@ -57,46 +59,61 @@ async def health_check():
 
 
 @app.post(
-    f"{settings.api_prefix}/inference",
+    f"{settings.api_prefix}/audio",
     tags=["inference"],
     response_model=ASRResponse,
     status_code=http_status.HTTP_200_OK
 )
-async def inference(data: ASRRequest, file: UploadFile = File(...)):
+async def inference_with_audio(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    num_speakers: int | None = None,
+):
     """
     Inference endpoint.
 
     Args:
-        data (ASRRequest): Request data.
+        background_tasks (BackgroundTasks): Background tasks dependency.
         file (UploadFile): Audio file.
+        num_speakers (int): Number of speakers in the audio file. Default: 0.
 
     Returns:
         ASRResponse: Response data.
 
     Examples:
-        >>> # Using a local audio file
-        >>> import requests
-        >>> files = {"file": ("test.wav", open("test.wav", "rb"))}
-        >>> response = requests.post("url.../api/v1/inference", files=files)
-        >>> print(response.json())
 
-        >>> # Using a YouTube link
-        >>> import requests
-        >>> data = {"url": "https://www.youtube.com/watch?v=..."}
-        >>> response = requests.post("url.../api/v1/inference", data=data)
-        >>> print(response.json())
+        # Example using a local audio file
+        import requests
+        with open("test.wav", "rb") as f:
+            files = {"file": ("test.wav", f)}
+            response = requests.post("url.../api/v1/inference", files=files)
+            print(response.json())
     """
-    if data.url:
-        # TODO: Implement URL inference
-        return ASRResponse(text=[{"text": "YouTube links are not implemented yet."}])
-    else:
+    num_speakers = num_speakers or 0
+
+    if file.filename.split(".")[-1] != "wav":
+        return ASRResponse(text=[{"text": "File extension not supported. Use WAV format."}])
+
+    # Save audio file to disk
+    filename = f"audio_{''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=32))}.wav"
+    async with aiofiles.open(filename, "wb") as f:
         audio_bytes = await file.read()
-        audio_file = io.BytesIO(audio_bytes)
-        audio_file.seek(0)
+        await f.write(audio_bytes)
 
-    output = await service.process_input(audio_file)
+    utterances = await service.process_input(filepath=filename, num_speakers=num_speakers)
+    utterances = [
+        {
+            "start": float(utterance["start"]),
+            "text": str(utterance["text"]),
+            "end": float(utterance["end"]),
+            "speaker": int(utterance["speaker"]),
+        }
+        for utterance in utterances
+    ]
 
-    return ASRResponse(text=output)
+    background_tasks.add_task(delete_file, filepath=filename)
+
+    return ASRResponse(utterances=utterances)
 
 
 if __name__ == "__main__":
