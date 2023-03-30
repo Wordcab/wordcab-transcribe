@@ -23,7 +23,9 @@ docker run -d --name asr-api \
 
 ## Test the API
 
-Instructions to test the API are available in the [API documentation](http://localhost:5001/docs).
+Once the container is running, you can test the API.
+
+The API documentation is available at [http://localhost:5001/docs](http://localhost:5001/docs).
 
 ### Using CURL
 
