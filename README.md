@@ -11,5 +11,37 @@ Python 3.10
 
 ```bash
 docker build -t asr-api:latest .
-docker run --gpus all --ipc=host --shm-size 64g --ulimit memlock=1 -d --name asr-api -p 5001:5001 --restart unless-stopped asr-api:latest
+docker run -d --name asr-api \
+    --gpus all \
+    --ipc=host \
+    --shm-size 64g \
+    --ulimit memlock=1 \
+    -p 5001:5001 \
+    --restart unless-stopped \
+    asr-api:latest
+```
+
+## Test the API
+
+Instructions to test the API are available in the [API documentation](http://localhost:5001/docs).
+
+### Using CURL
+
+```bash
+curl -X 'POST' \
+  'http://localhost:5001/api/v1/youtube' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: multipart/form-data' \
+  -F 'file=@/path/to/audio/file.wav'
+```
+
+### Using Python
+
+```python
+import requests
+
+filepath = "/path/to/audio/file.wav"  # or mp3
+files = {"file": open(filepath, "rb")}
+response = requests.post("http://localhost:5001/api/v1/audio", files=files)
+print(response.json())
 ```
