@@ -2,9 +2,13 @@
 
 FastAPI based API for transcribing audio files using [`faster-whisper`](https://github.com/guillaumekln/faster-whisper) and [`pyannote-audio`](https://github.com/pyannote/pyannote-audio)
 
+More details on this project on this [blog post](https://wordcab.github.io/wordcab-posts/blog/2023/03/31/wordcab-transcribe/).
+
 ## Requirements
 
-Python 3.10
+* Python 3.10
+* Docker
+* NVIDIA GPU + NVIDIA Container Toolkit
 
 
 ## Docker commands
