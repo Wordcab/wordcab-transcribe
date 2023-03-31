@@ -21,8 +21,15 @@ More details on this project on this [blog post](https://wordcab.github.io/wordc
 
 ## Docker commands
 
+Build the image.
+
 ```bash
 docker build -t wordcab-transcribe:latest .
+```
+
+Run the container.
+
+```bash
 docker run -d --name wordcab-transcribe \
     --gpus all \
     --ipc=host \
