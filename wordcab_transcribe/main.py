@@ -168,7 +168,10 @@ async def inference_with_youtube(
     Args:
         background_tasks (BackgroundTasks): Background tasks dependency.
         url (str): Youtube URL.
-        num_speakers (int): Number of speakers in the audio file. Default: 0.
+        num_speakers (int, optional): Number of speakers to detect. Default: 0.
+        source_lang (str, optional): The language of the source file. Default: "en".
+        timestamps (str, optional): The format of the transcript timestamps "seconds", "milliseconds", or "hms,"
+        which stands for hours, minutes, and seconds.
 
     Returns:
         ASRResponse: Response data.

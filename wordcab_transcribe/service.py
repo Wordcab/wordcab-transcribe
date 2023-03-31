@@ -250,6 +250,7 @@ class ASRService:
 
         Args:
             segments (List[dict]): List of segments.
+            timestamps (str): Format of timestamps to use.
 
         Returns:
             List[dict]: List of joined segments with speaker labels.

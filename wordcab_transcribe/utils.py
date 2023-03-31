@@ -17,7 +17,7 @@ import asyncio
 import math
 import subprocess  # noqa: S404
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from yt_dlp import YoutubeDL
 
@@ -65,6 +65,9 @@ async def convert_file_to_wav(filepath: str) -> str:
 
     Args:
         filepath (str): Path to the file to convert.
+
+    Exceptions:
+        FileNotFoundError: If the file does not exist.
 
     Returns:
         str: Path to the converted file.
@@ -136,7 +139,9 @@ def delete_file(filepath: str) -> None:
 
 
 def format_segments(
-    segments: list, use_dict: bool = False, include_words: bool = False
+    segments: list,
+    use_dict: Optional[bool] = False,
+    include_words: Optional[bool] = False,
 ) -> list:
     """
     Format the segments to a list of dicts with start, end and text keys.
