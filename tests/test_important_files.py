@@ -11,19 +11,28 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Models module of the Wordcab Transcribe."""
+"""Test important files are present in the project."""
 
-from pydantic import BaseModel
-
-
-class ASRRequest(BaseModel):
-    """Request model for the ASR API."""
-
-    url: str = None
-    num_speakers: int = None
+import pathlib
 
 
-class ASRResponse(BaseModel):
-    """Response model for the ASR API."""
+important_files = [
+    ".darglint",
+    ".flake8",
+    ".github",
+    ".gitignore",
+    ".pre-commit-config.yaml",
+    "tests",
+    "wordcab_transcribe",
+    "poetry.lock",
+    "pyproject.toml",
+    "Dockerfile",
+    "LICENSE",
+    "README.md",
+]
 
-    utterances: list
+
+def test_important_files_present():
+    """Test important files are present in the project."""
+    for file in important_files:
+        assert pathlib.Path(file).exists()
