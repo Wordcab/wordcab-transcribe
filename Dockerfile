@@ -1,4 +1,3 @@
-# Copyright (c) 2023, The Wordcab team. All rights reserved.
 FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
 COPY requirements.txt /requirements.txt
