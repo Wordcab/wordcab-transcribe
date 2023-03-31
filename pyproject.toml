@@ -18,6 +18,7 @@ python-dotenv = ">=1.0.0"
 python-multipart = ">=0.0.6"
 scikit-learn = ">=1.2.2"
 shortuuid = ">=1.0.0"
+torch = ">=1.9,<2.0"
 uvicorn = ">=0.21.1"
 yt-dlp = ">=2023.3.4"
 

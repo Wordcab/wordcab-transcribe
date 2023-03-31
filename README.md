@@ -33,11 +33,9 @@ Run the container.
 docker run -d --name wordcab-transcribe \
     --gpus all \
     --ipc=host \
-    --shm-size 64g \
-    --ulimit memlock=1 \
-    --ulimit stack=67108864 \
-    -p 5001:5001 \
+    --shm-size 1g \
     --restart unless-stopped \
+    -p 5001:5001 \
     wordcab-transcribe:latest
 ```
 
