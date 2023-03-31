@@ -32,7 +32,6 @@ Run the container.
 ```bash
 docker run -d --name wordcab-transcribe \
     --gpus all \
-    --ipc=host \
     --shm-size 1g \
     --restart unless-stopped \
     -p 5001:5001 \
