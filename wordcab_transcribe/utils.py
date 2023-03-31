@@ -15,7 +15,7 @@
 
 import asyncio
 import math
-import subprocess
+import subprocess  # noqa: S404
 from pathlib import Path
 from typing import List
 
@@ -32,7 +32,9 @@ async def run_subprocess(command: List[str]) -> tuple:
     Returns:
         tuple: Tuple with the return code, stdout and stderr.
     """
-    process = await asyncio.create_subprocess_exec(*command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = await asyncio.create_subprocess_exec(
+        *command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     stdout, stderr = await process.communicate()
 
     return process.returncode, stdout, stderr
@@ -75,10 +77,21 @@ async def convert_file_to_wav(filepath: str) -> str:
 
     new_filepath = filepath.with_suffix(".wav")
     cmd = [
-        "ffmpeg", "-i", str(filepath), "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", "-y", str(new_filepath)
+        "ffmpeg",
+        "-i",
+        str(filepath),
+        "-vn",
+        "-acodec",
+        "pcm_s16le",
+        "-ar",
+        "16000",
+        "-ac",
+        "1",
+        "-y",
+        str(new_filepath),
     ]
     result = await run_subprocess(cmd)
-    
+
     if result[0] != 0:
         raise Exception(f"Error converting file {filepath} to wav format: {result[2]}")
 
@@ -122,7 +135,9 @@ def delete_file(filepath: str) -> None:
         filepath.unlink()
 
 
-def format_segments(segments: list, use_dict: bool = False, include_words: bool = False) -> list:
+def format_segments(
+    segments: list, use_dict: bool = False, include_words: bool = False
+) -> list:
     """
     Format the segments to a list of dicts with start, end and text keys.
 
@@ -155,8 +170,8 @@ def format_segments(segments: list, use_dict: bool = False, include_words: bool 
                     "start": word.start,
                     "end": word.end,
                     "word": word.word.strip(),
-                    "probability": word.probability
-                } 
+                    "probability": word.probability,
+                }
                 for word in segment.words
             ]
             segment_dict["words"] = words

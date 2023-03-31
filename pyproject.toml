@@ -7,6 +7,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
+aiofiles = ">=23.1.0"
 fastapi = ">=0.95.0"
 faster-whisper = ">=0.3.0"
 ffmpeg-python = ">=0.2.0"
