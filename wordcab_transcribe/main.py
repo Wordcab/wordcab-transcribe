@@ -11,21 +11,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """Main API module of the Wordcab Transcribe."""
 
-import aiofiles
-import asyncio
 import random
-from loguru import logger
+import asyncio
 
-from fastapi import BackgroundTasks, FastAPI, File, UploadFile
+import aiofiles
+import shortuuid
+from loguru import logger
+from typing import Optional
+
 from fastapi import status as http_status
 from fastapi.responses import HTMLResponse
+from fastapi import BackgroundTasks, FastAPI, File, UploadFile
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.models import ASRResponse
 from wordcab_transcribe.service import ASRService
 from wordcab_transcribe.utils import convert_file_to_wav, delete_file, download_file_from_youtube
+
 
 
 app = FastAPI(
@@ -79,7 +84,9 @@ async def health_check():
 async def inference_with_audio(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    num_speakers: int | None = None,
+    num_speakers: Optional[int] = 0,
+    source_lang: Optional[str] = "en",
+    timestamps: Optional[str] = "seconds",
 ):
     """
     Inference endpoint.
@@ -87,7 +94,12 @@ async def inference_with_audio(
     Args:
         background_tasks (BackgroundTasks): Background tasks dependency.
         file (UploadFile): Audio file.
-        num_speakers (int): Number of speakers in the audio file. Default: 0.
+        num_speakers (int): Number of speakers to detect; defaults to 0, which
+                attempts to detect the number of speaker.
+        source_lang (str): The language of the source file; defaults to "en".
+        timestamps (str): The format of the transcript timestamps. Options
+            are "seconds", "milliseconds", or "hms," which stands for hours,
+            minutes, seconds. Defaults to "seconds".
 
     Returns:
         ASRResponse: Response data.
@@ -101,10 +113,9 @@ async def inference_with_audio(
             response = requests.post("url/api/v1/audio", files=files)
             print(response.json())
     """
-    num_speakers = num_speakers or 0
     extension = file.filename.split(".")[-1]
+    filename = f"audio_{shortuuid.ShortUUID().random(length=32)}.{extension}"
 
-    filename = f"audio_{''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=32))}.{extension}"
     async with aiofiles.open(filename, "wb") as f:
         audio_bytes = await file.read()
         await f.write(audio_bytes)
@@ -115,12 +126,12 @@ async def inference_with_audio(
     else:
         filepath = filename
 
-    utterances = await asr.process_input(filepath, num_speakers)
+    utterances = await asr.process_input(filepath, num_speakers, source_lang, timestamps)
     utterances = [
         {
-            "start": float(utterance["start"]),
             "text": str(utterance["text"]),
-            "end": float(utterance["end"]),
+            "start": utterance["start"],
+            "end": utterance["end"],
             "speaker": int(utterance["speaker"]),
         }
         for utterance in utterances
@@ -140,7 +151,9 @@ async def inference_with_audio(
 async def inference_with_youtube(
     background_tasks: BackgroundTasks,
     url: str,
-    num_speakers: int | None = None,
+    num_speakers: Optional[int] = 0,
+    source_lang: Optional[str] = "en",
+    timestamps: Optional[str] = "seconds",
 ):
     """
     Inference endpoint.
@@ -161,15 +174,15 @@ async def inference_with_youtube(
     """
     num_speakers = num_speakers or 0
 
-    filename = f"audio_{''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=32))}"
+    filename = f"yt_{shortuuid.ShortUUID().random(length=32)}"
     filepath = await download_file_from_youtube(url, filename)
 
-    utterances = await asr.process_input(filepath, num_speakers)
+    utterances = await asr.process_input(filepath, num_speakers, source_lang, timestamps)
     utterances = [
         {
-            "start": float(utterance["start"]),
             "text": str(utterance["text"]),
-            "end": float(utterance["end"]),
+            "start": utterance["start"],
+            "end": utterance["end"],
             "speaker": int(utterance["speaker"]),
         }
         for utterance in utterances
