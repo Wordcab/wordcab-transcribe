@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     max_wait: float
     # Model settings
     whisper_model: str
-    embedding_model: str
+    embeddings_model: str
     compute_type: str
 
 
@@ -48,6 +48,6 @@ settings = Settings(
     batch_size=getenv("BATCH_SIZE"),
     max_wait=getenv("MAX_WAIT"),
     whisper_model=getenv("WHISPER_MODEL"),
-    embedding_model=getenv("EMBEDDING_MODEL"),
+    embeddings_model=getenv("EMBEDDINGs_MODEL"),
     compute_type=getenv("COMPUTE_TYPE"),
 )
