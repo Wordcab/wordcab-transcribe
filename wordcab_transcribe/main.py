@@ -93,30 +93,30 @@ async def inference_with_audio(
     num_speakers: Optional[int] = 0,
     source_lang: Optional[str] = "en",
     timestamps: Optional[str] = "seconds",
-):
+) -> ASRResponse:
     """
-    Inference endpoint.
+    Inference endpoint with audio file.
 
     Args:
         background_tasks (BackgroundTasks): Background tasks dependency.
         file (UploadFile): Audio file.
         num_speakers (int): Number of speakers to detect; defaults to 0, which
-                attempts to detect the number of speaker.
+            attempts to detect the number of speaker.
         source_lang (str): The language of the source file; defaults to "en".
         timestamps (str): The format of the transcript timestamps. Options
             are "seconds", "milliseconds", or "hms," which stands for hours,
             minutes, seconds. Defaults to "seconds".
 
     Returns:
-        ASRResponse: Response data.
+        ASRResponse: Response data as an ASRResponse object.
 
     Examples:
         import requests
         filepath = "sample_1.mp3"
         with open(file, "rb") as f:
             files = {"file": (filepath, f)}
-            response = requests.post("url/api/v1/audio", files=files)
-            print(response.json())
+        r = requests.post("url/api/v1/audio", files=files)
+        print(r.json())
     """
     extension = file.filename.split(".")[-1]
     filename = f"audio_{shortuuid.ShortUUID().random(length=32)}.{extension}"
@@ -161,25 +161,26 @@ async def inference_with_youtube(
     num_speakers: Optional[int] = 0,
     source_lang: Optional[str] = "en",
     timestamps: Optional[str] = "seconds",
-):
+) -> ASRResponse:
     """
-    Inference endpoint.
+    Inference endpoint with youtube url.
 
     Args:
         background_tasks (BackgroundTasks): Background tasks dependency.
-        url (str): Youtube URL.
-        num_speakers (int, optional): Number of speakers to detect. Default: 0.
-        source_lang (str, optional): The language of the source file. Default: "en".
-        timestamps (str, optional): The format of the transcript timestamps "seconds", "milliseconds", or "hms,"
-        which stands for hours, minutes, and seconds.
+        url (str): Youtube url.
+        num_speakers (int): Number of speakers to detect. Defaults to 0, which attempts to detect the number of speaker.
+        source_lang (str): The language of the source file. Defaults to "en".
+        timestamps (str): The format of the transcript timestamps. Options are "seconds", "milliseconds", or "hms,"
+            which stands for hours, minutes, seconds. Defaults to "seconds".
 
     Returns:
-        ASRResponse: Response data.
+        ASRResponse: Response data as an ASRResponse object.
 
     Examples:
         import requests
         url = "https://youtu.be/dQw4w9WgXcQ"
         r = requests.post(f"http://localhost:5001/api/v1/youtube?url={url}")
+        print(r.json())
     """
     num_speakers = num_speakers or 0
 

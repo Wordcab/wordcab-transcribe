@@ -66,8 +66,9 @@ async def convert_file_to_wav(filepath: str) -> str:
     Args:
         filepath (str): Path to the file to convert.
 
-    Exceptions:
+    Raises:
         FileNotFoundError: If the file does not exist.
+        Exception: If there is an error converting the file.
 
     Returns:
         str: Path to the converted file.
