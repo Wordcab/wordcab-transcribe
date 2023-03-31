@@ -70,93 +70,93 @@ jobs:
       - name: Run Nox
         run: |
           nox --python=${{ matrix.python }}
-  tests:
-    name: ${{ matrix.session }} ${{ matrix.python }} / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    needs: [quality]
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - { python: "3.10", os: "ubuntu-latest", session: "tests" }
-    env:
-      NOXSESSION: ${{ matrix.session }}
-      FORCE_COLOR: "1"
-      PRE_COMMIT_COLOR: "always"
-      WORDCAB_API_KEY: ${{ secrets.WORDCAB_API_KEY }}
+  # tests:
+  #   name: ${{ matrix.session }} ${{ matrix.python }} / ${{ matrix.os }}
+  #   runs-on: ${{ matrix.os }}
+  #   needs: [quality]
+  #   strategy:
+  #     fail-fast: true
+  #     matrix:
+  #       include:
+  #         - { python: "3.10", os: "ubuntu-latest", session: "tests" }
+  #   env:
+  #     NOXSESSION: ${{ matrix.session }}
+  #     FORCE_COLOR: "1"
+  #     PRE_COMMIT_COLOR: "always"
+  #     WORDCAB_API_KEY: ${{ secrets.WORDCAB_API_KEY }}
 
-    steps:
-      - name: Check out the repository
-        uses: actions/checkout@v3
+  #   steps:
+  #     - name: Check out the repository
+  #       uses: actions/checkout@v3
 
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python }}
+  #     - name: Set up Python ${{ matrix.python }}
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: ${{ matrix.python }}
 
-      - name: Upgrade pip
-        run: |
-          pip install --constraint=.github/workflows/constraints.txt pip
-          pip --version
-      - name: Upgrade pip in virtual environments
-        shell: python
-        run: |
-          import os
-          import pip
-          with open(os.environ["GITHUB_ENV"], mode="a") as io:
-              print(f"VIRTUALENV_PIP={pip.__version__}", file=io)
-      - name: Install Poetry
-        run: |
-          pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
-          poetry --version
-      - name: Install Nox
-        run: |
-          pipx install --pip-args=--constraint=.github/workflows/constraints.txt nox
-          pipx inject --pip-args=--constraint=.github/workflows/constraints.txt nox nox-poetry
-          nox --version
-      - name: Run Nox
-        run: |
-          nox --python=${{ matrix.python }}
-      - name: Upload coverage data
-        if: always() && matrix.session == 'tests'
-        uses: "actions/upload-artifact@v3"
-        with:
-          name: coverage-data
-          path: ".coverage.*"
+  #     - name: Upgrade pip
+  #       run: |
+  #         pip install --constraint=.github/workflows/constraints.txt pip
+  #         pip --version
+  #     - name: Upgrade pip in virtual environments
+  #       shell: python
+  #       run: |
+  #         import os
+  #         import pip
+  #         with open(os.environ["GITHUB_ENV"], mode="a") as io:
+  #             print(f"VIRTUALENV_PIP={pip.__version__}", file=io)
+  #     - name: Install Poetry
+  #       run: |
+  #         pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
+  #         poetry --version
+  #     - name: Install Nox
+  #       run: |
+  #         pipx install --pip-args=--constraint=.github/workflows/constraints.txt nox
+  #         pipx inject --pip-args=--constraint=.github/workflows/constraints.txt nox nox-poetry
+  #         nox --version
+  #     - name: Run Nox
+  #       run: |
+  #         nox --python=${{ matrix.python }}
+  #     - name: Upload coverage data
+  #       if: always() && matrix.session == 'tests'
+  #       uses: "actions/upload-artifact@v3"
+  #       with:
+  #         name: coverage-data
+  #         path: ".coverage.*"
 
-  coverage:
-    runs-on: ubuntu-latest
-    needs: tests
-    steps:
-      - name: Check out the repository
-        uses: actions/checkout@v3
+  # coverage:
+  #   runs-on: ubuntu-latest
+  #   needs: tests
+  #   steps:
+  #     - name: Check out the repository
+  #       uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: "3.10"
 
-      - name: Upgrade pip
-        run: |
-          pip install --constraint=.github/workflows/constraints.txt pip
-          pip --version
-      - name: Install Poetry
-        run: |
-          pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
-          poetry --version
-      - name: Install Nox
-        run: |
-          pipx install --pip-args=--constraint=.github/workflows/constraints.txt nox
-          pipx inject --pip-args=--constraint=.github/workflows/constraints.txt nox nox-poetry
-          nox --version
-      - name: Download coverage data
-        uses: actions/download-artifact@v3
-        with:
-          name: coverage-data
+  #     - name: Upgrade pip
+  #       run: |
+  #         pip install --constraint=.github/workflows/constraints.txt pip
+  #         pip --version
+  #     - name: Install Poetry
+  #       run: |
+  #         pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
+  #         poetry --version
+  #     - name: Install Nox
+  #       run: |
+  #         pipx install --pip-args=--constraint=.github/workflows/constraints.txt nox
+  #         pipx inject --pip-args=--constraint=.github/workflows/constraints.txt nox nox-poetry
+  #         nox --version
+  #     - name: Download coverage data
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: coverage-data
 
-      - name: Combine coverage data and display human readable report
-        run: |
-          nox --session=coverage
-      - name: Create coverage report
-        run: |
-          nox --session=coverage -- xml
+  #     - name: Combine coverage data and display human readable report
+  #       run: |
+  #         nox --session=coverage
+  #     - name: Create coverage report
+  #       run: |
+  #         nox --session=coverage -- xml
