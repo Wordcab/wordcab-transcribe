@@ -48,6 +48,6 @@ settings = Settings(
     batch_size=getenv("BATCH_SIZE"),
     max_wait=getenv("MAX_WAIT"),
     whisper_model=getenv("WHISPER_MODEL"),
-    embeddings_model=getenv("EMBEDDINGs_MODEL"),
+    embeddings_model=getenv("EMBEDDINGS_MODEL"),
     compute_type=getenv("COMPUTE_TYPE"),
 )
