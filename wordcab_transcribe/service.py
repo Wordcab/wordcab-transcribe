@@ -13,43 +13,78 @@
 # limitations under the License.
 """Service module to handle AI model interactions."""
 
+import io
+import math
 import asyncio
 import functools
-import io
+from pathlib import Path
+
 import numpy as np
 from loguru import logger
-from typing import List
-
-import torch
-
-from faster_whisper import WhisperModel
-
-from pyannote.audio import Audio
-from pyannote.audio.pipelines.speaker_verification import PretrainedSpeakerEmbedding
-from pyannote.core import Segment
-
-from sklearn.metrics import silhouette_score
-from sklearn.cluster import AgglomerativeClustering
+from typing import List, Optional
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.utils import format_segments
 
+import torch
 
-class ASRService():
-    def __init__(self) -> None:
-        """ASR Service class to handle AI model interactions."""
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import AgglomerativeClustering
+
+from pyannote.audio import Audio
+from pyannote.core import Segment
+from pyannote.audio.pipelines.speaker_verification import PretrainedSpeakerEmbedding
+
+from faster_whisper import WhisperModel
+
+
+
+class ASRService:
+    def __init__(
+        self,
+        model_size: str = "large-v2",
+        whisper_dir: str = "models/whisper_model",
+        compute_type: str = "int8_float16",
+        embeddings_model: str = "speechbrain/spkrec-ecapa-voxceleb",
+    ) -> None:
+        """
+        ASR Service class to handle AI model interactions.
+
+        Args:
+            model_size (str, optional): Model size to use. Defaults to "large-v2".
+            whisper_dir (str, optional): If mounting the Whisper model, this directory will be used to load the model.
+            embeddings_model (str, optional): Speaker embeddings model to use.
+            Defaults to "speechbrain/spkrec-ecapa-voxceleb".
+        """
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model_size = model_size
+        self.whisper_dir = whisper_dir
+        self.compute_type = compute_type
+        self.embeddings_model = embeddings_model
 
-        self.model_size = settings.whisper_model
-        self.embds_model = settings.embedding_model
-
-        self.model = WhisperModel(
-            self.model_size, 
-            device=self.device, 
-            compute_type="int8_float16"
-        )
+        if Path(self.whisper_dir).exists():
+            try:
+                self.model = WhisperModel(
+                    self.whisper_dir,
+                    device=self.device,
+                    compute_type=self.compute_type,
+                    model_dir=whisper_dir
+                )
+            except:
+                logger.error("Failed to load Whisper model from directory. Downloading model...")
+                self.model = WhisperModel(
+                    self.model_size,
+                    device=self.device,
+                    compute_type=self.compute_type
+                )
+        else:
+            self.model = WhisperModel(
+                self.model_size,
+                device=self.device,
+                compute_type=self.compute_type
+            )
         self.embedding_model = PretrainedSpeakerEmbedding( 
-            self.embds_model,
+            self.embeddings_model,
             device=self.device
         )
 
@@ -73,7 +108,7 @@ class ASRService():
             )
 
 
-    async def process_input(self, filepath: str, num_speakers: int) -> List[dict]:
+    async def process_input(self, filepath: str, num_speakers: int, source_lang: str, timestamps: str) -> List[dict]:
         """
         Process the input request and return the result.
 
@@ -88,6 +123,8 @@ class ASRService():
             "done_event": asyncio.Event(),
             "input": filepath,
             "num_speakers": num_speakers,
+            "source_lang": source_lang,
+            "timestamps": timestamps,
             "time": asyncio.get_event_loop().time(),
         }
         async with self.queue_lock:
@@ -121,11 +158,14 @@ class ASRService():
                 self.schedule_processing_if_needed()
 
             try:
-                batch = [(task["input"], task["num_speakers"]) for task in file_batch]
+                batch = [
+                    (task["input"], task["num_speakers"], task["source_lang"], task["timestamps"])
+                    for task in file_batch
+                ]
                 results = []
-                for input_file, num_speakers in batch:
+                for input_file, num_speakers, source_lang, timestamps in batch:
                     res = await asyncio.get_event_loop().run_in_executor(
-                        None, functools.partial(self.inference, input_file, num_speakers)
+                        None, functools.partial(self.inference, input_file, num_speakers, source_lang, timestamps)
                     )
                     results.append(res)
                 for task, result in zip(file_batch, results):
@@ -141,38 +181,57 @@ class ASRService():
                     task["done_event"].set()
 
 
-    def inference(self, filepath: str, num_speakers: int) -> List[dict]:
+    def convert_seconds_to_hms(self, seconds):
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        milliseconds = math.floor((seconds % 1) * 1000)
+        output = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02},{milliseconds:03}"
+        return output
+
+
+    def inference(
+            self,
+            filepath: str,
+            num_speakers: int,
+            source_lang: str,
+            timestamps: str,
+    ) -> List[dict]:
         """
         Inference method to process the audio file.
 
         Args:
             filepath (str): Path to the audio file.
-            num_speakers (int): Number of speakers to detect.
+
 
         Returns:
             List[dict]: List of diarized segments.
         """
-        segments, _ = self.model.transcribe(filepath, language="en", beam_size=5, word_timestamps=True)
+
+        segments, _ = self.model.transcribe(filepath, language=source_lang, beam_size=5, word_timestamps=True)
         segments = format_segments(list(segments))
 
         duration = segments[-1]["end"]
-
-        diarized_segments = self.diarize(filepath, segments, duration, num_speakers)
+        diarized_segments = self.diarize(filepath, segments, duration, num_speakers, timestamps)
 
         return diarized_segments
 
 
     def diarize(
-        self, audio_obj: io.BytesIO, segments: List[dict], duration: float, num_speakers: int = None
+        self, audio_obj: str,
+        segments: List[dict],
+        duration: float,
+        num_speakers: int,
+        timestamps: str,
     ) -> List[dict]:
         """
         Diarize the segments using pyannote.
 
         Args:
-            audio_obj (io.BytesIO): Audio file object.
+            audio_obj (str): Path to the audio file.
             segments (List[dict]): List of segments to diarize.
             duration (float): Duration of the audio file.
-            num_speakers (int, optional): Number of speakers. Defaults to None.
+            num_speakers (int): Number of speakers; defaults to 0.
+            timestamps (str): Format of timestamps; defaults to "seconds".
 
         Returns:
             List[dict]: List of diarized segments with speaker labels.
@@ -188,8 +247,7 @@ class ASRService():
         best_num_speakers = self._get_num_speakers(embeddings, num_speakers)
 
         identified_segments = self._assign_speaker_label(segments, embeddings, best_num_speakers)
-
-        joined_segments = self.join_utterances(identified_segments)
+        joined_segments = self.join_utterances(identified_segments, timestamps)
 
         return joined_segments
 
@@ -217,7 +275,7 @@ class ASRService():
         return self.embedding_model(waveform[None])
 
 
-    def join_utterances(self, segments: List[dict]) -> List[dict]:
+    def join_utterances(self, segments: List[dict], timestamps: str) -> List[dict]:
         """
         Join the segments of the same speaker.
 
@@ -251,6 +309,17 @@ class ASRService():
             current_utterance["text"] = text.strip()
             utterance_list.append(current_utterance)
 
+        for utterance in utterance_list:
+            if timestamps == "hms":
+                utterance["start"] = self.convert_seconds_to_hms(utterance["start"])
+                utterance["end"] = self.convert_seconds_to_hms(utterance["end"])
+            elif timestamps == "seconds":
+                utterance["start"] = float(utterance["start"])
+                utterance["end"] = float(utterance["end"])
+            elif timestamps == "milliseconds":
+                utterance["start"] = float(utterance["start"] * 1000)
+                utterance["end"] = float(utterance["end"] * 1000)
+
         return utterance_list
 
 
@@ -274,7 +343,6 @@ class ASRService():
                 score_num_speakers[i] = score
 
             best_num_speakers = max(score_num_speakers, key=lambda x: score_num_speakers[x])
-
         else:
             best_num_speakers = num_speakers
 
@@ -295,10 +363,13 @@ class ASRService():
         Returns:
             List[int]: List of segments with speaker labels.
         """
-        clustering = AgglomerativeClustering(best_num_speakers).fit(embeddings)
-        labels = clustering.labels_
-
-        for i in range(len(segments)):
-            segments[i]["speaker"] = labels[i] + 1
+        if best_num_speakers == 1:
+            for i in range(len(segments)):
+                segments[i]["speaker"] = 1
+        else:
+            clustering = AgglomerativeClustering(best_num_speakers).fit(embeddings)
+            labels = clustering.labels_
+            for i in range(len(segments)):
+                segments[i]["speaker"] = labels[i] + 1
  
         return segments

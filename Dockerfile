@@ -1,6 +1,5 @@
 FROM nvidia/cuda:11.7.0-devel-ubuntu22.04
 
-COPY requirements.txt /requirements.txt
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -13,6 +12,8 @@ RUN add-apt-repository ppa:deadsnakes/ppa \
     && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10
 RUN python3.10 -m pip install -r requirements.txt
 RUN python3.10 -m pip install --upgrade torch==1.13.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
+
+COPY requirements.txt /requirements.txt
 
 COPY . /app
 WORKDIR /app
