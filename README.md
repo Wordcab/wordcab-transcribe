@@ -1,15 +1,23 @@
-# Wordcab Transcribe
+# Wordcab Transcribe 💬
 
 FastAPI based API for transcribing audio files using [`faster-whisper`](https://github.com/guillaumekln/faster-whisper) and [`pyannote-audio`](https://github.com/pyannote/pyannote-audio)
 
 More details on this project on this [blog post](https://wordcab.github.io/wordcab-posts/blog/2023/03/31/wordcab-transcribe/).
 
+## Key features
+
+- 🤗 Open-source: Our project is open-source and based on open-source libraries, allowing you to customize and extend it as needed.
+- ⚡ Fast: The faster-whisper library and CTranslate2 make audio processing incredibly fast compared to other implementations.
+- 🐳 Easy to deploy: You can deploy the project on your workstation or in the cloud using Docker.
+- 🔥 Batch requests: You can transcribe multiple audio files at once because batch requests are implemented in the API.
+- 💸 Cost-effective: As an open-source solution, you won't have to pay for costly ASR platforms.
+- 🫶 Easy-to-use API: With just a few lines of code, you can use the API to transcribe audio files or even YouTube videos.
+
 ## Requirements
 
-* Python 3.10
-* Docker
-* NVIDIA GPU + NVIDIA Container Toolkit
-
+- Python 3.10
+- Docker
+- NVIDIA GPU + NVIDIA Container Toolkit
 
 ## Docker commands
 
@@ -52,3 +60,55 @@ files = {"file": open(filepath, "rb")}
 response = requests.post("http://localhost:5001/api/v1/audio", files=files)
 print(response.json())
 ```
+
+## 🚀 Contributing
+
+### Getting started
+
+1. Clone the repo
+
+```bash
+git clone
+cd wordcab-ask
+```
+
+2. Install dependencies and start coding
+
+```bash
+poetry install
+poetry shell
+
+# install pre-commit hooks
+nox --session=pre-commit -- install
+
+# open your IDE
+code .
+```
+
+3. Run tests
+
+```bash
+# run all tests
+nox
+
+# run a specific session
+nox --session=tests  # run tests
+nox --session=pre-commit  # run pre-commit hooks
+
+# run a specific test
+nox --session=tests -- -k test_something
+```
+
+### Working workflow
+
+1. Create an issue for the feature or bug you want to work on.
+2. Create a branch using the left panel on GitHub.
+3. `git fetch`and `git checkout` the branch.
+4. Make changes and commit.
+5. Push the branch to GitHub.
+6. Create a pull request and ask for review.
+7. Merge the pull request when it's approved and CI passes.
+8. Delete the branch.
+9. Update your local repo with `git fetch` and `git pull`.
+
+![GitHub Workflow](https://user-images.githubusercontent.com/6351798/48032310-63842400-e114-11e8-8db0-06dc0504dcb5.png)
