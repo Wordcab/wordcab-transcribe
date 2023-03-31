@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Main API module of the Wordcab ASR API."""
+"""Main API module of the Wordcab Transcribe."""
 
 import aiofiles
 import asyncio
@@ -22,10 +22,10 @@ from fastapi import BackgroundTasks, FastAPI, File, UploadFile
 from fastapi import status as http_status
 from fastapi.responses import HTMLResponse
 
-from asr_api.config import settings
-from asr_api.models import ASRResponse
-from asr_api.service import ASRService
-from asr_api.utils import convert_file_to_wav, delete_file, download_file_from_youtube
+from wordcab_transcribe.config import settings
+from wordcab_transcribe.models import ASRResponse
+from wordcab_transcribe.service import ASRService
+from wordcab_transcribe.utils import convert_file_to_wav, delete_file, download_file_from_youtube
 
 
 app = FastAPI(
@@ -94,7 +94,6 @@ async def inference_with_audio(
 
     Examples:
 
-        # Example using a local audio file
         import requests
         filepath = "sample_1.mp3"
         with open(file, "rb") as f:
@@ -156,9 +155,8 @@ async def inference_with_youtube(
 
     Examples:
 
-        # Example using a local audio file
         import requests
-        url = "https://www.youtube.com/..."
+        url = "https://youtu.be/dQw4w9WgXcQ"
         r = requests.post(f"http://localhost:5001/api/v1/youtube?url={url}")
     """
     num_speakers = num_speakers or 0

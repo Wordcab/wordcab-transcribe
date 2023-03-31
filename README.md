@@ -10,15 +10,15 @@ Python 3.10
 ## Docker commands
 
 ```bash
-docker build -t asr-api:latest .
-docker run -d --name asr-api \
+docker build -t wordcab-transcribe:latest .
+docker run -d --name wordcab-transcribe \
     --gpus all \
     --ipc=host \
     --shm-size 64g \
     --ulimit memlock=1 \
     -p 5001:5001 \
     --restart unless-stopped \
-    asr-api:latest
+    wordcab-transcribe:latest
 ```
 
 ## Test the API

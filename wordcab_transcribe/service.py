@@ -31,8 +31,8 @@ from pyannote.core import Segment
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
 
-from asr_api.config import settings
-from asr_api.utils import format_segments
+from wordcab_transcribe.config import settings
+from wordcab_transcribe.utils import format_segments
 
 
 class ASRService():
