@@ -61,6 +61,20 @@ response = requests.post("http://localhost:5001/api/v1/audio", files=files)
 print(response.json())
 ```
 
+## Local testing
+
+Before launching the API, be sure to install torch and torchaudio on your machine.
+
+```bash
+pip install --upgrade torch==1.13.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
+```
+
+Then, you can launch the API using the following command.
+
+```bash
+poetry run uvicorn wordcab_transcribe.main:app --reload
+```
+
 ## 🚀 Contributing
 
 ### Getting started

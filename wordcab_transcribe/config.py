@@ -14,22 +14,27 @@
 """Configuration module of the Wordcab Transcribe."""
 
 from os import getenv
-from dotenv import load_dotenv
 
+from dotenv import load_dotenv
 from pydantic import BaseSettings
 
 
 class Settings(BaseSettings):
+    """Configuration settings for the Wordcab Transcribe API."""
+
+    # Basic API settings
     project_name: str
     version: str
     description: str
     api_prefix: str
     debug: bool
+    # Batch request settings
     batch_size: int
     max_wait: float
+    # Model settings
     whisper_model: str
     embedding_model: str
-    
+    compute_type: str
 
 
 load_dotenv()
@@ -44,4 +49,5 @@ settings = Settings(
     max_wait=getenv("MAX_WAIT"),
     whisper_model=getenv("WHISPER_MODEL"),
     embedding_model=getenv("EMBEDDING_MODEL"),
+    compute_type=getenv("COMPUTE_TYPE"),
 )
