@@ -14,17 +14,13 @@
 """Service module to handle AI model interactions."""
 
 import io
-import math
 import asyncio
 import functools
 from pathlib import Path
 
 import numpy as np
 from loguru import logger
-from typing import List, Optional
-
-from wordcab_transcribe.config import settings
-from wordcab_transcribe.utils import format_segments
+from typing import List
 
 import torch
 
@@ -37,6 +33,8 @@ from pyannote.audio.pipelines.speaker_verification import PretrainedSpeakerEmbed
 
 from faster_whisper import WhisperModel
 
+from wordcab_transcribe.config import settings
+from wordcab_transcribe.utils import convert_seconds_to_hms, format_segments
 
 
 class ASRService:
@@ -181,14 +179,6 @@ class ASRService:
                     task["done_event"].set()
 
 
-    def convert_seconds_to_hms(self, seconds):
-        hours, remainder = divmod(seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        milliseconds = math.floor((seconds % 1) * 1000)
-        output = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02},{milliseconds:03}"
-        return output
-
-
     def inference(
             self,
             filepath: str,
@@ -311,8 +301,8 @@ class ASRService:
 
         for utterance in utterance_list:
             if timestamps == "hms":
-                utterance["start"] = self.convert_seconds_to_hms(utterance["start"])
-                utterance["end"] = self.convert_seconds_to_hms(utterance["end"])
+                utterance["start"] = convert_seconds_to_hms(utterance["start"])
+                utterance["end"] = convert_seconds_to_hms(utterance["end"])
             elif timestamps == "seconds":
                 utterance["start"] = float(utterance["start"])
                 utterance["end"] = float(utterance["end"])

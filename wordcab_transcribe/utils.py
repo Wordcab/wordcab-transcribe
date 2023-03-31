@@ -14,6 +14,7 @@
 """Utils module of the Wordcab Transcribe."""
 
 import asyncio
+import math
 import subprocess
 from pathlib import Path
 from typing import List
@@ -35,6 +36,25 @@ async def run_subprocess(command: List[str]) -> tuple:
     stdout, stderr = await process.communicate()
 
     return process.returncode, stdout, stderr
+
+
+def convert_seconds_to_hms(seconds: float) -> str:
+    """
+    Convert seconds to hours, minutes and seconds.
+
+    Args:
+        seconds (float): Seconds to convert.
+
+    Returns:
+        str: Hours, minutes and seconds.
+    """
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    milliseconds = math.floor((seconds % 1) * 1000)
+
+    output = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02},{milliseconds:03}"
+
+    return output
 
 
 async def convert_file_to_wav(filepath: str) -> str:
