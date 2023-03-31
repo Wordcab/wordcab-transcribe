@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     debug: bool
     batch_size: int
     max_wait: float
+    whisper_model: str
+    embedding_model: str
     
 
 
@@ -40,4 +42,6 @@ settings = Settings(
     debug=getenv("DEBUG"),
     batch_size=getenv("BATCH_SIZE"),
     max_wait=getenv("MAX_WAIT"),
+    whisper_model=getenv("WHISPER_MODEL"),
+    embedding_model=getenv("EMBEDDING_MODEL"),
 )

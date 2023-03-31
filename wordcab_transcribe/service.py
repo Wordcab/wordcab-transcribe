@@ -36,23 +36,12 @@ from wordcab_transcribe.utils import format_segments
 
 
 class ASRService():
-    def __init__(
-        self,
-        model_size: str = "large-v2",
-        embds_model: str = "speechbrain/spkrec-ecapa-voxceleb",
-    ) -> None:
-        """
-        ASR Service class to handle AI model interactions.
-
-        Args:
-            model_size (str, optional): Model size to use. Defaults to "large-v2".
-            embds_model (str, optional): Speaker embeddings model to use. 
-            Defaults to "speechbrain/spkrec-ecapa-voxceleb".
-        """
+    def __init__(self) -> None:
+        """ASR Service class to handle AI model interactions."""
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        self.model_size = model_size
-        self.embds_model = embds_model
+        self.model_size = settings.whisper_model
+        self.embds_model = settings.embedding_model
 
         self.model = WhisperModel(
             self.model_size, 

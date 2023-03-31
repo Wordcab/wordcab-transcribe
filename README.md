@@ -16,6 +16,7 @@ docker run -d --name wordcab-transcribe \
     --ipc=host \
     --shm-size 64g \
     --ulimit memlock=1 \
+    --ulimit stack=67108864 \
     -p 5001:5001 \
     --restart unless-stopped \
     wordcab-transcribe:latest
