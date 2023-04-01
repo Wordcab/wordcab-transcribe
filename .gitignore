@@ -1,9 +1,9 @@
 __pycache__/
 .mypy_cache/
-/.coverage
-/.coverage.*
-/.nox/
-/.python-version
+.coverage
+.coverage.*
+.nox/
+.python-version
 /.pytype/
 /dist/
 /docs/_build/

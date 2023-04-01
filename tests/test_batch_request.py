@@ -13,8 +13,9 @@
 # limitations under the License.
 """Test batch request when the API is running, ignored if the API is not running."""
 
-import aiohttp
 import asyncio
+
+import aiohttp
 import pytest
 
 from tests.conftest import is_port_open
@@ -25,7 +26,9 @@ async def send_request() -> None:
     async with aiohttp.ClientSession() as session:
         with open("tests/sample_1.mp3", "rb") as f:
             audio_file = {"file": f}
-            async with session.post("http://localhost:5001/api/v1/audio", data=audio_file) as response:
+            async with session.post(
+                "http://localhost:5001/api/v1/audio", data=audio_file
+            ) as response:
                 print(f"Got a response with status: {response.status}")
 
 

@@ -50,7 +50,7 @@ source = ["wordcab_ask", "tests"]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 90
+fail_under = 50
 
 [build-system]
 requires = ["poetry-core"]

@@ -17,5 +17,6 @@ import socket
 
 
 def is_port_open(port: int) -> bool:
+    """Check if a port is open."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(("localhost", port)) == 0

@@ -20,7 +20,10 @@ def test_config() -> None:
     """Test default config settings with the .env file."""
     assert Settings().project_name == "Wordcab Transcribe"
     assert Settings().version == "0.1.0"
-    assert Settings().description == "ASR FastAPI server using faster-whisper and pyannote-audio."
+    assert (
+        Settings().description
+        == "ASR FastAPI server using faster-whisper and pyannote-audio."
+    )
     assert Settings().api_prefix == "/api/v1"
     assert Settings().debug is True
     assert Settings().batch_size == 4
