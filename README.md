@@ -19,6 +19,8 @@ More details on this project on this [blog post](https://wordcab.github.io/wordc
 - Docker
 - NVIDIA GPU + NVIDIA Container Toolkit
 
+To learn more about the prerequisites to run the API, check out the [Prerequisites](https://wordcab.github.io/wordcab-posts/blog/2023/03/31/wordcab-transcribe/#prerequisites) section of the blog post.
+
 ## Docker commands
 
 Build the image.
@@ -46,15 +48,31 @@ The API documentation is available at [http://localhost:5001/docs](http://localh
 
 ### Using CURL
 
+- Audio file:
+
 ```bash
 curl -X 'POST' \
-  'http://localhost:5001/api/v1/youtube' \
+  'http://localhost:5001/api/v1/audio' \
   -H 'accept: application/json' \
   -H 'Content-Type: multipart/form-data' \
   -F 'file=@/path/to/audio/file.wav'
 ```
 
+- YouTube video:
+
+```bash
+curl -X 'POST' \
+  'http://localhost:5001/api/v1/youtube' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "https://youtu.be/dQw4w9WgXcQ"
+}'
+```
+
 ### Using Python
+
+- Audio file:
 
 ```python
 import requests
@@ -62,6 +80,17 @@ import requests
 filepath = "/path/to/audio/file.wav"  # or mp3
 files = {"file": open(filepath, "rb")}
 response = requests.post("http://localhost:5001/api/v1/audio", files=files)
+print(response.json())
+```
+
+- YouTube video:
+
+```python
+import requests
+
+url = "https://youtu.be/dQw4w9WgXcQ"
+data = {"url": url}
+response = requests.post("http://localhost:5001/api/v1/youtube", json=data)
 print(response.json())
 ```
 
