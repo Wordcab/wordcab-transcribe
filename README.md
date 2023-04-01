@@ -15,7 +15,7 @@ More details on this project on this [blog post](https://wordcab.github.io/wordc
 
 ## Requirements
 
-- Python 3.10
+- Python 3.9
 - Docker
 - NVIDIA GPU + NVIDIA Container Toolkit
 

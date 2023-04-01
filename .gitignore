@@ -1,6 +1,4 @@
 __pycache__/
-*.mp3
-*.wav
 .mypy_cache/
 /.coverage
 /.coverage.*

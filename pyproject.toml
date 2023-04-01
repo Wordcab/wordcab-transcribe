@@ -6,7 +6,7 @@ authors = ["Wordcab <info@wordcab.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<4.0"
+python = ">=3.9,<3.10"
 aiofiles = ">=23.1.0"
 fastapi = ">=0.95.0"
 faster-whisper = ">=0.3.0"
