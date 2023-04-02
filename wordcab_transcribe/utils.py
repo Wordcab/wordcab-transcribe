@@ -54,7 +54,7 @@ def convert_seconds_to_hms(seconds: float) -> str:
     minutes, seconds = divmod(remainder, 60)
     milliseconds = math.floor((seconds % 1) * 1000)
 
-    output = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02},{milliseconds:03}"
+    output = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}.{milliseconds:03}"
 
     return output
 
