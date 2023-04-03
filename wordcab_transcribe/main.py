@@ -193,17 +193,16 @@ async def inference_with_youtube(
     raw_utterances = await asr.process_input(
         filepath, num_speakers, source_lang, timestamps
     )
-    utterances = []
-    for utterance in raw_utterances:
-        if not is_empty_string(utterance["text"]):
-            utterances.append(
-                {
-                    "text": format_punct(utterance["text"]),
-                    "start": utterance["start"],
-                    "end": utterance["end"],
-                    "speaker": int(utterance["speaker"]),
-                }
-            )
+    utterances = [
+        {
+            "text": format_punct(utterance["text"]),
+            "start": utterance["start"],
+            "end": utterance["end"],
+            "speaker": int(utterance["speaker"]),
+        }
+        for utterance in raw_utterances
+        if not is_empty_string(utterance["text"])
+    ]
 
     background_tasks.add_task(delete_file, filepath=filename)
 
