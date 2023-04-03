@@ -15,6 +15,7 @@
 
 import asyncio
 import math
+import re
 import subprocess  # noqa: S404
 from pathlib import Path
 from typing import List, Optional
@@ -137,6 +138,44 @@ def delete_file(filepath: str) -> None:
 
     if filepath.exists():
         filepath.unlink()
+
+
+def is_empty_string(text: str):
+    """
+    Checks if a string is empty after removing spaces and periods.
+
+    Args:
+        text (str): The text to check.
+
+    Returns:
+        bool: True if the string is empty, False otherwise.
+    """
+    text = text.replace(".", "")
+    text = re.sub(r"\s+", "", text)
+    if text.strip():
+        return False
+    return True
+
+
+def format_punct(text: str):
+    """
+    Removes Whisper's '...' output, and checks for weird spacing in punctuation. Also removes extra spaces.
+
+    Args:
+        text (str): The text to format.
+
+    Returns:
+        str: The formatted text.
+    """
+    text = text.replace("...", "")
+    text = text.replace(" ?", "?")
+    text = text.replace(" !", "!")
+    text = text.replace(" .", ".")
+    text = text.replace(" ,", ",")
+    text = text.replace(" :", ":")
+    text = text.replace(" ;", ";")
+    text = re.sub("/s+", " ", text)
+    return text.strip()
 
 
 def format_segments(
