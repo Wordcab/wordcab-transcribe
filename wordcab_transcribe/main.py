@@ -31,6 +31,8 @@ from wordcab_transcribe.utils import (
     convert_file_to_wav,
     delete_file,
     download_file_from_youtube,
+    is_empty_string,
+    format_punct,
 )
 
 
@@ -131,18 +133,20 @@ async def inference_with_audio(
     else:
         filepath = filename
 
-    utterances = await asr.process_input(
+    raw_utterances = await asr.process_input(
         filepath, num_speakers, source_lang, timestamps
     )
-    utterances = [
-        {
-            "text": str(utterance["text"]),
-            "start": utterance["start"],
-            "end": utterance["end"],
-            "speaker": int(utterance["speaker"]),
-        }
-        for utterance in utterances
-    ]
+    utterances = []
+    for utterance in raw_utterances:
+        if not is_empty_string(utterance["text"]):
+            utterances.append(
+                {
+                    "text": format_punct(utterance["text"]),
+                    "start": utterance["start"],
+                    "end": utterance["end"],
+                    "speaker": int(utterance["speaker"]),
+                }
+            )
 
     background_tasks.add_task(delete_file, filepath=filename)
 
@@ -187,18 +191,20 @@ async def inference_with_youtube(
     filename = f"yt_{shortuuid.ShortUUID().random(length=32)}"
     filepath = await download_file_from_youtube(url, filename)
 
-    utterances = await asr.process_input(
+    raw_utterances = await asr.process_input(
         filepath, num_speakers, source_lang, timestamps
     )
-    utterances = [
-        {
-            "text": str(utterance["text"]),
-            "start": utterance["start"],
-            "end": utterance["end"],
-            "speaker": int(utterance["speaker"]),
-        }
-        for utterance in utterances
-    ]
+    utterances = []
+    for utterance in raw_utterances:
+        if not is_empty_string(utterance["text"]):
+            utterances.append(
+                {
+                    "text": format_punct(utterance["text"]),
+                    "start": utterance["start"],
+                    "end": utterance["end"],
+                    "speaker": int(utterance["speaker"]),
+                }
+            )
 
     background_tasks.add_task(delete_file, filepath=filename)
 

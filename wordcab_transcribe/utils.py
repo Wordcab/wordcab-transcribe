@@ -139,6 +139,26 @@ def delete_file(filepath: str) -> None:
         filepath.unlink()
 
 
+def is_empty_string(text):
+    text = text.replace(".", "")
+    text = re.sub(r"\s+", "", text)
+    if text.strip():
+        return False
+    return True
+
+
+def format_punct(text):
+    text = text.replace("...", "")
+    text = text.replace(" ?", "?")
+    text = text.replace(" !", "!")
+    text = text.replace(" .", ".")
+    text = text.replace(" ,", ",")
+    text = text.replace(" :", ":")
+    text = text.replace(" ;", ";")
+    text = re.sub("/s+", " ", text)
+    return text.strip()
+
+
 def format_segments(
     segments: list,
     use_dict: Optional[bool] = False,
