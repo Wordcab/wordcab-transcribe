@@ -235,7 +235,7 @@ def retrieve_user_platform() -> str:
         str: User's platform. Can be Windows, Linux, Ubuntu, MacOS or Unknown.
     """
     user_platform = platform.platform()
-    
+
     if "Windows" in user_platform:
         user_platform = "Windows"
     elif "Linux" in user_platform:

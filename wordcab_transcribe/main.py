@@ -58,7 +58,7 @@ async def startup_event():
             "You are not running the application on Ubuntu or Linux.\n"
             "We recommend running the application on Linux based systems.\n"
             "Report any issues to: https://github.com/Wordcab/wordcab-transcribe/issues"
-        )    
+        )
 
     asyncio.create_task(asr.runner())
 
