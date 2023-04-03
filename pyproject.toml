@@ -23,6 +23,7 @@ uvicorn = ">=0.21.1"
 yt-dlp = ">=2023.3.4"
 
 [tool.poetry.group.test.dependencies]
+aiohttp = ">=3.8.4"
 black = ">=23.1.0"
 coverage = {extras = ["toml"], version = ">=7.2.1"}
 darglint = ">=1.8.1"
@@ -38,7 +39,6 @@ pytest = ">=7.2.2"
 pytest-asyncio = ">=0.20.3"
 pytest-mock = ">=3.10.0"
 pyupgrade = ">=3.3.1"
-aiohttp = "^3.8.4"
 
 [tool.isort]
 profile = "black"
