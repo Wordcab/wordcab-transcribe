@@ -33,6 +33,7 @@ from wordcab_transcribe.utils import (
     download_file_from_youtube,
     format_punct,
     is_empty_string,
+    retrieve_user_platform,
 )
 
 
@@ -50,6 +51,15 @@ asr = ASRService()
 async def startup_event():
     """Startup event handler."""
     logger.debug("Starting up...")
+
+    user_platform = retrieve_user_platform()
+    if user_platform != "Ubuntu" or user_platform != "Linux":
+        logger.warning(
+            "You are not running the application on Ubuntu or Linux.\n"
+            "We recommend running the application on Linux based systems.\n"
+            "Report any issues to: https://github.com/Wordcab/wordcab-transcribe/issues"
+        )    
+
     asyncio.create_task(asr.runner())
 
 

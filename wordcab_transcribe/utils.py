@@ -15,6 +15,7 @@
 
 import asyncio
 import math
+import platform
 import re
 import subprocess  # noqa: S404
 from pathlib import Path
@@ -224,3 +225,27 @@ def format_segments(
         formatted_segments.append(segment_dict)
 
     return formatted_segments
+
+
+def retrieve_user_platform() -> str:
+    """
+    Retrieve the user's platform.
+
+    Returns:
+        str: User's platform. Can be Windows, Linux, Ubuntu, MacOS or Unknown.
+    """
+    user_platform = platform.platform()
+    
+    if "Windows" in user_platform:
+        user_platform = "Windows"
+    elif "Linux" in user_platform:
+        if "Ubuntu" in user_platform:
+            user_platform = "Ubuntu"
+        else:
+            user_platform = "Linux"
+    elif "Darwin" in user_platform:
+        user_platform = "MacOS"
+    else:
+        user_platform = "Unknown"
+
+    return user_platform
