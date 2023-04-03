@@ -31,8 +31,8 @@ from wordcab_transcribe.utils import (
     convert_file_to_wav,
     delete_file,
     download_file_from_youtube,
-    is_empty_string,
     format_punct,
+    is_empty_string,
 )
 
 
