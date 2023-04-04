@@ -15,6 +15,7 @@ More details on this project on this [blog post](https://wordcab.github.io/wordc
 
 ## Requirements
 
+- Linux _(tested on Ubuntu Server 22.04)_
 - Python 3.9
 - Docker
 - NVIDIA GPU + NVIDIA Container Toolkit

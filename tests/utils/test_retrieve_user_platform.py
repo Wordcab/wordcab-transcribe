@@ -11,4 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for the Wordcab Transcribe project."""
+"""Tests the retrieve_user_platform function."""
+
+import sys
+
+from wordcab_transcribe.utils import retrieve_user_platform
+
+
+def test_retrieve_user_platform():
+    """Test the retrieve_user_platform function."""
+    assert retrieve_user_platform() == sys.platform
