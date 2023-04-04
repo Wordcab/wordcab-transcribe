@@ -52,12 +52,11 @@ async def startup_event():
     """Startup event handler."""
     logger.debug("Starting up...")
 
-    user_platform = retrieve_user_platform()
-    if user_platform != "Ubuntu" or user_platform != "Linux":
+    if retrieve_user_platform() != "linux":
         logger.warning(
-            "You are not running the application on Ubuntu or Linux.\n"
-            "We recommend running the application on Linux based systems.\n"
-            "Report any issues to: https://github.com/Wordcab/wordcab-transcribe/issues"
+            "You are not running the application on Linux.\n"
+            "The application was tested on Ubuntu 22.04, so we cannot guarantee that it will work on other OS.\n"
+            "Report any issues with your env specs to: https://github.com/Wordcab/wordcab-transcribe/issues"
         )
 
     asyncio.create_task(asr.runner())
