@@ -24,7 +24,6 @@ uvicorn = ">=0.21.1"
 yt-dlp = ">=2023.3.4"
 
 [tool.poetry.group.test.dependencies]
-aiohttp = ">=3.8.4"
 black = ">=23.1.0"
 coverage = {extras = ["toml"], version = ">=7.2.1"}
 darglint = ">=1.8.1"
