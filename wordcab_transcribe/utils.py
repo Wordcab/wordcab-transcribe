@@ -12,19 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Utils module of the Wordcab Transcribe."""
-import re
-import sys
-import math
-
-import aiohttp
 import asyncio
-import aiofiles
+import math
 import mimetypes
+import re
 import subprocess  # noqa: S404
-
+import sys
 from pathlib import Path
 from typing import List, Optional
 
+import aiofiles
+import aiohttp
 from loguru import logger
 from yt_dlp import YoutubeDL
 

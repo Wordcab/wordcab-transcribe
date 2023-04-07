@@ -317,7 +317,9 @@ class ASRService:
                     score_num_speakers, key=lambda x: score_num_speakers[x]
                 )
             except Exception as e:
-                logger.warning(f"Error while getting number of speakers: {e}, defaulting to 1")
+                logger.warning(
+                    f"Error while getting number of speakers: {e}, defaulting to 1"
+                )
                 best_num_speakers = 1
         else:
             best_num_speakers = num_speakers
