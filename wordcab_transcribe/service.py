@@ -305,17 +305,20 @@ class ASRService:
         """
         if num_speakers == 0:
             score_num_speakers = {}
+            try:
+                for i in range(2, 11):
+                    clustering = AgglomerativeClustering(i).fit(embeddings)
+                    score = silhouette_score(
+                        embeddings, clustering.labels_, metric="euclidean"
+                    )
+                    score_num_speakers[i] = score
 
-            for i in range(2, 11):
-                clustering = AgglomerativeClustering(i).fit(embeddings)
-                score = silhouette_score(
-                    embeddings, clustering.labels_, metric="euclidean"
+                best_num_speakers = max(
+                    score_num_speakers, key=lambda x: score_num_speakers[x]
                 )
-                score_num_speakers[i] = score
-
-            best_num_speakers = max(
-                score_num_speakers, key=lambda x: score_num_speakers[x]
-            )
+            except Exception as e:
+                logger.warning(f"Error while getting number of speakers: {e}, defaulting to 1")
+                best_num_speakers = 1
         else:
             best_num_speakers = num_speakers
 

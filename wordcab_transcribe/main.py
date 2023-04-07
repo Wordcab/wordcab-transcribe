@@ -31,6 +31,7 @@ from wordcab_transcribe.utils import (
     convert_file_to_wav,
     delete_file,
     download_file_from_youtube,
+    download_audio_file,
     format_punct,
     is_empty_string,
     retrieve_user_platform,
@@ -156,7 +157,7 @@ async def inference_with_audio(
         if not is_empty_string(utterance["text"])
     ]
 
-    background_tasks.add_task(delete_file, filepath=filename)
+    background_tasks.add_task(delete_file, filepath=filepath)
 
     return ASRResponse(utterances=utterances)
 
@@ -175,7 +176,7 @@ async def inference_with_youtube(
     timestamps: Optional[str] = "seconds",
 ) -> ASRResponse:
     """
-    Inference endpoint with youtube url.
+    Inference endpoint with YouTube url.
 
     Args:
         background_tasks (BackgroundTasks): Background tasks dependency.
@@ -213,6 +214,70 @@ async def inference_with_youtube(
         if not is_empty_string(utterance["text"])
     ]
 
-    background_tasks.add_task(delete_file, filepath=filename)
+    background_tasks.add_task(delete_file, filepath=filepath)
+
+    return ASRResponse(utterances=utterances)
+
+
+@app.post(
+    f"{settings.api_prefix}/audio-url",
+    tags=["inference"],
+    response_model=ASRResponse,
+    status_code=http_status.HTTP_200_OK,
+)
+async def inference_with_audio_url(
+    background_tasks: BackgroundTasks,
+    url: str,
+    num_speakers: Optional[int] = 0,
+    source_lang: Optional[str] = "en",
+    timestamps: Optional[str] = "seconds",
+) -> ASRResponse:
+    """
+    Inference endpoint with audio url.
+
+    Args:
+        background_tasks (BackgroundTasks): Background tasks dependency.
+        url (str): Presigned (ex. AWS or GCP) or other url hosting an audio file.
+        num_speakers (int): Number of speakers to detect. Defaults to 0, which attempts to detect the number of speaker.
+        source_lang (str): The language of the source file. Defaults to "en".
+        timestamps (str): The format of the transcript timestamps. Options are "seconds", "milliseconds", or "hms,"
+            which stands for hours, minutes, seconds. Defaults to "seconds".
+
+    Returns:
+        ASRResponse: Response data as an ASRResponse object.
+
+    Examples:
+        import requests
+        url = "https://mysite.com/sample_audio.mp3"
+        r = requests.post(f"http://localhost:5001/api/v1/audio-url?url={url}")
+        print(r.json())
+    """
+    num_speakers = num_speakers or 0
+
+    filename = f"audio_url_{shortuuid.ShortUUID().random(length=32)}"
+    filepath = await download_audio_file(url, filename)
+    extension = filepath.split(".")[-1]
+
+    if extension != "wav":
+        filepath = await convert_file_to_wav(filepath)
+        background_tasks.add_task(delete_file, filepath=f"{filename}.{extension}")
+    else:
+        filepath = filename
+
+    raw_utterances = await asr.process_input(
+        filepath, num_speakers, source_lang, timestamps
+    )
+    utterances = [
+        {
+            "text": format_punct(utterance["text"]),
+            "start": utterance["start"],
+            "end": utterance["end"],
+            "speaker": int(utterance["speaker"]),
+        }
+        for utterance in raw_utterances
+        if not is_empty_string(utterance["text"])
+    ]
+
+    background_tasks.add_task(delete_file, filepath=filepath)
 
     return ASRResponse(utterances=utterances)
