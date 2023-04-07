@@ -130,13 +130,16 @@ async def download_file_from_youtube(url: str, filename: str) -> str:
     return filename + ".wav"
 
 
-async def download_audio_file(url: str, filename: str) -> str:
+async def download_audio_file(
+    url: str, filename: str, url_headers: Optional[Dict[str, str]] = None
+) -> str:
     """
     Download an audio file from a URL.
 
     Args:
         url (str): URL of the audio file.
         filename (str): Filename to save the file as.
+        url_headers (Optional[Dict[str, str]]): Headers to send with the request. Defaults to None.
 
     Raises:
         Exception: If the file failed to download.
@@ -144,20 +147,25 @@ async def download_audio_file(url: str, filename: str) -> str:
     Returns:
         str: Path to the downloaded file.
     """
+    url_headers = url_headers or {}
+
     logger.info(f"Downloading audio file from {url} to {filename}...")
     async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
+        async with session.get(url, headers=url_headers) as response:
             if response.status == 200:
                 content_type = response.headers.get("Content-Type")
                 extension = mimetypes.guess_extension(content_type)
-                logger.info(f"Guessing extension based on MIME type: {extension}")
+
                 filename = f"{filename}{extension}"
+
                 logger.info(f"New file name: {filename}")
                 async with aiofiles.open(filename, "wb") as f:
                     while True:
                         chunk = await response.content.read(1024)
+
                         if not chunk:
                             break
+
                         await f.write(chunk)
             else:
                 raise Exception(f"Failed to download file. Status: {response.status}")
