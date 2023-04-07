@@ -7,6 +7,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.10"
+aiohttp = ">=3.8.4"
 aiofiles = ">=23.1.0"
 fastapi = ">=0.95.0"
 faster-whisper = ">=0.3.0"
@@ -23,7 +24,6 @@ uvicorn = ">=0.21.1"
 yt-dlp = ">=2023.3.4"
 
 [tool.poetry.group.test.dependencies]
-aiohttp = ">=3.8.4"
 black = ">=23.1.0"
 coverage = {extras = ["toml"], version = ">=7.2.1"}
 darglint = ">=1.8.1"

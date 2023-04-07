@@ -12,15 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Utils module of the Wordcab Transcribe."""
-
 import asyncio
 import math
+import mimetypes
 import re
 import subprocess  # noqa: S404
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
+import aiofiles
+import aiohttp
+from loguru import logger
 from yt_dlp import YoutubeDL
 
 
@@ -125,6 +128,49 @@ async def download_file_from_youtube(url: str, filename: str) -> str:
         ydl.download([url])
 
     return filename + ".wav"
+
+
+async def download_audio_file(
+    url: str, filename: str, url_headers: Optional[Dict[str, str]] = None
+) -> str:
+    """
+    Download an audio file from a URL.
+
+    Args:
+        url (str): URL of the audio file.
+        filename (str): Filename to save the file as.
+        url_headers (Optional[Dict[str, str]]): Headers to send with the request. Defaults to None.
+
+    Raises:
+        Exception: If the file failed to download.
+
+    Returns:
+        str: Path to the downloaded file.
+    """
+    url_headers = url_headers or {}
+
+    logger.info(f"Downloading audio file from {url} to {filename}...")
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=url_headers) as response:
+            if response.status == 200:
+                content_type = response.headers.get("Content-Type")
+                extension = mimetypes.guess_extension(content_type)
+
+                filename = f"{filename}{extension}"
+
+                logger.info(f"New file name: {filename}")
+                async with aiofiles.open(filename, "wb") as f:
+                    while True:
+                        chunk = await response.content.read(1024)
+
+                        if not chunk:
+                            break
+
+                        await f.write(chunk)
+            else:
+                raise Exception(f"Failed to download file. Status: {response.status}")
+
+    return filename
 
 
 def delete_file(filepath: str) -> None:
