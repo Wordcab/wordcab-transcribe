@@ -13,17 +13,53 @@
 # limitations under the License.
 """Models module of the Wordcab Transcribe."""
 
+from typing import Optional
+
 from pydantic import BaseModel
-
-
-class ASRRequest(BaseModel):
-    """Request model for the ASR API."""
-
-    url: str = None
-    num_speakers: int = None
 
 
 class ASRResponse(BaseModel):
     """Response model for the ASR API."""
 
     utterances: list
+
+    class Config:
+        """Pydantic config class."""
+
+        schema_extra = {
+            "example": {
+                "utterances": [
+                    {
+                        "speaker": 0,
+                        "start": 0.0,
+                        "end": 1.0,
+                        "text": "Hello World!",
+                    },
+                    {
+                        "speaker": 0,
+                        "start": 1.0,
+                        "end": 2.0,
+                        "text": "Wordcab is awesome",
+                    },
+                ]
+            }
+        }
+
+
+class DataRequest(BaseModel):
+    """Request object for the audio file endpoint."""
+
+    num_speakers: Optional[int] = 0
+    source_lang: Optional[str] = "en"
+    timestamps: Optional[str] = "seconds"
+
+    class Config:
+        """Pydantic config class."""
+
+        schema_extra = {
+            "example": {
+                "num_speakers": 0,
+                "source_lang": "en",
+                "timestamps": "seconds",
+            }
+        }

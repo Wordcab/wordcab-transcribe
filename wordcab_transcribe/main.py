@@ -25,7 +25,7 @@ from fastapi.responses import HTMLResponse
 from loguru import logger
 
 from wordcab_transcribe.config import settings
-from wordcab_transcribe.models import ASRResponse
+from wordcab_transcribe.models import ASRResponse, DataRequest
 from wordcab_transcribe.service import ASRService
 from wordcab_transcribe.utils import (
     convert_file_to_wav,
@@ -102,34 +102,9 @@ async def health_check():
 async def inference_with_audio(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),  # noqa: B008
-    num_speakers: Optional[int] = 0,
-    source_lang: Optional[str] = "en",
-    timestamps: Optional[str] = "seconds",
+    data: Optional[DataRequest] = None,
 ) -> ASRResponse:
-    """
-    Inference endpoint with audio file.
-
-    Args:
-        background_tasks (BackgroundTasks): Background tasks dependency.
-        file (UploadFile): Audio file.
-        num_speakers (int): Number of speakers to detect; defaults to 0, which
-            attempts to detect the number of speaker.
-        source_lang (str): The language of the source file; defaults to "en".
-        timestamps (str): The format of the transcript timestamps. Options
-            are "seconds", "milliseconds", or "hms," which stands for hours,
-            minutes, seconds. Defaults to "seconds".
-
-    Returns:
-        ASRResponse: Response data as an ASRResponse object.
-
-    Examples:
-        import requests
-        filepath = "sample_1.mp3"
-        with open(file, "rb") as f:
-            files = {"file": (filepath, f)}
-        r = requests.post("url/api/v1/audio", files=files)
-        print(r.json())
-    """
+    """Inference endpoint with audio file."""
     extension = file.filename.split(".")[-1]
     filename = f"audio_{shortuuid.ShortUUID().random(length=32)}.{extension}"
 
@@ -143,8 +118,13 @@ async def inference_with_audio(
     else:
         filepath = filename
 
+    if data is None:
+        data = DataRequest()
+    else:
+        data = DataRequest(**data.dict())
+
     raw_utterances = await asr.process_input(
-        filepath, num_speakers, source_lang, timestamps
+        filepath, data.num_speakers, data.source_lang, data.timestamps
     )
     utterances = [
         {
@@ -171,37 +151,19 @@ async def inference_with_audio(
 async def inference_with_youtube(
     background_tasks: BackgroundTasks,
     url: str,
-    num_speakers: Optional[int] = 0,
-    source_lang: Optional[str] = "en",
-    timestamps: Optional[str] = "seconds",
+    data: Optional[DataRequest] = None,
 ) -> ASRResponse:
-    """
-    Inference endpoint with YouTube url.
-
-    Args:
-        background_tasks (BackgroundTasks): Background tasks dependency.
-        url (str): Youtube url.
-        num_speakers (int): Number of speakers to detect. Defaults to 0, which attempts to detect the number of speaker.
-        source_lang (str): The language of the source file. Defaults to "en".
-        timestamps (str): The format of the transcript timestamps. Options are "seconds", "milliseconds", or "hms,"
-            which stands for hours, minutes, seconds. Defaults to "seconds".
-
-    Returns:
-        ASRResponse: Response data as an ASRResponse object.
-
-    Examples:
-        import requests
-        url = "https://youtu.be/dQw4w9WgXcQ"
-        r = requests.post(f"http://localhost:5001/api/v1/youtube?url={url}")
-        print(r.json())
-    """
-    num_speakers = num_speakers or 0
-
+    """Inference endpoint with YouTube url."""
     filename = f"yt_{shortuuid.ShortUUID().random(length=32)}"
     filepath = await download_file_from_youtube(url, filename)
 
+    if data is None:
+        data = DataRequest()
+    else:
+        data = DataRequest(**data.dict())
+
     raw_utterances = await asr.process_input(
-        filepath, num_speakers, source_lang, timestamps
+        filepath, data.num_speakers, data.source_lang, data.timestamps
     )
     utterances = [
         {
@@ -228,32 +190,9 @@ async def inference_with_youtube(
 async def inference_with_audio_url(
     background_tasks: BackgroundTasks,
     url: str,
-    num_speakers: Optional[int] = 0,
-    source_lang: Optional[str] = "en",
-    timestamps: Optional[str] = "seconds",
+    data: Optional[DataRequest] = None,
 ) -> ASRResponse:
-    """
-    Inference endpoint with audio url.
-
-    Args:
-        background_tasks (BackgroundTasks): Background tasks dependency.
-        url (str): Presigned (ex. AWS or GCP) or other url hosting an audio file.
-        num_speakers (int): Number of speakers to detect. Defaults to 0, which attempts to detect the number of speaker.
-        source_lang (str): The language of the source file. Defaults to "en".
-        timestamps (str): The format of the transcript timestamps. Options are "seconds", "milliseconds", or "hms,"
-            which stands for hours, minutes, seconds. Defaults to "seconds".
-
-    Returns:
-        ASRResponse: Response data as an ASRResponse object.
-
-    Examples:
-        import requests
-        url = "https://mysite.com/sample_audio.mp3"
-        r = requests.post(f"http://localhost:5001/api/v1/audio-url?url={url}")
-        print(r.json())
-    """
-    num_speakers = num_speakers or 0
-
+    """Inference endpoint with audio url."""
     filename = f"audio_url_{shortuuid.ShortUUID().random(length=32)}"
     filepath = await download_audio_file(url, filename)
     extension = filepath.split(".")[-1]
@@ -264,8 +203,13 @@ async def inference_with_audio_url(
     else:
         filepath = filename
 
+    if data is None:
+        data = DataRequest()
+    else:
+        data = DataRequest(**data.dict())
+
     raw_utterances = await asr.process_input(
-        filepath, num_speakers, source_lang, timestamps
+        filepath, data.num_speakers, data.source_lang, data.timestamps
     )
     utterances = [
         {
