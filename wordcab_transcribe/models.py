@@ -54,14 +54,14 @@ class DataRequest(BaseModel):
     timestamps: Optional[str] = "seconds"
 
     @validator("num_speakers")
-    def validate_num_speakers_values(self, value: int) -> int:
+    def validate_num_speakers_values(cls, value: int) -> int:  # noqa: N805, B902
         """Validate the value of the num_speakers field."""
         if value < 0:
             raise ValueError("num_speakers must be a positive integer.")
         return value
 
     @validator("timestamps")
-    def validate_timestamps_values(self, value: str) -> str:
+    def validate_timestamps_values(cls, value: str) -> str:  # noqa: B902, N805
         """Validate the value of the timestamps field."""
         if value not in ["seconds", "hms"]:
             raise ValueError("timestamps must be one of 'seconds' or 'hms'.")
