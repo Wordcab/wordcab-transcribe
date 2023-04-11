@@ -13,18 +13,9 @@
 # limitations under the License.
 """Test the models for requests and responses."""
 
-from wordcab_transcribe.models import ASRRequest, ASRResponse
+import pytest
 
-
-def test_asr_request() -> None:
-    """Test the ASRRequest model."""
-    request = ASRRequest()
-    assert request.url is None
-    assert request.num_speakers is None
-
-    request = ASRRequest(url="http://example.com", num_speakers=2)
-    assert request.url == "http://example.com"
-    assert request.num_speakers == 2
+from wordcab_transcribe.models import ASRResponse, DataRequest
 
 
 def test_asr_response() -> None:
@@ -34,3 +25,34 @@ def test_asr_response() -> None:
 
     response = ASRResponse(utterances=["Hello", "world"])
     assert response.utterances == ["Hello", "world"]
+
+
+def test_data_request_valid() -> None:
+    """Test the DataRequest model with valid data."""
+    data = {
+        "num_speakers": 2,
+        "source_lang": "fr",
+        "timestamps": "hms",
+    }
+    req = DataRequest(**data)
+    assert req.num_speakers == 2
+    assert req.source_lang == "fr"
+    assert req.timestamps == "hms"
+
+
+def test_data_request_default() -> None:
+    """Test the DataRequest model with default values."""
+    req = DataRequest()
+    assert req.num_speakers == 0
+    assert req.source_lang == "en"
+    assert req.timestamps == "seconds"
+
+
+def test_data_request_invalid() -> None:
+    """Test the DataRequest model with invalid data."""
+    with pytest.raises(ValueError, match="num_speakers must be a positive integer."):
+        DataRequest(num_speakers=-1)
+    with pytest.raises(
+        ValueError, match="timestamps must be one of 'seconds' or 'hms'."
+    ):
+        DataRequest(timestamps="invalid")

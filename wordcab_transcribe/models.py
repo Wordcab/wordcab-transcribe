@@ -15,7 +15,7 @@
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
 
 class ASRResponse(BaseModel):
@@ -52,6 +52,20 @@ class DataRequest(BaseModel):
     num_speakers: Optional[int] = 0
     source_lang: Optional[str] = "en"
     timestamps: Optional[str] = "seconds"
+
+    @validator("num_speakers")
+    def validate_num_speakers_values(self, value: int) -> int:
+        """Validate the value of the num_speakers field."""
+        if value < 0:
+            raise ValueError("num_speakers must be a positive integer.")
+        return value
+
+    @validator("timestamps")
+    def validate_timestamps_values(self, value: str) -> str:
+        """Validate the value of the timestamps field."""
+        if value not in ["seconds", "hms"]:
+            raise ValueError("timestamps must be one of 'seconds' or 'hms'.")
+        return value
 
     class Config:
         """Pydantic config class."""
