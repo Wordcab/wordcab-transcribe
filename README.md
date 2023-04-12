@@ -47,51 +47,50 @@ Once the container is running, you can test the API.
 
 The API documentation is available at [http://localhost:5001/docs](http://localhost:5001/docs).
 
-### Using CURL
-
-- Audio file:
-
-```bash
-curl -X 'POST' \
-  'http://localhost:5001/api/v1/audio' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: multipart/form-data' \
-  -F 'file=@/path/to/audio/file.wav'
-```
-
-- YouTube video:
-
-```bash
-curl -X 'POST' \
-  'http://localhost:5001/api/v1/youtube' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "url": "https://youtu.be/dQw4w9WgXcQ"
-}'
-```
-
-### Using Python
-
 - Audio file:
 
 ```python
 import requests
 
-filepath = "/path/to/audio/file.wav"  # or mp3
-files = {"file": open(filepath, "rb")}
-response = requests.post("http://localhost:5001/api/v1/audio", files=files)
+headers = {"accept": "application/json"}
+data = {
+  "num_speakers": 1,  # optional, default is 0
+  "source_lang": "en",  # optional, default is "en"
+  "timestamps": "seconds",  # optional, default is "seconds"
+}
+
+filepath = "tests/sample_1.mp3"  # or any other audio file. Prefer wav files.
+with open(filepath, "rb") as f:
+  files = {"file": f}
+  response = requests.post(
+    "http://localhost:5001/api/v1/audio",
+    headers=headers,
+    files=files,
+    data=data,
+  )
 print(response.json())
 ```
 
 - YouTube video:
 
 ```python
+import json
 import requests
 
-url = "https://youtu.be/dQw4w9WgXcQ"
-data = {"url": url}
-response = requests.post("http://localhost:5001/api/v1/youtube", json=data)
+headers = {"accept": "application/json", "Content-Type": "application/json"}
+params = {"url": "https://youtu.be/JZ696sbfPHs"}
+data = {
+  "num_speakers": 1,  # optional, default is 0
+  "source_lang": "en",  # optional, default is "en"
+  "timestamps": "seconds",  # optional, default is "seconds"
+}
+
+response = requests.post(
+  "http://localhost:5001/api/v1/youtube",
+  headers=headers,
+  params=params,
+  data=json.dumps(data),
+)
 print(response.json())
 ```
 

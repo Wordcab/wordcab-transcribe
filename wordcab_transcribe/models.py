@@ -13,17 +13,67 @@
 # limitations under the License.
 """Models module of the Wordcab Transcribe."""
 
-from pydantic import BaseModel
+from typing import Optional
 
-
-class ASRRequest(BaseModel):
-    """Request model for the ASR API."""
-
-    url: str = None
-    num_speakers: int = None
+from pydantic import BaseModel, validator
 
 
 class ASRResponse(BaseModel):
     """Response model for the ASR API."""
 
     utterances: list
+
+    class Config:
+        """Pydantic config class."""
+
+        schema_extra = {
+            "example": {
+                "utterances": [
+                    {
+                        "speaker": 0,
+                        "start": 0.0,
+                        "end": 1.0,
+                        "text": "Hello World!",
+                    },
+                    {
+                        "speaker": 0,
+                        "start": 1.0,
+                        "end": 2.0,
+                        "text": "Wordcab is awesome",
+                    },
+                ]
+            }
+        }
+
+
+class DataRequest(BaseModel):
+    """Request object for the audio file endpoint."""
+
+    num_speakers: Optional[int] = 0
+    source_lang: Optional[str] = "en"
+    timestamps: Optional[str] = "seconds"
+
+    @validator("num_speakers")
+    def validate_num_speakers_values(cls, value: int) -> int:  # noqa: N805, B902
+        """Validate the value of the num_speakers field."""
+        if value < 0:
+            raise ValueError("num_speakers must be a positive integer.")
+        return value
+
+    @validator("timestamps")
+    def validate_timestamps_values(cls, value: str) -> str:  # noqa: B902, N805
+        """Validate the value of the timestamps field."""
+        if value not in ["seconds", "hms"]:
+            raise ValueError("timestamps must be one of 'seconds' or 'hms'.")
+        return value
+
+    class Config:
+        """Pydantic config class."""
+
+        schema_extra = {
+            "example": {
+                "num_speakers": 0,
+                "source_lang": "en",
+                "timestamps": "seconds",
+            }
+        }

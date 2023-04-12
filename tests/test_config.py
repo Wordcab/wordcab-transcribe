@@ -26,7 +26,7 @@ def test_config() -> None:
     )
     assert Settings().api_prefix == "/api/v1"
     assert Settings().debug is True
-    assert Settings().batch_size == 4
+    assert Settings().batch_size == 1
     assert Settings().max_wait == 0.1
     assert Settings().whisper_model == "large-v2"
     assert Settings().embeddings_model == "speechbrain/spkrec-ecapa-voxceleb"

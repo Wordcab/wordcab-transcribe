@@ -139,7 +139,7 @@ class ASRService:
                         ),
                     )
                     results.append(res)
-                for task, result in zip(file_batch, results, strict=True):
+                for task, result in zip(file_batch, results):  # noqa: B905
                     task["result"] = result
                     task["done_event"].set()
                 del file_batch
