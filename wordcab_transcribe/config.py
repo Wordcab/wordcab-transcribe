@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     whisper_model: str
     embeddings_model: str
     compute_type: str
+    nemo_domain_type: str
 
 
 load_dotenv()
@@ -50,4 +51,5 @@ settings = Settings(
     whisper_model=getenv("WHISPER_MODEL"),
     embeddings_model=getenv("EMBEDDINGS_MODEL"),
     compute_type=getenv("COMPUTE_TYPE"),
+    nemo_domain_type=getenv("NEMO_DOMAIN_TYPE"),
 )
