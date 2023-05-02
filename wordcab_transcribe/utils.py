@@ -19,10 +19,11 @@ import re
 import subprocess  # noqa: S404
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import aiofiles
 import aiohttp
+import yaml
 from loguru import logger
 from yt_dlp import YoutubeDL
 
@@ -271,6 +272,28 @@ def format_segments(
         formatted_segments.append(segment_dict)
 
     return formatted_segments
+
+
+def load_nemo_config(domain_type: str) -> Dict[str, Any]:
+    """
+    Load NeMo config file based on a domain type.
+
+    Args:
+        domain_type (str): The domain type. Can be "general", "meeting" or "telephonic".
+
+    Returns:
+        Dict[str, Any]: The config file as a dict.
+    """
+    cfg_path = (
+        Path(__file__).parent.parent
+        / "config"
+        / "nemo"
+        / f"diar_infer_{domain_type}.yaml"
+    )
+    with open(cfg_path) as f:
+        data = yaml.safe_load(f)
+
+    return data
 
 
 def retrieve_user_platform() -> str:
