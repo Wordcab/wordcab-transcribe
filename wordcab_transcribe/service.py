@@ -21,6 +21,7 @@ import numpy as np
 import torch
 from faster_whisper import WhisperModel
 from loguru import logger
+from nemo.collections.asr.models.msdd_models import NeuralDiarizer
 from pyannote.audio import Audio
 from pyannote.audio.pipelines.speaker_verification import PretrainedSpeakerEmbedding
 from pyannote.core import Segment
@@ -28,7 +29,11 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import silhouette_score
 
 from wordcab_transcribe.config import settings
-from wordcab_transcribe.utils import convert_seconds_to_hms, format_segments
+from wordcab_transcribe.utils import (
+    convert_seconds_to_hms,
+    format_segments,
+    load_nemo_config,
+)
 
 
 class ASRService:
@@ -47,6 +52,9 @@ class ASRService:
         self.embedding_model = PretrainedSpeakerEmbedding(
             self.embeddings_model, device=self.device
         )
+        self.msdd_model = NeuralDiarizer(
+            cfg=load_nemo_config(settings.nemo_domain_type)
+        ).to(self.device)
 
         # Multi requests support
         self.queue = []
@@ -181,6 +189,10 @@ class ASRService:
         )
 
         return diarized_segments
+
+    def diarize_nemo(self, filepath: str, segments: List[dict], duration: float):
+        """Diarize the segments using nemo."""
+        self.msdd_model.diarize()
 
     def diarize(
         self,
