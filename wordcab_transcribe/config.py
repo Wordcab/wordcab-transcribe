@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     embeddings_model: str
     compute_type: str
     nemo_domain_type: str
+    nemo_storage_path: str
 
 
 load_dotenv()
@@ -52,4 +53,6 @@ settings = Settings(
     embeddings_model=getenv("EMBEDDINGS_MODEL"),
     compute_type=getenv("COMPUTE_TYPE"),
     nemo_domain_type=getenv("NEMO_DOMAIN_TYPE"),
+    nemo_storage_path=getenv("NEMO_STORAGE_PATH"),
+    nemo_output_path=getenv("NEMO_OUTPUT_PATH"),
 )
