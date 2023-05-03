@@ -24,8 +24,8 @@ from typing import Any, Dict, List, Optional
 
 import aiofiles
 import aiohttp
-import yaml
 from loguru import logger
+from omegaconf import OmegaConf
 from yt_dlp import YoutubeDL
 
 
@@ -294,9 +294,9 @@ def load_nemo_config(domain_type: str, storage_path: str, output_path: str) -> D
         / f"diar_infer_{domain_type}.yaml"
     )
     with open(cfg_path) as f:
-        cfg = yaml.safe_load(f)
+        cfg = OmegaConf.load(f)
 
-    storage_path = Path(__file__).parent.parent + "/" + storage_path
+    storage_path = Path(__file__).parent.parent / storage_path
     if not storage_path.exists():
         storage_path.mkdir(parents=True, exist_ok=True)
 
@@ -310,12 +310,12 @@ def load_nemo_config(domain_type: str, storage_path: str, output_path: str) -> D
         "uem_filepath": None,
     }
 
-    manifest_path = f"{storage_path}/input_manifest.json"
+    manifest_path = storage_path / "infer_manifest.json"
     with open(manifest_path, "w") as fp:
         json.dump(meta, fp)
         fp.write("\n")
 
-    output_path = Path(__file__).parent.parent + "/" + output_path
+    output_path = Path(__file__).parent.parent / output_path
     if not output_path.exists():
         output_path.mkdir(parents=True, exist_ok=True)
 

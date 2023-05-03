@@ -25,9 +25,9 @@ import torch
 from faster_whisper import WhisperModel
 from loguru import logger
 from nemo.collections.asr.models.msdd_models import NeuralDiarizer
-from pyannote.audio import Audio
-from pyannote.audio.pipelines.speaker_verification import PretrainedSpeakerEmbedding
-from pyannote.core import Segment
+# from pyannote.audio import Audio
+# from pyannote.audio.pipelines.speaker_verification import PretrainedSpeakerEmbedding
+# from pyannote.core import Segment
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import silhouette_score
 
@@ -213,7 +213,7 @@ class ASRService:
         signal, sample_rate = librosa.load(filepath, sr=None)
 
         tmp_save_path = self.nemo_tmp / "mono_file.wav"
-        sf.write(tmp_save_path, signal, sample_rate, "PCM_16")
+        sf.write(str(tmp_save_path), signal, sample_rate, "PCM_16")
 
         self.msdd_model.diarize()
 
@@ -228,172 +228,171 @@ class ASRService:
 
         logger.debug(f"speaker_ts:\n {speaker_ts}")
 
+    # def diarize(
+    #     self,
+    #     filepath: str,
+    #     segments: List[dict],
+    #     duration: float,
+    #     num_speakers: int,
+    #     timestamps: str,
+    # ) -> List[dict]:
+    #     """
+    #     Diarize the segments using pyannote.
 
-    def diarize(
-        self,
-        filepath: str,
-        segments: List[dict],
-        duration: float,
-        num_speakers: int,
-        timestamps: str,
-    ) -> List[dict]:
-        """
-        Diarize the segments using pyannote.
+    #     Args:
+    #         filepath (str): Path to the audio file.
+    #         segments (List[dict]): List of segments to diarize.
+    #         duration (float): Duration of the audio file.
+    #         num_speakers (int): Number of speakers; defaults to 0.
+    #         timestamps (str): Format of timestamps; defaults to "seconds".
 
-        Args:
-            filepath (str): Path to the audio file.
-            segments (List[dict]): List of segments to diarize.
-            duration (float): Duration of the audio file.
-            num_speakers (int): Number of speakers; defaults to 0.
-            timestamps (str): Format of timestamps; defaults to "seconds".
+    #     Returns:
+    #         List[dict]: List of diarized segments with speaker labels.
+    #     """
+    #     embeddings = np.zeros(shape=(len(segments), 192))
 
-        Returns:
-            List[dict]: List of diarized segments with speaker labels.
-        """
-        embeddings = np.zeros(shape=(len(segments), 192))
+    #     for i, segment in enumerate(segments):
+    #         embeddings[i] = self.segment_embedding(filepath, segment, duration)
 
-        for i, segment in enumerate(segments):
-            embeddings[i] = self.segment_embedding(filepath, segment, duration)
+    #     embeddings = np.nan_to_num(embeddings)
 
-        embeddings = np.nan_to_num(embeddings)
+    #     num_speakers = num_speakers or 0
+    #     best_num_speakers = self._get_num_speakers(embeddings, num_speakers)
 
-        num_speakers = num_speakers or 0
-        best_num_speakers = self._get_num_speakers(embeddings, num_speakers)
+    #     identified_segments = self._assign_speaker_label(
+    #         segments, embeddings, best_num_speakers
+    #     )
+    #     joined_segments = self.join_utterances(identified_segments, timestamps)
 
-        identified_segments = self._assign_speaker_label(
-            segments, embeddings, best_num_speakers
-        )
-        joined_segments = self.join_utterances(identified_segments, timestamps)
+    #     return joined_segments
 
-        return joined_segments
+    # def segment_embedding(
+    #     self, filepath: str, segment: dict, duration: float
+    # ) -> np.ndarray:
+    #     """
+    #     Get the embedding of a segment.
 
-    def segment_embedding(
-        self, filepath: str, segment: dict, duration: float
-    ) -> np.ndarray:
-        """
-        Get the embedding of a segment.
+    #     Args:
+    #         filepath (str): Path to the audio file.
+    #         segment (dict): Segment to get the embedding.
+    #         duration (float): Duration of the audio file.
 
-        Args:
-            filepath (str): Path to the audio file.
-            segment (dict): Segment to get the embedding.
-            duration (float): Duration of the audio file.
+    #     Returns:
+    #         np.ndarray: Embedding of the segment.
+    #     """
+    #     start = segment["start"]
+    #     end = min(duration, segment["end"])
 
-        Returns:
-            np.ndarray: Embedding of the segment.
-        """
-        start = segment["start"]
-        end = min(duration, segment["end"])
+    #     clip = Segment(start=start, end=end)
 
-        clip = Segment(start=start, end=end)
+    #     audio = Audio()
+    #     waveform, _ = audio.crop(filepath, clip)
 
-        audio = Audio()
-        waveform, _ = audio.crop(filepath, clip)
+    #     return self.embedding_model(waveform[None])
 
-        return self.embedding_model(waveform[None])
+    # def join_utterances(self, segments: List[dict], timestamps: str) -> List[dict]:
+    #     """
+    #     Join the segments of the same speaker.
 
-    def join_utterances(self, segments: List[dict], timestamps: str) -> List[dict]:
-        """
-        Join the segments of the same speaker.
+    #     Args:
+    #         segments (List[dict]): List of segments.
+    #         timestamps (str): Format of timestamps to use.
 
-        Args:
-            segments (List[dict]): List of segments.
-            timestamps (str): Format of timestamps to use.
+    #     Returns:
+    #         List[dict]: List of joined segments with speaker labels.
+    #     """
+    #     utterance_list = []
+    #     current_utterance = None
+    #     text = ""
 
-        Returns:
-            List[dict]: List of joined segments with speaker labels.
-        """
-        utterance_list = []
-        current_utterance = None
-        text = ""
+    #     for idx, segment in enumerate(segments):
+    #         if idx == 0 or segments[idx - 1]["speaker"] != segment["speaker"]:
+    #             if current_utterance is not None:
+    #                 current_utterance["end"] = segments[idx - 1]["end"]
+    #                 current_utterance["text"] = text.strip()
+    #                 utterance_list.append(current_utterance)
+    #                 text = ""
 
-        for idx, segment in enumerate(segments):
-            if idx == 0 or segments[idx - 1]["speaker"] != segment["speaker"]:
-                if current_utterance is not None:
-                    current_utterance["end"] = segments[idx - 1]["end"]
-                    current_utterance["text"] = text.strip()
-                    utterance_list.append(current_utterance)
-                    text = ""
+    #             current_utterance = {
+    #                 "start": segment["start"],
+    #                 "speaker": segment["speaker"],
+    #             }
 
-                current_utterance = {
-                    "start": segment["start"],
-                    "speaker": segment["speaker"],
-                }
+    #         text += segment["text"] + " "
 
-            text += segment["text"] + " "
+    #     if current_utterance:
+    #         current_utterance["end"] = segments[idx]["end"]
+    #         current_utterance["text"] = text.strip()
+    #         utterance_list.append(current_utterance)
 
-        if current_utterance:
-            current_utterance["end"] = segments[idx]["end"]
-            current_utterance["text"] = text.strip()
-            utterance_list.append(current_utterance)
+    #     for utterance in utterance_list:
+    #         if timestamps == "hms":
+    #             utterance["start"] = convert_seconds_to_hms(utterance["start"])
+    #             utterance["end"] = convert_seconds_to_hms(utterance["end"])
+    #         elif timestamps == "seconds":
+    #             utterance["start"] = float(utterance["start"])
+    #             utterance["end"] = float(utterance["end"])
+    #         elif timestamps == "milliseconds":
+    #             utterance["start"] = float(utterance["start"] * 1000)
+    #             utterance["end"] = float(utterance["end"] * 1000)
 
-        for utterance in utterance_list:
-            if timestamps == "hms":
-                utterance["start"] = convert_seconds_to_hms(utterance["start"])
-                utterance["end"] = convert_seconds_to_hms(utterance["end"])
-            elif timestamps == "seconds":
-                utterance["start"] = float(utterance["start"])
-                utterance["end"] = float(utterance["end"])
-            elif timestamps == "milliseconds":
-                utterance["start"] = float(utterance["start"] * 1000)
-                utterance["end"] = float(utterance["end"] * 1000)
+    #     return utterance_list
 
-        return utterance_list
+    # def _get_num_speakers(self, embeddings: np.ndarray, num_speakers: int) -> int:
+    #     """
+    #     Get the number of speakers in the audio file.
 
-    def _get_num_speakers(self, embeddings: np.ndarray, num_speakers: int) -> int:
-        """
-        Get the number of speakers in the audio file.
+    #     Args:
+    #         embeddings (np.ndarray): Embeddings of the segments.
+    #         num_speakers (int): Number of speakers.
 
-        Args:
-            embeddings (np.ndarray): Embeddings of the segments.
-            num_speakers (int): Number of speakers.
+    #     Returns:
+    #         int: Number of speakers.
+    #     """
+    #     if num_speakers == 0:
+    #         score_num_speakers = {}
+    #         try:
+    #             for i in range(2, 11):
+    #                 clustering = AgglomerativeClustering(i).fit(embeddings)
+    #                 score = silhouette_score(
+    #                     embeddings, clustering.labels_, metric="euclidean"
+    #                 )
+    #                 score_num_speakers[i] = score
 
-        Returns:
-            int: Number of speakers.
-        """
-        if num_speakers == 0:
-            score_num_speakers = {}
-            try:
-                for i in range(2, 11):
-                    clustering = AgglomerativeClustering(i).fit(embeddings)
-                    score = silhouette_score(
-                        embeddings, clustering.labels_, metric="euclidean"
-                    )
-                    score_num_speakers[i] = score
+    #             best_num_speakers = max(
+    #                 score_num_speakers, key=lambda x: score_num_speakers[x]
+    #             )
+    #         except Exception as e:
+    #             logger.warning(
+    #                 f"Error while getting number of speakers: {e}, defaulting to 1"
+    #             )
+    #             best_num_speakers = 1
+    #     else:
+    #         best_num_speakers = num_speakers
 
-                best_num_speakers = max(
-                    score_num_speakers, key=lambda x: score_num_speakers[x]
-                )
-            except Exception as e:
-                logger.warning(
-                    f"Error while getting number of speakers: {e}, defaulting to 1"
-                )
-                best_num_speakers = 1
-        else:
-            best_num_speakers = num_speakers
+    #     return best_num_speakers
 
-        return best_num_speakers
+    # def _assign_speaker_label(
+    #     self, segments: List[dict], embeddings: np.ndarray, best_num_speakers: int
+    # ) -> List[int]:
+    #     """
+    #     Assign a speaker label to each segment.
 
-    def _assign_speaker_label(
-        self, segments: List[dict], embeddings: np.ndarray, best_num_speakers: int
-    ) -> List[int]:
-        """
-        Assign a speaker label to each segment.
+    #     Args:
+    #         segments (List[dict]): List of segments.
+    #         embeddings (np.ndarray): Embeddings of the segments.
+    #         best_num_speakers (int): Number of speakers.
 
-        Args:
-            segments (List[dict]): List of segments.
-            embeddings (np.ndarray): Embeddings of the segments.
-            best_num_speakers (int): Number of speakers.
+    #     Returns:
+    #         List[int]: List of segments with speaker labels.
+    #     """
+    #     if best_num_speakers == 1:
+    #         for i in range(len(segments)):
+    #             segments[i]["speaker"] = 1
+    #     else:
+    #         clustering = AgglomerativeClustering(best_num_speakers).fit(embeddings)
+    #         labels = clustering.labels_
+    #         for i in range(len(segments)):
+    #             segments[i]["speaker"] = labels[i] + 1
 
-        Returns:
-            List[int]: List of segments with speaker labels.
-        """
-        if best_num_speakers == 1:
-            for i in range(len(segments)):
-                segments[i]["speaker"] = 1
-        else:
-            clustering = AgglomerativeClustering(best_num_speakers).fit(embeddings)
-            labels = clustering.labels_
-            for i in range(len(segments)):
-                segments[i]["speaker"] = labels[i] + 1
-
-        return segments
+    #     return segments

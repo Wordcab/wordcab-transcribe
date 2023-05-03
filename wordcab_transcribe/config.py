@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     compute_type: str
     nemo_domain_type: str
     nemo_storage_path: str
+    nemo_output_path: str
 
 
 load_dotenv()
