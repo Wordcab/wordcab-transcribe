@@ -15,9 +15,12 @@
 
 import asyncio
 import functools
+from pathlib import Path
 from typing import List
 
+import librosa
 import numpy as np
+import soundfile as sf
 import torch
 from faster_whisper import WhisperModel
 from loguru import logger
@@ -49,12 +52,21 @@ class ASRService:
         self.model = WhisperModel(
             self.whisper_model, device=self.device, compute_type=self.compute_type
         )
-        self.embedding_model = PretrainedSpeakerEmbedding(
-            self.embeddings_model, device=self.device
-        )
+        # self.embedding_model = PretrainedSpeakerEmbedding(
+        #     self.embeddings_model, device=self.device
+        # )
         self.msdd_model = NeuralDiarizer(
-            cfg=load_nemo_config(settings.nemo_domain_type)
+            cfg=load_nemo_config(
+                domain_type=settings.nemo_domain_type,
+                storage_path=settings.nemo_storage_path,
+                output_path=settings.nemo_output_path,
+            )
         ).to(self.device)
+
+        # NeMo temp outputs
+        self.nemo_tmp = Path.cwd() / "temp_outputs"
+        if not self.nemo_tmp.exists():
+            self.nemo_tmp.mkdir(parents=True, exist_ok=True)
 
         # Multi requests support
         self.queue = []
@@ -184,15 +196,38 @@ class ASRService:
         segments = format_segments(list(segments))
 
         duration = segments[-1]["end"]
-        diarized_segments = self.diarize(
-            filepath, segments, duration, num_speakers, timestamps
-        )
+        # diarized_segments = self.diarize(
+        #     filepath, segments, duration, num_speakers, timestamps
+        # )
+        diarized_segments = self.diarize_nemo(filepath)
 
         return diarized_segments
 
-    def diarize_nemo(self, filepath: str, segments: List[dict], duration: float):
-        """Diarize the segments using nemo."""
+    def diarize_nemo(self, filepath: str):
+        """
+        Diarize the segments using nemo.
+    
+        Args:
+            filepath (str): Path to the audio file.
+        """
+        signal, sample_rate = librosa.load(filepath, sr=None)
+
+        tmp_save_path = self.nemo_tmp / "mono_file.wav"
+        sf.write(tmp_save_path, signal, sample_rate, "PCM_16")
+
         self.msdd_model.diarize()
+
+        speaker_ts = []
+        with open(f"{settings.nemo_output_path}/pred_rttms/mono_file.rttm", "r") as f:
+            lines = f.readlines()
+            for line in lines:
+                line_list = line.split(" ")
+                s = int(float(line_list[5]) * 1000)
+                e = s + int(float(line_list[8]) * 1000)
+                speaker_ts.append([s, e, int(line_list[11].split("_")[-1])])
+
+        logger.debug(f"speaker_ts:\n {speaker_ts}")
+
 
     def diarize(
         self,

@@ -13,6 +13,7 @@
 # limitations under the License.
 """Utils module of the Wordcab Transcribe."""
 import asyncio
+import json
 import math
 import mimetypes
 import re
@@ -274,12 +275,14 @@ def format_segments(
     return formatted_segments
 
 
-def load_nemo_config(domain_type: str) -> Dict[str, Any]:
+def load_nemo_config(domain_type: str, storage_path: str, output_path: str) -> Dict[str, Any]:
     """
     Load NeMo config file based on a domain type.
 
     Args:
         domain_type (str): The domain type. Can be "general", "meeting" or "telephonic".
+        storage_path (str): The path to the NeMo storage directory.
+        output_path (str): The path to the NeMo output directory.
 
     Returns:
         Dict[str, Any]: The config file as a dict.
@@ -291,9 +294,35 @@ def load_nemo_config(domain_type: str) -> Dict[str, Any]:
         / f"diar_infer_{domain_type}.yaml"
     )
     with open(cfg_path) as f:
-        data = yaml.safe_load(f)
+        cfg = yaml.safe_load(f)
 
-    return data
+    storage_path = Path(__file__).parent.parent + "/" + storage_path
+    if not storage_path.exists():
+        storage_path.mkdir(parents=True, exist_ok=True)
+
+    meta = {
+        "audio_filepath": "mono_file.wav",
+        "offset": 0,
+        "duration": None,
+        "label": "infer",
+        "text": "-",
+        "rttm_filepath": None,
+        "uem_filepath": None,
+    }
+
+    manifest_path = f"{storage_path}/input_manifest.json"
+    with open(manifest_path, "w") as fp:
+        json.dump(meta, fp)
+        fp.write("\n")
+
+    output_path = Path(__file__).parent.parent + "/" + output_path
+    if not output_path.exists():
+        output_path.mkdir(parents=True, exist_ok=True)
+
+    cfg.diarizer.manifest_filepath = manifest_path
+    cfg.diarizer.out_dir = output_path
+
+    return cfg
 
 
 def retrieve_user_platform() -> str:
