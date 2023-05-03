@@ -15,17 +15,18 @@
 """Main API module of the Wordcab Transcribe."""
 
 import asyncio
+import json
 from typing import Optional
 
 import aiofiles
 import shortuuid
-from fastapi import BackgroundTasks, FastAPI, File, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, UploadFile, WebSocket
 from fastapi import status as http_status
 from fastapi.responses import HTMLResponse
 from loguru import logger
 
 from wordcab_transcribe.config import settings
-from wordcab_transcribe.models import ASRResponse, DataRequest
+from wordcab_transcribe.models import ASRResponse, DataRequest, LiveDataRequest
 from wordcab_transcribe.service import ASRService
 from wordcab_transcribe.utils import (
     convert_file_to_wav,
@@ -225,3 +226,30 @@ async def inference_with_audio_url(
     background_tasks.add_task(delete_file, filepath=filepath)
 
     return ASRResponse(utterances=utterances)
+
+
+@app.websocket(f"{settings.api_prefix}/live")
+async def websocket_transcription(websocket: WebSocket):
+    """Websocket endpoint for live transcription."""
+    await websocket.accept()
+
+    try:
+        while True:
+            audio_data_json = await websocket.receive_text()
+            audio_data = LiveDataRequest(**json.loads(audio_data_json))
+            source_lang = audio_data.source_lang
+            if audio_data.audio_bytes:
+                result = await asr.process_input(
+                    filepath="",
+                    num_speakers=1,
+                    source_lang=source_lang,
+                    timestamps="seconds",
+                    live=True,
+                    audio_bytes=audio_data.audio_bytes,
+                )
+                print(f"YO: {result}")
+                await websocket.send_json(result)
+
+    except Exception as e:
+        print(f"Error: {e}")
+        await websocket.close()

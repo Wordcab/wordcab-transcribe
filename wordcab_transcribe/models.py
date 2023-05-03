@@ -77,3 +77,19 @@ class DataRequest(BaseModel):
                 "timestamps": "seconds",
             }
         }
+
+
+class LiveDataRequest(BaseModel):
+    """Request object for the audio file endpoint."""
+
+    source_lang: Optional[str] = "en"
+    audio_bytes: Optional[bytes] = None
+
+    class Config:
+        """Pydantic config class."""
+
+        schema_extra = {
+            "example": {
+                "source_lang": "en",
+            }
+        }

@@ -244,6 +244,7 @@ def format_segments(
     formatted_segments = []
 
     for segment in segments:
+        print(segment)
         segment_dict = {}
 
         if use_dict:

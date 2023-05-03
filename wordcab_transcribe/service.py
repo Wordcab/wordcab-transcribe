@@ -15,6 +15,7 @@
 
 import asyncio
 import functools
+from base64 import b64decode
 from typing import List
 
 import numpy as np
@@ -71,7 +72,13 @@ class ASRService:
             )
 
     async def process_input(
-        self, filepath: str, num_speakers: int, source_lang: str, timestamps: str
+        self,
+        filepath: str,
+        num_speakers: int,
+        source_lang: str,
+        timestamps: str,
+        live: bool,
+        audio_bytes: bytes,
     ) -> List[dict]:
         """
         Process the input request and return the result.
@@ -81,6 +88,8 @@ class ASRService:
             num_speakers (int): Number of speakers to detect.
             source_lang (str): Source language of the audio file.
             timestamps (str): Timestamps unit to use.
+            live (bool): Whether to use live transcription mode or not.
+            audio_bytes (bytes): Audio bytes for live transcription.
 
         Returns:
             List[dict]: List of speaker segments.
@@ -91,6 +100,8 @@ class ASRService:
             "num_speakers": num_speakers,
             "source_lang": source_lang,
             "timestamps": timestamps,
+            "live": live,
+            "audio_bytes": audio_bytes,
             "time": asyncio.get_event_loop().time(),
         }
         async with self.queue_lock:
@@ -136,6 +147,8 @@ class ASRService:
                             task["num_speakers"],
                             task["source_lang"],
                             task["timestamps"],
+                            task["live"],
+                            task["audio_bytes"],
                         ),
                     )
                     results.append(res)
@@ -157,6 +170,8 @@ class ASRService:
         num_speakers: int,
         source_lang: str,
         timestamps: str,
+        live: bool,
+        audio_bytes: bytes,
     ) -> List[dict]:
         """
         Inference method to process the audio file.
@@ -166,14 +181,27 @@ class ASRService:
             num_speakers (int): Number of speakers to detect.
             source_lang (str): Source language of the audio file.
             timestamps (str): Timestamps unit to use.
+            live (bool): Whether to use live transcription mode or not.
+            audio_bytes (bytes): Audio bytes for live transcription.
 
         Returns:
             List[dict]: List of diarized segments.
         """
-        segments, _ = self.model.transcribe(
-            filepath, language=source_lang, beam_size=5, word_timestamps=True
-        )
-        segments = format_segments(list(segments))
+        if live:
+            audio_bytes = b64decode(audio_bytes)
+            audio_array = np.frombuffer(audio_bytes, dtype=np.float32)
+            segments, _ = self.model.transcribe(
+                audio=audio_array.flatten(),
+                language=source_lang,
+                beam_size=1,
+                word_timestamps=True,
+            )
+            return format_segments(list(segments))
+        else:
+            segments, _ = self.model.transcribe(
+                filepath, language=source_lang, beam_size=5, word_timestamps=True
+            )
+            segments = format_segments(list(segments))
 
         duration = segments[-1]["end"]
         diarized_segments = self.diarize(
