@@ -231,7 +231,7 @@ def format_segments(
     segments: list,
     use_dict: Optional[bool] = False,
     include_words: Optional[bool] = False,
-) -> list:
+) -> List[dict]:
     """
     Format the segments to a list of dicts with start, end and text keys.
 
@@ -275,6 +275,14 @@ def format_segments(
     return formatted_segments
 
 
+def get_segment_timestamp_anchor(start: float, end: float, option: str = "start"):
+    if option == "end":
+        return end
+    elif option == "mid":
+        return (start + end) / 2
+    return start
+
+
 def load_nemo_config(domain_type: str, storage_path: str, output_path: str) -> Dict[str, Any]:
     """
     Load NeMo config file based on a domain type.
@@ -301,7 +309,7 @@ def load_nemo_config(domain_type: str, storage_path: str, output_path: str) -> D
         storage_path.mkdir(parents=True, exist_ok=True)
 
     meta = {
-        "audio_filepath": "mono_file.wav",
+        "audio_filepath": "/app/temp_outputs/mono_file.wav",
         "offset": 0,
         "duration": None,
         "label": "infer",
@@ -319,8 +327,9 @@ def load_nemo_config(domain_type: str, storage_path: str, output_path: str) -> D
     if not output_path.exists():
         output_path.mkdir(parents=True, exist_ok=True)
 
-    cfg.diarizer.manifest_filepath = manifest_path
-    cfg.diarizer.out_dir = output_path
+    cfg.num_workers = 0
+    cfg.diarizer.manifest_filepath = str(manifest_path)
+    cfg.diarizer.out_dir = str(output_path)
 
     return cfg
 

@@ -14,27 +14,21 @@
 """Service module to handle AI model interactions."""
 
 import asyncio
-import functools
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import List
 
 import librosa
-import numpy as np
 import soundfile as sf
 import torch
 from faster_whisper import WhisperModel
 from loguru import logger
 from nemo.collections.asr.models.msdd_models import NeuralDiarizer
-# from pyannote.audio import Audio
-# from pyannote.audio.pipelines.speaker_verification import PretrainedSpeakerEmbedding
-# from pyannote.core import Segment
-from sklearn.cluster import AgglomerativeClustering
-from sklearn.metrics import silhouette_score
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.utils import (
-    convert_seconds_to_hms,
     format_segments,
+    get_segment_timestamp_anchor,
     load_nemo_config,
 )
 
@@ -49,13 +43,14 @@ class ASRService:
         self.compute_type = settings.compute_type
         self.embeddings_model = settings.embeddings_model
 
-        self.model = WhisperModel(
+        self.nemo_tmp = Path.cwd() / "temp_outputs"
+        if not self.nemo_tmp.exists():
+            self.nemo_tmp.mkdir(parents=True, exist_ok=True)
+
+        self.model_whisper = WhisperModel(
             self.whisper_model, device=self.device, compute_type=self.compute_type
         )
-        # self.embedding_model = PretrainedSpeakerEmbedding(
-        #     self.embeddings_model, device=self.device
-        # )
-        self.msdd_model = NeuralDiarizer(
+        self.model_msdd = NeuralDiarizer(
             cfg=load_nemo_config(
                 domain_type=settings.nemo_domain_type,
                 storage_path=settings.nemo_storage_path,
@@ -63,17 +58,14 @@ class ASRService:
             )
         ).to(self.device)
 
-        # NeMo temp outputs
-        self.nemo_tmp = Path.cwd() / "temp_outputs"
-        if not self.nemo_tmp.exists():
-            self.nemo_tmp.mkdir(parents=True, exist_ok=True)
+        self.thread_executor = ThreadPoolExecutor(max_workers=4)
 
         # Multi requests support
         self.queue = []
-        self.queue_lock = None
+        self.queue_lock = asyncio.Lock()
         self.needs_processing = None
         self.needs_processing_timer = None
-
+        
         self.max_batch_size = (
             settings.batch_size
         )  # Max number of requests to process at once
@@ -105,25 +97,55 @@ class ASRService:
         Returns:
             List[dict]: List of speaker segments.
         """
-        one_task = {
-            "done_event": asyncio.Event(),
+        task = {
             "input": filepath,
             "num_speakers": num_speakers,
             "source_lang": source_lang,
             "timestamps": timestamps,
+            "done_event": asyncio.Event(),
             "time": asyncio.get_event_loop().time(),
         }
+
         async with self.queue_lock:
-            self.queue.append(one_task)
+            self.queue.append(task)
             self.schedule_processing_if_needed()
 
-        await one_task["done_event"].wait()
+        await task["done_event"].wait()
 
-        return one_task["result"]
+        return task["result"]
+
+    def inference_with_whisper(self, filepath: str, source_lang: str) -> List[dict]:
+        """Run inference with whisper model."""
+        segments, _ = self.model_whisper.transcribe(
+            filepath, language=source_lang, beam_size=5, word_timestamps=True
+        )
+        segments = format_segments(list(segments))
+
+        return segments
+
+    def inference_with_msdd(self, filepath: str) -> List[dict]:
+        """Run inference with msdd model."""
+        signal, sample_rate = librosa.load(filepath, sr=None)
+
+        tmp_save_path = self.nemo_tmp / "mono_file.wav"
+
+        sf.write(str(tmp_save_path), signal, sample_rate, "PCM_24")
+
+        self.model_msdd.diarize()
+
+        speaker_ts = []
+        with open(f"{settings.nemo_output_path}/pred_rttms/mono_file.rttm", "r") as f:
+            lines = f.readlines()
+            for line in lines:
+                line_list = line.split(" ")
+                s = int(float(line_list[5]) * 1000)
+                e = s + int(float(line_list[8]) * 1000)
+                speaker_ts.append([s, e, int(line_list[11].split("_")[-1])])
+
+        return speaker_ts
 
     async def runner(self) -> None:
-        """Process the input requests in the queue."""
-        self.queue_lock = asyncio.Lock()
+        """Runner method to process the queue."""
         self.needs_processing = asyncio.Event()
         while True:
             await self.needs_processing.wait()
@@ -146,24 +168,16 @@ class ASRService:
                 self.schedule_processing_if_needed()
 
             try:
-                results = []
-                for task in file_batch:
-                    res = await asyncio.get_event_loop().run_in_executor(
-                        None,
-                        functools.partial(
-                            self.inference,
-                            task["input"],
-                            task["num_speakers"],
-                            task["source_lang"],
-                            task["timestamps"],
-                        ),
-                    )
-                    results.append(res)
-                for task, result in zip(file_batch, results):  # noqa: B905
+                results = await asyncio.get_event_loop().run_in_executor(
+                    self.thread_executor, self.process_batch, file_batch
+                )
+
+                for task, result in zip(file_batch, results):
                     task["result"] = result
                     task["done_event"].set()
-                del file_batch
+
                 del results
+                del file_batch
 
             except Exception as e:
                 logger.error(f"Error processing batch: {e}")
@@ -171,228 +185,125 @@ class ASRService:
                     task["result"] = e
                     task["done_event"].set()
 
-    def inference(
-        self,
-        filepath: str,
-        num_speakers: int,
-        source_lang: str,
-        timestamps: str,
-    ) -> List[dict]:
+    def process_batch(self, file_batch: List[dict]) -> List[dict]:
         """
-        Inference method to process the audio file.
+        Process a batch of requests.
 
         Args:
-            filepath (str): Path to the audio file.
-            num_speakers (int): Number of speakers to detect.
-            source_lang (str): Source language of the audio file.
-            timestamps (str): Timestamps unit to use.
+            file_batch (List[dict]): List of requests.
 
         Returns:
-            List[dict]: List of diarized segments.
+            List[dict]: List of results.
         """
-        segments, _ = self.model.transcribe(
-            filepath, language=source_lang, beam_size=5, word_timestamps=True
-        )
-        segments = format_segments(list(segments))
+        results = []
+        for task in file_batch:
+            filepath = task["input"]
+            source_lang = task["source_lang"]
+            # num_speakers = task["num_speakers"]
+            # timestamps = task["timestamps"]
 
-        duration = segments[-1]["end"]
-        # diarized_segments = self.diarize(
-        #     filepath, segments, duration, num_speakers, timestamps
-        # )
-        diarized_segments = self.diarize_nemo(filepath)
+            formatted_segments = self.inference_with_whisper(filepath, source_lang)
+            speaker_timestamps = self.inference_with_msdd(filepath)
 
-        return diarized_segments
+            segments_with_speaker_mapping = self.segments_speaker_mapping(
+                formatted_segments, speaker_timestamps
+            )
+            logger.debug(f"\n\nsegments_with_speaker_mapping: {segments_with_speaker_mapping}")
+            utterances = self.utterances_speaker_mapping(
+                segments_with_speaker_mapping, speaker_timestamps
+            )
+            logger.debug(f"\n\nutterances: {utterances}\n\n")
+            
+            results.append(utterances)
 
-    def diarize_nemo(self, filepath: str):
+        return results
+
+    def segments_speaker_mapping(
+        self, transcript_segments: List[dict], speaker_timestamps: List[str], anchor_option: str = "start"
+    ) -> List[dict]:
         """
-        Diarize the segments using nemo.
-    
+        Map each transcript segment to its corresponding speaker.
+
         Args:
-            filepath (str): Path to the audio file.
+            transcript_segments (List[dict]): List of transcript segments.
+            speaker_timestamps (List[str]): List of speaker timestamps.
+            anchor_option (str): Anchor option to use.
+
+        Returns:
+            List[dict]: List of transcript segments with speaker mapping.
         """
-        signal, sample_rate = librosa.load(filepath, sr=None)
+        _, end, speaker = speaker_timestamps[0]
+        segment_position, turn_idx = 0, 0
+        segment_speaker_mapping = []
 
-        tmp_save_path = self.nemo_tmp / "mono_file.wav"
-        sf.write(str(tmp_save_path), signal, sample_rate, "PCM_16")
+        for segment in transcript_segments:
+            segment_start, segment_end, segment_text = (
+                int(segment["start"] * 1000),
+                int(segment["end"] * 1000),
+                segment["text"],
+            )
 
-        self.msdd_model.diarize()
+            segment_position = get_segment_timestamp_anchor(
+                segment_start, segment_end, anchor_option
+            )
 
-        speaker_ts = []
-        with open(f"{settings.nemo_output_path}/pred_rttms/mono_file.rttm", "r") as f:
-            lines = f.readlines()
-            for line in lines:
-                line_list = line.split(" ")
-                s = int(float(line_list[5]) * 1000)
-                e = s + int(float(line_list[8]) * 1000)
-                speaker_ts.append([s, e, int(line_list[11].split("_")[-1])])
+            while segment_position > float(end):
+                turn_idx += 1
+                turn_idx = min(turn_idx, len(speaker_timestamps) - 1)
+                _, end, speaker = speaker_timestamps[turn_idx]
+                if turn_idx == len(speaker_timestamps) - 1:
+                    end = get_segment_timestamp_anchor(
+                        segment_start, segment_end, option="end"
+                    )
+                    break
 
-        logger.debug(f"speaker_ts:\n {speaker_ts}")
+            segment_speaker_mapping.append(
+                {
+                    "start": segment_start,
+                    "end": segment_end,
+                    "text": segment_text,
+                    "speaker": speaker,
+                }
+            )
 
-    # def diarize(
-    #     self,
-    #     filepath: str,
-    #     segments: List[dict],
-    #     duration: float,
-    #     num_speakers: int,
-    #     timestamps: str,
-    # ) -> List[dict]:
-    #     """
-    #     Diarize the segments using pyannote.
+        return segment_speaker_mapping
 
-    #     Args:
-    #         filepath (str): Path to the audio file.
-    #         segments (List[dict]): List of segments to diarize.
-    #         duration (float): Duration of the audio file.
-    #         num_speakers (int): Number of speakers; defaults to 0.
-    #         timestamps (str): Format of timestamps; defaults to "seconds".
+    def utterances_speaker_mapping(
+        self, transcript_segments: List[dict], speaker_timestamps: List[dict]
+    ) -> List[dict]:
+        """
+        Map utterances of the same speaker together.
 
-    #     Returns:
-    #         List[dict]: List of diarized segments with speaker labels.
-    #     """
-    #     embeddings = np.zeros(shape=(len(segments), 192))
+        Args:
+            transcript_segments (List[dict]): List of transcript segments.
+            speaker_timestamps (List[dict]): List of speaker timestamps.
 
-    #     for i, segment in enumerate(segments):
-    #         embeddings[i] = self.segment_embedding(filepath, segment, duration)
+        Returns:
+            List[dict]: List of sentences with speaker mapping.
+        """
+        start_t0, end_t0, speaker_t0 = speaker_timestamps[0]
+        previous_speaker = speaker_t0
 
-    #     embeddings = np.nan_to_num(embeddings)
+        sentences = []
+        current_sentence = {
+            "speaker": speaker_t0, "start": start_t0, "end": end_t0, "text": ""
+        }
 
-    #     num_speakers = num_speakers or 0
-    #     best_num_speakers = self._get_num_speakers(embeddings, num_speakers)
+        for segment in transcript_segments:
+            text_segment, speaker = segment["text"], segment["speaker"]
+            start_t, end_t = segment["start"], segment["end"]
 
-    #     identified_segments = self._assign_speaker_label(
-    #         segments, embeddings, best_num_speakers
-    #     )
-    #     joined_segments = self.join_utterances(identified_segments, timestamps)
+            if speaker != previous_speaker:
+                sentences.append(current_sentence)
+                current_sentence = {
+                    "speaker": speaker, "start": start_t, "end": end_t, "text": "",
+                }
+            else:
+                current_sentence["end"] = end_t
 
-    #     return joined_segments
+            current_sentence["text"] += text_segment + " "
+            previous_speaker = speaker
 
-    # def segment_embedding(
-    #     self, filepath: str, segment: dict, duration: float
-    # ) -> np.ndarray:
-    #     """
-    #     Get the embedding of a segment.
+        sentences.append(current_sentence)
 
-    #     Args:
-    #         filepath (str): Path to the audio file.
-    #         segment (dict): Segment to get the embedding.
-    #         duration (float): Duration of the audio file.
-
-    #     Returns:
-    #         np.ndarray: Embedding of the segment.
-    #     """
-    #     start = segment["start"]
-    #     end = min(duration, segment["end"])
-
-    #     clip = Segment(start=start, end=end)
-
-    #     audio = Audio()
-    #     waveform, _ = audio.crop(filepath, clip)
-
-    #     return self.embedding_model(waveform[None])
-
-    # def join_utterances(self, segments: List[dict], timestamps: str) -> List[dict]:
-    #     """
-    #     Join the segments of the same speaker.
-
-    #     Args:
-    #         segments (List[dict]): List of segments.
-    #         timestamps (str): Format of timestamps to use.
-
-    #     Returns:
-    #         List[dict]: List of joined segments with speaker labels.
-    #     """
-    #     utterance_list = []
-    #     current_utterance = None
-    #     text = ""
-
-    #     for idx, segment in enumerate(segments):
-    #         if idx == 0 or segments[idx - 1]["speaker"] != segment["speaker"]:
-    #             if current_utterance is not None:
-    #                 current_utterance["end"] = segments[idx - 1]["end"]
-    #                 current_utterance["text"] = text.strip()
-    #                 utterance_list.append(current_utterance)
-    #                 text = ""
-
-    #             current_utterance = {
-    #                 "start": segment["start"],
-    #                 "speaker": segment["speaker"],
-    #             }
-
-    #         text += segment["text"] + " "
-
-    #     if current_utterance:
-    #         current_utterance["end"] = segments[idx]["end"]
-    #         current_utterance["text"] = text.strip()
-    #         utterance_list.append(current_utterance)
-
-    #     for utterance in utterance_list:
-    #         if timestamps == "hms":
-    #             utterance["start"] = convert_seconds_to_hms(utterance["start"])
-    #             utterance["end"] = convert_seconds_to_hms(utterance["end"])
-    #         elif timestamps == "seconds":
-    #             utterance["start"] = float(utterance["start"])
-    #             utterance["end"] = float(utterance["end"])
-    #         elif timestamps == "milliseconds":
-    #             utterance["start"] = float(utterance["start"] * 1000)
-    #             utterance["end"] = float(utterance["end"] * 1000)
-
-    #     return utterance_list
-
-    # def _get_num_speakers(self, embeddings: np.ndarray, num_speakers: int) -> int:
-    #     """
-    #     Get the number of speakers in the audio file.
-
-    #     Args:
-    #         embeddings (np.ndarray): Embeddings of the segments.
-    #         num_speakers (int): Number of speakers.
-
-    #     Returns:
-    #         int: Number of speakers.
-    #     """
-    #     if num_speakers == 0:
-    #         score_num_speakers = {}
-    #         try:
-    #             for i in range(2, 11):
-    #                 clustering = AgglomerativeClustering(i).fit(embeddings)
-    #                 score = silhouette_score(
-    #                     embeddings, clustering.labels_, metric="euclidean"
-    #                 )
-    #                 score_num_speakers[i] = score
-
-    #             best_num_speakers = max(
-    #                 score_num_speakers, key=lambda x: score_num_speakers[x]
-    #             )
-    #         except Exception as e:
-    #             logger.warning(
-    #                 f"Error while getting number of speakers: {e}, defaulting to 1"
-    #             )
-    #             best_num_speakers = 1
-    #     else:
-    #         best_num_speakers = num_speakers
-
-    #     return best_num_speakers
-
-    # def _assign_speaker_label(
-    #     self, segments: List[dict], embeddings: np.ndarray, best_num_speakers: int
-    # ) -> List[int]:
-    #     """
-    #     Assign a speaker label to each segment.
-
-    #     Args:
-    #         segments (List[dict]): List of segments.
-    #         embeddings (np.ndarray): Embeddings of the segments.
-    #         best_num_speakers (int): Number of speakers.
-
-    #     Returns:
-    #         List[int]: List of segments with speaker labels.
-    #     """
-    #     if best_num_speakers == 1:
-    #         for i in range(len(segments)):
-    #             segments[i]["speaker"] = 1
-    #     else:
-    #         clustering = AgglomerativeClustering(best_num_speakers).fit(embeddings)
-    #         labels = clustering.labels_
-    #         for i in range(len(segments)):
-    #             segments[i]["speaker"] = labels[i] + 1
-
-    #     return segments
+        return sentences
