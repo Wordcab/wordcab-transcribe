@@ -65,7 +65,7 @@ class ASRService:
         self.queue_lock = asyncio.Lock()
         self.needs_processing = None
         self.needs_processing_timer = None
-        
+
         self.max_batch_size = (
             settings.batch_size
         )  # Max number of requests to process at once
@@ -134,7 +134,7 @@ class ASRService:
         self.model_msdd.diarize()
 
         speaker_ts = []
-        with open(f"{settings.nemo_output_path}/pred_rttms/mono_file.rttm", "r") as f:
+        with open(f"{settings.nemo_output_path}/pred_rttms/mono_file.rttm") as f:
             lines = f.readlines()
             for line in lines:
                 line_list = line.split(" ")
@@ -172,7 +172,7 @@ class ASRService:
                     self.thread_executor, self.process_batch, file_batch
                 )
 
-                for task, result in zip(file_batch, results):
+                for task, result in zip(file_batch, results):  # noqa B905
                     task["result"] = result
                     task["done_event"].set()
 
@@ -212,13 +212,16 @@ class ASRService:
             utterances = self.utterances_speaker_mapping(
                 segments_with_speaker_mapping, speaker_timestamps
             )
-            
+
             results.append(utterances)
 
         return results
 
     def segments_speaker_mapping(
-        self, transcript_segments: List[dict], speaker_timestamps: List[str], anchor_option: str = "start"
+        self,
+        transcript_segments: List[dict],
+        speaker_timestamps: List[str],
+        anchor_option: str = "start",
     ) -> List[dict]:
         """
         Map each transcript segment to its corresponding speaker.
@@ -285,7 +288,10 @@ class ASRService:
 
         sentences = []
         current_sentence = {
-            "speaker": speaker_t0, "start": start_t0, "end": end_t0, "text": ""
+            "speaker": speaker_t0,
+            "start": start_t0,
+            "end": end_t0,
+            "text": "",
         }
 
         for segment in transcript_segments:
@@ -295,7 +301,10 @@ class ASRService:
             if speaker != previous_speaker:
                 sentences.append(current_sentence)
                 current_sentence = {
-                    "speaker": speaker, "start": start_t, "end": end_t, "text": "",
+                    "speaker": speaker,
+                    "start": start_t,
+                    "end": end_t,
+                    "text": "",
                 }
             else:
                 current_sentence["end"] = end_t

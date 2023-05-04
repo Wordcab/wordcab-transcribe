@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
     libsndfile1 \
     software-properties-common \
     python3-pip
-    
+
 COPY requirements.txt /requirements.txt
 RUN python3 -m pip install -r requirements.txt
 RUN python3 -m pip install --upgrade torch==2.0.0+cu118 torchaudio==2.0.1 --extra-index-url https://download.pytorch.org/whl/cu118

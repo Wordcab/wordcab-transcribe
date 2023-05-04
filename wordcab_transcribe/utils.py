@@ -276,6 +276,7 @@ def format_segments(
 
 
 def get_segment_timestamp_anchor(start: float, end: float, option: str = "start"):
+    """Get the timestamp anchor for a segment."""
     if option == "end":
         return end
     elif option == "mid":
@@ -283,7 +284,9 @@ def get_segment_timestamp_anchor(start: float, end: float, option: str = "start"
     return start
 
 
-def load_nemo_config(domain_type: str, storage_path: str, output_path: str) -> Dict[str, Any]:
+def load_nemo_config(
+    domain_type: str, storage_path: str, output_path: str
+) -> Dict[str, Any]:
     """
     Load NeMo config file based on a domain type.
 
