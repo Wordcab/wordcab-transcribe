@@ -208,11 +208,10 @@ class ASRService:
             segments_with_speaker_mapping = self.segments_speaker_mapping(
                 formatted_segments, speaker_timestamps
             )
-            logger.debug(f"\n\nsegments_with_speaker_mapping: {segments_with_speaker_mapping}")
+
             utterances = self.utterances_speaker_mapping(
                 segments_with_speaker_mapping, speaker_timestamps
             )
-            logger.debug(f"\n\nutterances: {utterances}\n\n")
             
             results.append(utterances)
 
