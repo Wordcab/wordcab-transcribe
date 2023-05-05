@@ -83,7 +83,10 @@ class ASRService:
             )
 
     async def process_input(
-        self, filepath: str, num_speakers: int, source_lang: str, timestamps: str
+        self,
+        filepath: str,
+        num_speakers: int,
+        source_lang: str,
     ) -> List[dict]:
         """
         Process the input request and return the result.
@@ -92,7 +95,6 @@ class ASRService:
             filepath (str): Path to the audio file.
             num_speakers (int): Number of speakers to detect.
             source_lang (str): Source language of the audio file.
-            timestamps (str): Timestamps unit to use.
 
         Returns:
             List[dict]: List of speaker segments.
@@ -101,7 +103,6 @@ class ASRService:
             "input": filepath,
             "num_speakers": num_speakers,
             "source_lang": source_lang,
-            "timestamps": timestamps,
             "done_event": asyncio.Event(),
             "time": asyncio.get_event_loop().time(),
         }
@@ -200,7 +201,6 @@ class ASRService:
             filepath = task["input"]
             source_lang = task["source_lang"]
             # num_speakers = task["num_speakers"]
-            # timestamps = task["timestamps"]
 
             formatted_segments = self.inference_with_whisper(filepath, source_lang)
             speaker_timestamps = self.inference_with_msdd(filepath)

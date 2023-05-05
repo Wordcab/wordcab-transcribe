@@ -20,7 +20,7 @@ import re
 import subprocess  # noqa: S404
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import aiofiles
 import aiohttp
@@ -47,23 +47,62 @@ async def run_subprocess(command: List[str]) -> tuple:
     return process.returncode, stdout, stderr
 
 
-def convert_seconds_to_hms(seconds: float) -> str:
+def convert_timestamp(timestamp: float, target: str) -> Union[str, float]:
     """
-    Convert seconds to hours, minutes and seconds.
+    Use the right function to convert the timestamp.
 
     Args:
-        seconds (float): Seconds to convert.
+        timestamp (float): Timestamp to convert.
+        target (str): Timestamp to convert.
+
+    Returns:
+        Union[str, float]: Converted timestamp.
+
+    Raises:
+        ValueError: If the target is invalid. Valid targets are: ms, hms, s.
+    """
+    if target == "ms":
+        return timestamp
+    elif target == "hms":
+        return _convert_ms_to_hms(timestamp)
+    elif target == "s":
+        return _convert_ms_to_s(timestamp)
+    else:
+        raise ValueError(
+            f"Invalid conversion target: {target}. Valid targets are: ms, hms, s."
+        )
+
+
+def _convert_ms_to_hms(timestamp: float) -> str:
+    """
+    Convert a timestamp from milliseconds to hours, minutes and seconds.
+
+    Args:
+        timestamp (float): Timestamp in milliseconds to convert.
 
     Returns:
         str: Hours, minutes and seconds.
     """
-    hours, remainder = divmod(seconds, 3600)
+    hours, remainder = divmod(timestamp / 1000, 3600)
     minutes, seconds = divmod(remainder, 60)
     milliseconds = math.floor((seconds % 1) * 1000)
 
     output = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}.{milliseconds:03}"
 
     return output
+
+
+def _convert_ms_to_s(timestamp: float) -> float:
+    """
+    Convert a timestamp from milliseconds to seconds.
+
+    Args:
+        timestamp (float): Timestamp in milliseconds to convert.
+
+    Returns:
+        float: Seconds.
+    """
+    return timestamp / 1000
 
 
 async def convert_file_to_wav(filepath: str) -> str:

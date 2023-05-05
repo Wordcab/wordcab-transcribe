@@ -51,7 +51,7 @@ class DataRequest(BaseModel):
 
     num_speakers: Optional[int] = 0
     source_lang: Optional[str] = "en"
-    timestamps: Optional[str] = "seconds"
+    timestamps: Optional[str] = "s"
 
     @validator("num_speakers")
     def validate_num_speakers_values(cls, value: int) -> int:  # noqa: N805, B902
@@ -63,8 +63,8 @@ class DataRequest(BaseModel):
     @validator("timestamps")
     def validate_timestamps_values(cls, value: str) -> str:  # noqa: B902, N805
         """Validate the value of the timestamps field."""
-        if value not in ["seconds", "hms"]:
-            raise ValueError("timestamps must be one of 'seconds' or 'hms'.")
+        if value not in ["hms", "ms", "s"]:
+            raise ValueError("timestamps must be one of 'hms', 'ms', 's'.")
         return value
 
     class Config:
@@ -74,6 +74,6 @@ class DataRequest(BaseModel):
             "example": {
                 "num_speakers": 0,
                 "source_lang": "en",
-                "timestamps": "seconds",
+                "timestamps": "s",
             }
         }
