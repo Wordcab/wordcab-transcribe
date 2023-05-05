@@ -13,21 +13,24 @@
 # limitations under the License.
 """Test config settings."""
 
-from wordcab_transcribe.config import Settings
+from wordcab_transcribe.config import settings
 
 
 def test_config() -> None:
     """Test default config settings with the .env file."""
-    assert Settings().project_name == "Wordcab Transcribe"
-    assert Settings().version == "0.1.0"
+    assert settings.project_name == "Wordcab Transcribe"
+    assert settings.version == "0.1.0"
     assert (
-        Settings().description
-        == "ASR FastAPI server using faster-whisper and pyannote-audio."
+        settings.description
+        == "💬 ASR FastAPI server using faster-whisper and NVIDIA NeMo."
     )
-    assert Settings().api_prefix == "/api/v1"
-    assert Settings().debug is True
-    assert Settings().batch_size == 1
-    assert Settings().max_wait == 0.1
-    assert Settings().whisper_model == "large-v2"
-    assert Settings().embeddings_model == "speechbrain/spkrec-ecapa-voxceleb"
-    assert Settings().compute_type == "int8_float16"
+    assert settings.api_prefix == "/api/v1"
+    assert settings.debug is True
+
+    assert settings.batch_size == 1
+    assert settings.max_wait == 0.1
+    assert settings.whisper_model == "large-v2"
+    assert settings.compute_type == "int8_float16"
+    assert settings.nemo_domain_type == "general"
+    assert settings.nemo_storage_path == "nemo_storage"
+    assert settings.nemo_output_path == "nemo_outputs"
