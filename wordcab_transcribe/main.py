@@ -29,6 +29,7 @@ from wordcab_transcribe.models import ASRResponse, DataRequest
 from wordcab_transcribe.service import ASRService
 from wordcab_transcribe.utils import (
     convert_file_to_wav,
+    convert_timestamp,
     delete_file,
     download_audio_file,
     download_file_from_youtube,
@@ -78,9 +79,9 @@ async def health_check():
             <h1 class="text-4xl font-medium">{settings.project_name}</h1>
             <p class="text-gray-600">Version: {settings.version}</p>
             <p class="text-gray-600">{settings.description}</p>
-            <p class="mt-16 text-gray-500">Want access? Contact us:
-                <a class="text-blue-400 text-underlined" href="mailto:info@wordcab.com?subject=Access">
-                    info@wordcab.com
+            <p class="mt-16 text-gray-500">If you find any issues, please report them to:</p>
+                <a class="text-blue-400 text-underlined" href="https://github.com/Wordcab/wordcab-transcribe/issues">
+                    wordcab/wordcab-transcribe
                 </a>
             </p>
             <a href="/docs">
@@ -123,14 +124,14 @@ async def inference_with_audio(
     else:
         data = DataRequest(**data.dict())
 
-    raw_utterances = await asr.process_input(
-        filepath, data.num_speakers, data.source_lang, data.timestamps
-    )
+    raw_utterances = await asr.process_input(filepath, data.source_lang)
+
+    timestamps_format = data.timestamps
     utterances = [
         {
             "text": format_punct(utterance["text"]),
-            "start": utterance["start"],
-            "end": utterance["end"],
+            "start": convert_timestamp(utterance["start"], timestamps_format),
+            "end": convert_timestamp(utterance["end"], timestamps_format),
             "speaker": int(utterance["speaker"]),
         }
         for utterance in raw_utterances
@@ -162,14 +163,14 @@ async def inference_with_youtube(
     else:
         data = DataRequest(**data.dict())
 
-    raw_utterances = await asr.process_input(
-        filepath, data.num_speakers, data.source_lang, data.timestamps
-    )
+    raw_utterances = await asr.process_input(filepath, data.source_lang)
+
+    timestamps_format = data.timestamps
     utterances = [
         {
             "text": format_punct(utterance["text"]),
-            "start": utterance["start"],
-            "end": utterance["end"],
+            "start": convert_timestamp(utterance["start"], timestamps_format),
+            "end": convert_timestamp(utterance["end"], timestamps_format),
             "speaker": int(utterance["speaker"]),
         }
         for utterance in raw_utterances
@@ -208,14 +209,14 @@ async def inference_with_audio_url(
     else:
         data = DataRequest(**data.dict())
 
-    raw_utterances = await asr.process_input(
-        filepath, data.num_speakers, data.source_lang, data.timestamps
-    )
+    raw_utterances = await asr.process_input(filepath, data.source_lang)
+
+    timestamps_format = data.timestamps
     utterances = [
         {
             "text": format_punct(utterance["text"]),
-            "start": utterance["start"],
-            "end": utterance["end"],
+            "start": convert_timestamp(utterance["start"], timestamps_format),
+            "end": convert_timestamp(utterance["end"], timestamps_format),
             "speaker": int(utterance["speaker"]),
         }
         for utterance in raw_utterances

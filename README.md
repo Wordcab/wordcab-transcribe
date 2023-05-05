@@ -1,6 +1,6 @@
 # Wordcab Transcribe 💬
 
-FastAPI based API for transcribing audio files using [`faster-whisper`](https://github.com/guillaumekln/faster-whisper) and [`pyannote-audio`](https://github.com/pyannote/pyannote-audio)
+FastAPI based API for transcribing audio files using [`faster-whisper`](https://github.com/guillaumekln/faster-whisper) and [`NVIDIA NeMo`](https://github.com/NVIDIA/NeMo)
 
 More details on this project on this [blog post](https://wordcab.github.io/wordcab-posts/blog/2023/03/31/wordcab-transcribe/).
 
@@ -54,9 +54,8 @@ import requests
 
 headers = {"accept": "application/json"}
 data = {
-  "num_speakers": 1,  # optional, default is 0
   "source_lang": "en",  # optional, default is "en"
-  "timestamps": "seconds",  # optional, default is "seconds"
+  "timestamps": "s",  # optional, default is "s". Can be "s", "ms" or "hms".
 }
 
 filepath = "tests/sample_1.mp3"  # or any other audio file. Prefer wav files.
@@ -80,9 +79,8 @@ import requests
 headers = {"accept": "application/json", "Content-Type": "application/json"}
 params = {"url": "https://youtu.be/JZ696sbfPHs"}
 data = {
-  "num_speakers": 1,  # optional, default is 0
   "source_lang": "en",  # optional, default is "en"
-  "timestamps": "seconds",  # optional, default is "seconds"
+  "timestamps": "s",  # optional, default is "s". Can be "s", "ms" or "hms".
 }
 
 response = requests.post(

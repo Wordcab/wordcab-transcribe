@@ -13,17 +13,19 @@
 # limitations under the License.
 """Utils module of the Wordcab Transcribe."""
 import asyncio
+import json
 import math
 import mimetypes
 import re
 import subprocess  # noqa: S404
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import aiofiles
 import aiohttp
 from loguru import logger
+from omegaconf import OmegaConf
 from yt_dlp import YoutubeDL
 
 
@@ -45,23 +47,62 @@ async def run_subprocess(command: List[str]) -> tuple:
     return process.returncode, stdout, stderr
 
 
-def convert_seconds_to_hms(seconds: float) -> str:
+def convert_timestamp(timestamp: float, target: str) -> Union[str, float]:
     """
-    Convert seconds to hours, minutes and seconds.
+    Use the right function to convert the timestamp.
 
     Args:
-        seconds (float): Seconds to convert.
+        timestamp (float): Timestamp to convert.
+        target (str): Timestamp to convert.
+
+    Returns:
+        Union[str, float]: Converted timestamp.
+
+    Raises:
+        ValueError: If the target is invalid. Valid targets are: ms, hms, s.
+    """
+    if target == "ms":
+        return timestamp
+    elif target == "hms":
+        return _convert_ms_to_hms(timestamp)
+    elif target == "s":
+        return _convert_ms_to_s(timestamp)
+    else:
+        raise ValueError(
+            f"Invalid conversion target: {target}. Valid targets are: ms, hms, s."
+        )
+
+
+def _convert_ms_to_hms(timestamp: float) -> str:
+    """
+    Convert a timestamp from milliseconds to hours, minutes and seconds.
+
+    Args:
+        timestamp (float): Timestamp in milliseconds to convert.
 
     Returns:
         str: Hours, minutes and seconds.
     """
-    hours, remainder = divmod(seconds, 3600)
+    hours, remainder = divmod(timestamp / 1000, 3600)
     minutes, seconds = divmod(remainder, 60)
     milliseconds = math.floor((seconds % 1) * 1000)
 
     output = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}.{milliseconds:03}"
 
     return output
+
+
+def _convert_ms_to_s(timestamp: float) -> float:
+    """
+    Convert a timestamp from milliseconds to seconds.
+
+    Args:
+        timestamp (float): Timestamp in milliseconds to convert.
+
+    Returns:
+        float: Seconds.
+    """
+    return timestamp / 1000
 
 
 async def convert_file_to_wav(filepath: str) -> str:
@@ -229,7 +270,7 @@ def format_segments(
     segments: list,
     use_dict: Optional[bool] = False,
     include_words: Optional[bool] = False,
-) -> list:
+) -> List[dict]:
     """
     Format the segments to a list of dicts with start, end and text keys.
 
@@ -271,6 +312,68 @@ def format_segments(
         formatted_segments.append(segment_dict)
 
     return formatted_segments
+
+
+def get_segment_timestamp_anchor(start: float, end: float, option: str = "start"):
+    """Get the timestamp anchor for a segment."""
+    if option == "end":
+        return end
+    elif option == "mid":
+        return (start + end) / 2
+    return start
+
+
+def load_nemo_config(
+    domain_type: str, storage_path: str, output_path: str
+) -> Dict[str, Any]:
+    """
+    Load NeMo config file based on a domain type.
+
+    Args:
+        domain_type (str): The domain type. Can be "general", "meeting" or "telephonic".
+        storage_path (str): The path to the NeMo storage directory.
+        output_path (str): The path to the NeMo output directory.
+
+    Returns:
+        Dict[str, Any]: The config file as a dict.
+    """
+    cfg_path = (
+        Path(__file__).parent.parent
+        / "config"
+        / "nemo"
+        / f"diar_infer_{domain_type}.yaml"
+    )
+    with open(cfg_path) as f:
+        cfg = OmegaConf.load(f)
+
+    storage_path = Path(__file__).parent.parent / storage_path
+    if not storage_path.exists():
+        storage_path.mkdir(parents=True, exist_ok=True)
+
+    meta = {
+        "audio_filepath": "/app/temp_outputs/mono_file.wav",
+        "offset": 0,
+        "duration": None,
+        "label": "infer",
+        "text": "-",
+        "rttm_filepath": None,
+        "uem_filepath": None,
+    }
+
+    manifest_path = storage_path / "infer_manifest.json"
+    with open(manifest_path, "w") as fp:
+        json.dump(meta, fp)
+        fp.write("\n")
+
+    output_path = Path(__file__).parent.parent / output_path
+    if not output_path.exists():
+        output_path.mkdir(parents=True, exist_ok=True)
+
+    cfg.num_workers = 0
+    cfg.diarizer.manifest_filepath = str(manifest_path)
+    cfg.diarizer.out_dir = str(output_path)
+
+    return cfg
 
 
 def retrieve_user_platform() -> str:

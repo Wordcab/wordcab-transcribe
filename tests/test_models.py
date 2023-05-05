@@ -30,12 +30,10 @@ def test_asr_response() -> None:
 def test_data_request_valid() -> None:
     """Test the DataRequest model with valid data."""
     data = {
-        "num_speakers": 2,
         "source_lang": "fr",
         "timestamps": "hms",
     }
     req = DataRequest(**data)
-    assert req.num_speakers == 2
     assert req.source_lang == "fr"
     assert req.timestamps == "hms"
 
@@ -43,16 +41,11 @@ def test_data_request_valid() -> None:
 def test_data_request_default() -> None:
     """Test the DataRequest model with default values."""
     req = DataRequest()
-    assert req.num_speakers == 0
     assert req.source_lang == "en"
-    assert req.timestamps == "seconds"
+    assert req.timestamps == "s"
 
 
 def test_data_request_invalid() -> None:
     """Test the DataRequest model with invalid data."""
-    with pytest.raises(ValueError, match="num_speakers must be a positive integer."):
-        DataRequest(num_speakers=-1)
-    with pytest.raises(
-        ValueError, match="timestamps must be one of 'seconds' or 'hms'."
-    ):
+    with pytest.raises(ValueError, match="timestamps must be one of 'hms', 'ms', 's'."):
         DataRequest(timestamps="invalid")

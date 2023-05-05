@@ -9,12 +9,13 @@ readme = "README.md"
 python = ">=3.9,<3.10"
 aiohttp = ">=3.8.4"
 aiofiles = ">=23.1.0"
+cython = ">=0.29.24"
 fastapi = ">=0.95.0"
 faster-whisper = ">=0.3.0"
 ffmpeg-python = ">=0.2.0"
 loguru = ">=0.6.0"
+nemo-toolkit = { version = ">=1.17.0", extras = ["asr"] }
 numpy = "==1.23.1"
-pyannote-audio = { version = ">=2.1.1", platform = "linux" }  # faced problems with pyannote.audio on Mac M1
 pydantic = ">=1.10.7"
 python-dotenv = ">=1.0.0"
 python-multipart = ">=0.0.6"
@@ -23,6 +24,7 @@ shortuuid = ">=1.0.0"
 torch = ">=1.9,<2.0"
 uvicorn = ">=0.21.1"
 yt-dlp = ">=2023.3.4"
+youtokentome = { git = "https://github.com/gbeckenkamp/YouTokenToMe.git", branch = "add_minimum_requirements" }
 
 [tool.poetry.group.test.dependencies]
 black = ">=23.1.0"
