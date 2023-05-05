@@ -54,7 +54,6 @@ import requests
 
 headers = {"accept": "application/json"}
 data = {
-  "num_speakers": 1,  # optional, default is 0
   "source_lang": "en",  # optional, default is "en"
   "timestamps": "s",  # optional, default is "s". Can be "s", "ms" or "hms".
 }
@@ -80,7 +79,6 @@ import requests
 headers = {"accept": "application/json", "Content-Type": "application/json"}
 params = {"url": "https://youtu.be/JZ696sbfPHs"}
 data = {
-  "num_speakers": 1,  # optional, default is 0
   "source_lang": "en",  # optional, default is "en"
   "timestamps": "s",  # optional, default is "s". Can be "s", "ms" or "hms".
 }

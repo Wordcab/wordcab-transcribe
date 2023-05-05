@@ -41,7 +41,6 @@ class ASRService:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.whisper_model = settings.whisper_model
         self.compute_type = settings.compute_type
-        self.embeddings_model = settings.embeddings_model
 
         self.nemo_tmp = Path.cwd() / "temp_outputs"
         if not self.nemo_tmp.exists():
@@ -83,17 +82,13 @@ class ASRService:
             )
 
     async def process_input(
-        self,
-        filepath: str,
-        num_speakers: int,
-        source_lang: str,
+        self, filepath: str, source_lang: str,
     ) -> List[dict]:
         """
         Process the input request and return the result.
 
         Args:
             filepath (str): Path to the audio file.
-            num_speakers (int): Number of speakers to detect.
             source_lang (str): Source language of the audio file.
 
         Returns:
@@ -101,7 +96,6 @@ class ASRService:
         """
         task = {
             "input": filepath,
-            "num_speakers": num_speakers,
             "source_lang": source_lang,
             "done_event": asyncio.Event(),
             "time": asyncio.get_event_loop().time(),
@@ -200,7 +194,6 @@ class ASRService:
         for task in file_batch:
             filepath = task["input"]
             source_lang = task["source_lang"]
-            # num_speakers = task["num_speakers"]
 
             formatted_segments = self.inference_with_whisper(filepath, source_lang)
             speaker_timestamps = self.inference_with_msdd(filepath)

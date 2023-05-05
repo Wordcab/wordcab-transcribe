@@ -49,16 +49,8 @@ class ASRResponse(BaseModel):
 class DataRequest(BaseModel):
     """Request object for the audio file endpoint."""
 
-    num_speakers: Optional[int] = 0
     source_lang: Optional[str] = "en"
     timestamps: Optional[str] = "s"
-
-    @validator("num_speakers")
-    def validate_num_speakers_values(cls, value: int) -> int:  # noqa: N805, B902
-        """Validate the value of the num_speakers field."""
-        if value < 0:
-            raise ValueError("num_speakers must be a positive integer.")
-        return value
 
     @validator("timestamps")
     def validate_timestamps_values(cls, value: str) -> str:  # noqa: B902, N805
@@ -72,7 +64,6 @@ class DataRequest(BaseModel):
 
         schema_extra = {
             "example": {
-                "num_speakers": 0,
                 "source_lang": "en",
                 "timestamps": "s",
             }
