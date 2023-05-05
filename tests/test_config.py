@@ -31,6 +31,6 @@ def test_config() -> None:
     assert settings.max_wait == 0.1
     assert settings.whisper_model == "large-v2"
     assert settings.compute_type == "int8_float16"
-    assert settings.nemo_domain_type == "general"
+    assert settings.nemo_domain_type == "telephonic"
     assert settings.nemo_storage_path == "nemo_storage"
     assert settings.nemo_output_path == "nemo_outputs"
