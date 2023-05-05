@@ -12,47 +12,50 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests the conversion functions."""
+from typing import Union
+
 import pytest
 
-from typing import Union
 from wordcab_transcribe.utils import (
-    convert_timestamp,
     _convert_ms_to_hms,
     _convert_ms_to_s,
+    convert_timestamp,
 )
 
-@pytest.mark.parametrize("timestamp, target, expected", [
-    (1000, "ms", 1000),
-    (1000, "s", 1),
-    (1000, "hms", "00:00:01.000"),
-    (3600000, "hms", "01:00:00.000"),
-    (3661000, "hms", "01:01:01.000")
-])
-def test_convert_timestamp(timestamp: float, target: str, expected: Union[str, float]) -> None:
+
+@pytest.mark.parametrize(
+    "timestamp, target, expected",
+    [
+        (1000, "ms", 1000),
+        (1000, "s", 1),
+        (1000, "hms", "00:00:01.000"),
+        (3600000, "hms", "01:00:00.000"),
+        (3661000, "hms", "01:01:01.000"),
+    ],
+)
+def test_convert_timestamp(
+    timestamp: float, target: str, expected: Union[str, float]
+) -> None:
     """Test the convert_timestamp function."""
     assert convert_timestamp(timestamp, target) == expected
 
 
 def test_convert_timestamp_raises_error() -> None:
+    """Test the convert_timestamp function raises error."""
     with pytest.raises(ValueError):
         convert_timestamp(1000, "invalid_target")
 
 
-@pytest.mark.parametrize("ms, expected", [
-    (1000, 1),
-    (3600000, 3600),
-    (3661000, 3661)
-])
+@pytest.mark.parametrize("ms, expected", [(1000, 1), (3600000, 3600), (3661000, 3661)])
 def test_convert_ms_to_s(ms: float, expected: float) -> None:
     """Test the _convert_ms_to_s function."""
     assert _convert_ms_to_s(ms) == expected
 
 
-@pytest.mark.parametrize("ms, expected", [
-    (1000, "00:00:01.000"),
-    (3600000, "01:00:00.000"),
-    (3661000, "01:01:01.000")
-])
+@pytest.mark.parametrize(
+    "ms, expected",
+    [(1000, "00:00:01.000"), (3600000, "01:00:00.000"), (3661000, "01:01:01.000")],
+)
 def test_convert_ms_to_hms(ms: float, expected: str) -> None:
     """Test the _convert_ms_to_hms function."""
     assert _convert_ms_to_hms(ms) == expected
