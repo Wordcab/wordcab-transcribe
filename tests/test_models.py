@@ -47,7 +47,5 @@ def test_data_request_default() -> None:
 
 def test_data_request_invalid() -> None:
     """Test the DataRequest model with invalid data."""
-    with pytest.raises(
-        ValueError, match="timestamps must be one of 'hms', 'ms', 's'."
-    ):
+    with pytest.raises(ValueError, match="timestamps must be one of 'hms', 'ms', 's'."):
         DataRequest(timestamps="invalid")

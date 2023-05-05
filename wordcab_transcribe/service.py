@@ -82,7 +82,9 @@ class ASRService:
             )
 
     async def process_input(
-        self, filepath: str, source_lang: str,
+        self,
+        filepath: str,
+        source_lang: str,
     ) -> List[dict]:
         """
         Process the input request and return the result.
