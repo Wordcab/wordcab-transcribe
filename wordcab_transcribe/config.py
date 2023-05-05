@@ -14,12 +14,16 @@
 """Configuration module of the Wordcab Transcribe."""
 
 from os import getenv
+from typing import Union
 
 from dotenv import load_dotenv
-from pydantic import BaseSettings
+from faster_whisper.utils import _MODELS
+from pydantic import validator
+from pydantic.dataclasses import dataclass
 
 
-class Settings(BaseSettings):
+@dataclass
+class Settings:
     """Configuration settings for the Wordcab Transcribe API."""
 
     # Basic API settings
@@ -33,27 +37,72 @@ class Settings(BaseSettings):
     max_wait: float
     # Model settings
     whisper_model: str
-    embeddings_model: str
     compute_type: str
     nemo_domain_type: str
     nemo_storage_path: str
     nemo_output_path: str
 
+    @validator("project_name", "version", "description", "api_prefix")
+    def basic_parameters_must_not_be_none(
+        cls, value: str, field: str  # noqa: B902, N805
+    ):
+        """Check that the authentication parameters are not None."""
+        if value is None:
+            raise ValueError(
+                f"{field.name} must not be None, please verify the `.env` file."
+            )
+        return value
+
+    @validator("batch_size", "max_wait")
+    def batch_request_parameters_must_be_positive(
+        cls, value: Union[int, float], field: str  # noqa: B902, N805
+    ):
+        """Check that the model parameters are positive."""
+        if value <= 0:
+            raise ValueError(f"{field.name} must be positive.")
+        return value
+
+    @validator("whisper_model")
+    def whisper_model_must_be_valid(cls, value: str):  # noqa: B902, N805
+        """Check that the model name is valid."""
+        if value not in _MODELS:
+            raise ValueError(
+                f"{value} is not a valid model name. Choose one of {_MODELS}."
+            )
+        return value
+
+    @validator("compute_type")
+    def compute_type_must_be_valid(cls, value: str):  # noqa: B902, N805
+        """Check that the model precision is valid."""
+        if value not in {"int8", "int8_float16", "int16", "float_16"}:
+            raise ValueError(
+                f"{value} is not a valid compute type. Choose one of int8, int8_float16, int16, float_16."
+            )
+        return value
+
+    @validator("nemo_domain_type")
+    def nemo_domain_type_must_be_valid(cls, value: str):  # noqa: B902, N805
+        """Check that the model precision is valid."""
+        if value not in {"general", "telephonic", "meeting"}:
+            raise ValueError(f"{value} is not a valid domain type.")
+        return value
+
 
 load_dotenv()
 
 settings = Settings(
-    project_name=getenv("PROJECT_NAME"),
-    version=getenv("VERSION"),
-    description=getenv("DESCRIPTION"),
-    api_prefix=getenv("API_PREFIX"),
-    debug=getenv("DEBUG"),
-    batch_size=getenv("BATCH_SIZE"),
-    max_wait=getenv("MAX_WAIT"),
-    whisper_model=getenv("WHISPER_MODEL"),
-    embeddings_model=getenv("EMBEDDINGS_MODEL"),
-    compute_type=getenv("COMPUTE_TYPE"),
-    nemo_domain_type=getenv("NEMO_DOMAIN_TYPE"),
-    nemo_storage_path=getenv("NEMO_STORAGE_PATH"),
-    nemo_output_path=getenv("NEMO_OUTPUT_PATH"),
+    project_name=getenv("PROJECT_NAME", "Wordcab Transcribe"),
+    version=getenv("VERSION", "0.1.0"),
+    description=getenv(
+        "DESCRIPTION", "💬 ASR FastAPI server using faster-whisper and NVIDIA NeMo."
+    ),
+    api_prefix=getenv("API_PREFIX", "/api/v1"),
+    debug=getenv("DEBUG", True),
+    batch_size=getenv("BATCH_SIZE", 1),
+    max_wait=getenv("MAX_WAIT", 0.1),
+    whisper_model=getenv("WHISPER_MODEL", "large-v2"),
+    compute_type=getenv("COMPUTE_TYPE", "int8_float16"),
+    nemo_domain_type=getenv("NEMO_DOMAIN_TYPE", "general"),
+    nemo_storage_path=getenv("NEMO_STORAGE_PATH", "nemo_storage"),
+    nemo_output_path=getenv("NEMO_OUTPUT_PATH", "nemo_outputs"),
 )
