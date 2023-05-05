@@ -18,4 +18,6 @@ RUN python3.10 -m pip install --upgrade torch==1.13.1+cu117 torchaudio==0.13.1 -
 COPY . /app
 WORKDIR /app
 
+EXPOSE 5001
+
 CMD ["uvicorn", "--reload", "--host=0.0.0.0", "--port=5001", "wordcab_transcribe.main:app"]

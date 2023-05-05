@@ -80,10 +80,10 @@ class DataRequest(BaseModel):
 
 
 class LiveDataRequest(BaseModel):
-    """Request object for the audio file endpoint."""
+    """Request object for the live endpoint."""
 
     source_lang: Optional[str] = "en"
-    audio_bytes: Optional[bytes] = None
+    audio_array: Optional[list] = None
 
     class Config:
         """Pydantic config class."""

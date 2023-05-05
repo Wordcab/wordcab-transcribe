@@ -15,8 +15,6 @@
 
 import asyncio
 import functools
-from base64 import b64decode
-from io import BytesIO
 from typing import List
 
 import numpy as np
@@ -26,7 +24,6 @@ from loguru import logger
 from pyannote.audio import Audio
 from pyannote.audio.pipelines.speaker_verification import PretrainedSpeakerEmbedding
 from pyannote.core import Segment
-from pydub import AudioSegment
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import silhouette_score
 
@@ -80,7 +77,7 @@ class ASRService:
         source_lang: str,
         timestamps: str,
         live: bool,
-        audio_bytes: bytes,
+        audio_array: list,
     ) -> List[dict]:
         """
         Process the input request and return the result.
@@ -91,7 +88,7 @@ class ASRService:
             source_lang (str): Source language of the audio file.
             timestamps (str): Timestamps unit to use.
             live (bool): Whether to use live transcription mode or not.
-            audio_bytes (bytes): Audio bytes for live transcription.
+            audio_array (list): Audio array for live transcription.
 
         Returns:
             List[dict]: List of speaker segments.
@@ -103,7 +100,7 @@ class ASRService:
             "source_lang": source_lang,
             "timestamps": timestamps,
             "live": live,
-            "audio_bytes": audio_bytes,
+            "audio_array": audio_array,
             "time": asyncio.get_event_loop().time(),
         }
         async with self.queue_lock:
@@ -150,7 +147,7 @@ class ASRService:
                             task["source_lang"],
                             task["timestamps"],
                             task["live"],
-                            task["audio_bytes"],
+                            task["audio_array"],
                         ),
                     )
                     results.append(res)
@@ -173,7 +170,7 @@ class ASRService:
         source_lang: str,
         timestamps: str,
         live: bool,
-        audio_bytes: bytes,
+        audio_array: list,
     ) -> List[dict]:
         """
         Inference method to process the audio file.
@@ -184,31 +181,25 @@ class ASRService:
             source_lang (str): Source language of the audio file.
             timestamps (str): Timestamps unit to use.
             live (bool): Whether to use live transcription mode or not.
-            audio_bytes (bytes): Audio bytes for live transcription.
+            audio_array (list): Audio array for live transcription.
 
         Returns:
             List[dict]: List of diarized segments.
         """
         if live:
             try:
-                audio_bytes = b64decode(audio_bytes)
+                audio_array = np.array(audio_array, dtype=np.int16)
             except Exception as e:
-                print(f"Error during base64 decoding: {e}")
-                return
-
-            audio_bytes = BytesIO(audio_bytes)
-            audio = AudioSegment.from_file(
-                audio_bytes, format="raw", frame_rate=16000, channels=1, sample_width=2
-            )
-            audio = audio.set_frame_rate(16000).set_channels(1)
-            audio_file = BytesIO()
-            audio.export(audio_file, format="wav")
-            audio_file.seek(0)
+                print(f"Error during conversion to numpy array: {e}")
+                pass
             segments, _ = self.model.transcribe(
-                audio=audio_file,
+                audio=audio_array.flatten(),
                 language=source_lang,
+                beam_size=1,
+                word_timestamps=True,
             )
-            return format_segments(list(segments))
+            formatted_segments = format_segments(list(segments))
+            return formatted_segments
         else:
             segments, _ = self.model.transcribe(
                 filepath, language=source_lang, beam_size=5, word_timestamps=True

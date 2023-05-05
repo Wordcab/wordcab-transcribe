@@ -41,6 +41,16 @@ docker run -d --name wordcab-transcribe \
     wordcab-transcribe:latest
 ```
 
+Note that the container might take a few minutes to start as
+it has to download the Whisper and embedding models. After
+these have downloaded, the API should work. If you want to
+see the progress of these downloads in your console, you can
+run the above command without the `-d` flag.
+
+If you get an error along the lines of
+`Conflict. The container name "/wordcab-transcribe" is already in use by container`
+try running `docker container prune` to remove any stopped containers.
+
 ## Test the API
 
 Once the container is running, you can test the API.

@@ -15,7 +15,6 @@
 """Main API module of the Wordcab Transcribe."""
 
 import asyncio
-import json
 from typing import Optional
 
 import aiofiles
@@ -26,7 +25,7 @@ from fastapi.responses import HTMLResponse
 from loguru import logger
 
 from wordcab_transcribe.config import settings
-from wordcab_transcribe.models import ASRResponse, DataRequest, LiveDataRequest
+from wordcab_transcribe.models import ASRResponse, DataRequest
 from wordcab_transcribe.service import ASRService
 from wordcab_transcribe.utils import (
     convert_file_to_wav,
@@ -234,20 +233,19 @@ async def websocket_transcription(websocket: WebSocket):
     await websocket.accept()
 
     try:
+        await websocket.send_text("Connection established!")
         while True:
-            audio_data_json = await websocket.receive_text()
-            audio_data = LiveDataRequest(**json.loads(audio_data_json))
-            source_lang = audio_data.source_lang
-            if audio_data.audio_bytes:
+            audio_data = await websocket.receive_json()
+            if "audio_array" in audio_data:
                 result = await asr.process_input(
                     filepath="",
                     num_speakers=1,
-                    source_lang=source_lang,
+                    source_lang=audio_data["source_lang"],
                     timestamps="seconds",
                     live=True,
-                    audio_bytes=audio_data.audio_bytes,
+                    audio_array=list(audio_data["audio_array"]),
                 )
-                print(f"YO: {result}")
+                print(f"Final results: {result}")
                 await websocket.send_json(result)
 
     except Exception as e:
