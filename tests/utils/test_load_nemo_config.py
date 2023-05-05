@@ -13,8 +13,10 @@
 # limitations under the License.
 """Tests the load_nemo_config function."""
 
+from pathlib import Path
+
 import pytest
-import yaml
+from omegaconf import OmegaConf
 
 from wordcab_transcribe.utils import load_nemo_config
 
@@ -22,41 +24,14 @@ from wordcab_transcribe.utils import load_nemo_config
 @pytest.mark.parametrize("domain_type", ["general", "meeting", "telephonic"])
 def test_load_nemo_config(domain_type: str):
     """Test the load_nemo_config function."""
-    config = load_nemo_config(domain_type)
+    cfg = load_nemo_config(domain_type, "storage/path", "output/path")
 
     cfg_path = f"config/nemo/diar_infer_{domain_type}.yaml"
     with open(cfg_path) as f:
-        data = yaml.safe_load(f)
+        data = OmegaConf.load(f)
 
-    assert config == data
-    assert isinstance(config, dict)
-    assert "name" in config
-    assert "num_workers" in config
-    assert "sample_rate" in config
-    assert "batch_size" in config
-    assert "device" in config
-    assert "verbose" in config
-    assert "diarizer" in config
+    assert cfg != data
 
-    diarizer = config["diarizer"]
-    assert isinstance(diarizer, dict)
-    assert "manifest_filepath" in diarizer
-    assert "output_dir" in diarizer
-    assert "oracle_vad" in diarizer
-    assert "collar" in diarizer
-    assert "ignore_overlap" in diarizer
-
-    assert "vad" in diarizer
-    assert isinstance(diarizer["vad"], dict)
-
-    assert "speaker_embeddings" in diarizer
-    assert isinstance(diarizer["speaker_embeddings"], dict)
-
-    assert "clustering" in diarizer
-    assert isinstance(diarizer["clustering"], dict)
-
-    assert "msdd_model" in diarizer
-    assert isinstance(diarizer["msdd_model"], dict)
-
-    assert "asr" in config
-    assert isinstance(config["asr"], dict)
+    assert cfg.num_workers == 0
+    assert cfg.diarizer.manifest_filepath == str(Path.cwd() / "storage/path/infer_manifest.json")
+    assert cfg.diarizer.out_dir == str(Path.cwd() / "output/path")
