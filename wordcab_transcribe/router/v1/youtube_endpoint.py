@@ -16,7 +16,6 @@
 from typing import Optional
 
 import shortuuid
-
 from fastapi import APIRouter, BackgroundTasks
 from fastapi import status as http_status
 
@@ -34,7 +33,9 @@ from wordcab_transcribe.utils import (
 router = APIRouter()
 
 
-@router.post("/youtube", response_model=ASRResponse, status_code=http_status.HTTP_200_OK)
+@router.post(
+    "/youtube", response_model=ASRResponse, status_code=http_status.HTTP_200_OK
+)
 async def inference_with_youtube(
     background_tasks: BackgroundTasks,
     url: str,

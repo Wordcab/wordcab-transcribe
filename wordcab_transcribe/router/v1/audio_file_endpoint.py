@@ -17,7 +17,6 @@ from typing import Optional
 
 import aiofiles
 import shortuuid
-
 from fastapi import APIRouter, BackgroundTasks, File, UploadFile
 from fastapi import status as http_status
 
