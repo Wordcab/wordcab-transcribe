@@ -82,7 +82,7 @@ async def home():
     return HTMLResponse(content=content, media_type="text/html")
 
 
-@app.get("/health", status_code=http_status.HTTP_200_OK, tags=["status"])
+@app.get("/healthz", status_code=http_status.HTTP_200_OK, tags=["status"])
 async def health():
     """Health check endpoint."""
     return {"status": "ok"}
