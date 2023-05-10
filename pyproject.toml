@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "wordcab-transcribe"
-version = "0.1.0"
+version = "0.2.0"
 description = "ASR FastAPI server using faster-whisper and pyannote-audio."
 authors = ["Wordcab <info@wordcab.com>"]
 readme = "README.md"
