@@ -41,6 +41,11 @@ class Settings:
     nemo_domain_type: str
     nemo_storage_path: str
     nemo_output_path: str
+    # API endpoints
+    audio_file_endpoint: bool
+    audio_url_endpoint: bool
+    youtube_endpoint: bool
+    live_endpoint: bool
 
     @validator("project_name", "version", "description", "api_prefix")
     def basic_parameters_must_not_be_none(
@@ -105,4 +110,8 @@ settings = Settings(
     nemo_domain_type=getenv("NEMO_DOMAIN_TYPE", "general"),
     nemo_storage_path=getenv("NEMO_STORAGE_PATH", "nemo_storage"),
     nemo_output_path=getenv("NEMO_OUTPUT_PATH", "nemo_outputs"),
+    audio_file_endpoint=getenv("AUDIO_FILE_ENDPOINT", True),
+    audio_url_endpoint=getenv("AUDIO_URL_ENDPOINT", True),
+    youtube_endpoint=getenv("YOUTUBE_ENDPOINT", True),
+    live_endpoint=getenv("LIVE_ENDPOINT", False),
 )
