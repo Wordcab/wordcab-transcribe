@@ -17,6 +17,7 @@
 import asyncio
 
 from fastapi import FastAPI
+from fastapi import status as http_status
 from fastapi.responses import HTMLResponse
 from loguru import logger
 
@@ -52,7 +53,7 @@ async def startup_event():
 
 
 @app.get("/", tags=["status"])
-async def health_check():
+async def home():
     """Health check endpoint."""
     content = f"""
     <!DOCTYPE html>
@@ -79,3 +80,9 @@ async def health_check():
     </html>
     """
     return HTMLResponse(content=content, media_type="text/html")
+
+
+@app.get("/health", status_code=http_status.HTTP_200_OK, tags=["status"])
+async def health():
+    """Health check endpoint."""
+    return {"status": "ok"}
