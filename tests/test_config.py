@@ -19,7 +19,7 @@ from wordcab_transcribe.config import settings
 def test_config() -> None:
     """Test default config settings with the .env file."""
     assert settings.project_name == "Wordcab Transcribe"
-    assert settings.version == "0.1.0"
+    assert settings.version == "0.2.0"
     assert (
         settings.description
         == "💬 ASR FastAPI server using faster-whisper and NVIDIA NeMo."
