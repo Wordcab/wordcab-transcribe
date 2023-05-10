@@ -34,3 +34,8 @@ def test_config() -> None:
     assert settings.nemo_domain_type == "telephonic"
     assert settings.nemo_storage_path == "nemo_storage"
     assert settings.nemo_output_path == "nemo_outputs"
+
+    assert settings.audio_file_endpoint is True
+    assert settings.audio_url_endpoint is True
+    assert settings.youtube_endpoint is True
+    assert settings.live_endpoint is False
