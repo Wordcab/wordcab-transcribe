@@ -23,7 +23,7 @@ from loguru import logger
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.dependencies import asr
-from wordcab_transcribe.models import CortexPayload, DataRequest
+from wordcab_transcribe.models import CortexPayload, CortexResponse, DataRequest
 from wordcab_transcribe.router.v1.audio_url_endpoint import inference_with_audio_url
 from wordcab_transcribe.router.v1.endpoints import api_router
 from wordcab_transcribe.router.v1.youtube_endpoint import inference_with_youtube
@@ -60,16 +60,16 @@ async def run_cortex(payload: CortexPayload, request: Request):
     """Endpoint for Cortex."""
     logger.debug("Received a request from Cortex.")
 
-    if payload.dict()["ping"]:
+    if payload.ping:
         return
 
-    url = payload.dict()["url"]
-    url_type = payload.dict()["url_type"]
-    source_lang = payload.dict()["source_lang"]
-    timestamps = payload.dict()["timestamps"]
+    url = payload.url
+    url_type = payload.url_type
+    source_lang = payload.source_lang
+    timestamps = payload.timestamps
     data_request = DataRequest(source_lang=source_lang, timestamps=timestamps)
 
-    job_name = payload.dict()["job_name"]
+    job_name = payload.job_name
     request_id = request.headers.get("x-cortex-request-id", None)
 
     if url_type == "audio_url":
@@ -87,12 +87,13 @@ async def run_cortex(payload: CortexPayload, request: Request):
     else:
         return
 
-    return {
-        "transcript": utterances,
-        "job_name": job_name,
-        "request_id": request_id,
-        "settings": {"source_lang": source_lang, "timestamps": timestamps},
-    }
+    return CortexResponse(
+        utterances=utterances,
+        source_lang=source_lang,
+        timestamps=timestamps,
+        job_name=job_name,
+        request_id=request_id,
+    )
 
 
 @app.get("/", tags=["status"])

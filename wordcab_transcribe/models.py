@@ -22,6 +22,8 @@ class ASRResponse(BaseModel):
     """Response model for the ASR API."""
 
     utterances: list
+    source_lang: str
+    timestamps: str
 
     class Config:
         """Pydantic config class."""
@@ -41,9 +43,18 @@ class ASRResponse(BaseModel):
                         "end": 2.0,
                         "text": "Wordcab is awesome",
                     },
-                ]
+                ],
+                "source_lang": "en",
+                "timestamps": "s",
             }
         }
+
+
+class CortexResponse(ASRResponse):
+    """Response model for the Cortex API."""
+
+    job_name: str
+    request_id: str
 
 
 class DataRequest(BaseModel):
