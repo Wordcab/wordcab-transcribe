@@ -18,13 +18,14 @@ from fastapi import APIRouter
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.router.v1.audio_file_endpoint import router as audio_file_router
 from wordcab_transcribe.router.v1.audio_url_endpoint import router as audio_url_router
+from wordcab_transcribe.router.v1.cortex_endpoint import (  # noqa: F401
+    router as cortex_router,
+)
 from wordcab_transcribe.router.v1.live_endpoints import router as live_router
 from wordcab_transcribe.router.v1.youtube_endpoint import router as youtube_router
 
 
 api_router = APIRouter()
-
-include_api = api_router.include_router
 
 async_routers = (
     ("audio_file_endpoint", audio_file_router, "/audio", "async"),
@@ -45,4 +46,4 @@ for router_items in routers:
 
     # If the endpoint is enabled, include it in the API.
     if getattr(settings, endpoint) is True:
-        include_api(router, prefix=prefix, tags=[tags])
+        api_router.include_router(router, prefix=prefix, tags=[tags])

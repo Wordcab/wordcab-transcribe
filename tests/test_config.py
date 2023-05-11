@@ -39,5 +39,6 @@ def test_config() -> None:
 
     assert settings.audio_file_endpoint is True
     assert settings.audio_url_endpoint is True
+    assert settings.cortex_endpoint is True
     assert settings.youtube_endpoint is True
     assert settings.live_endpoint is False
