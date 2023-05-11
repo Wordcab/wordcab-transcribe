@@ -50,7 +50,7 @@ lines_after_imports = 2
 
 [tool.coverage.run]
 branch = true
-source = ["wordcab_ask", "tests"]
+source = ["wordcab_transcribe", "tests"]
 
 [tool.coverage.report]
 show_missing = true
