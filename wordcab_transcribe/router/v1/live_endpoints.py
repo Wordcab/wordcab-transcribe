@@ -19,7 +19,7 @@ from fastapi import APIRouter
 router = APIRouter()
 
 
-@router.post("/live")
+@router.post("")
 async def live() -> None:
     """Live endpoint for the API."""
     pass

@@ -34,7 +34,7 @@ from wordcab_transcribe.utils import (
 router = APIRouter()
 
 
-@router.post("/audio", response_model=ASRResponse, status_code=http_status.HTTP_200_OK)
+@router.post("", response_model=ASRResponse, status_code=http_status.HTTP_200_OK)
 async def inference_with_audio(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),  # noqa: B008
