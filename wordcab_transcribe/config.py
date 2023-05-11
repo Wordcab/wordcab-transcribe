@@ -126,6 +126,9 @@ settings = Settings(
     audio_file_endpoint=getenv("AUDIO_FILE_ENDPOINT", True),
     audio_url_endpoint=getenv("AUDIO_URL_ENDPOINT", True),
     cortex_endpoint=getenv("CORTEX_ENDPOINT", True),
+    cortex_api_key=getenv("WORDCAB_TRANSCRIBE_API_KEY", None),
     youtube_endpoint=getenv("YOUTUBE_ENDPOINT", True),
     live_endpoint=getenv("LIVE_ENDPOINT", False),
+    svix_api_key=getenv("SVIX_API_KEY", None),
+    svix_app_id=getenv("SVIX_APP_ID", None),
 )
