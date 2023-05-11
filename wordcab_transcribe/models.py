@@ -22,6 +22,8 @@ class ASRResponse(BaseModel):
     """Response model for the ASR API."""
 
     utterances: list
+    source_lang: str
+    timestamps: str
 
     class Config:
         """Pydantic config class."""
@@ -41,7 +43,96 @@ class ASRResponse(BaseModel):
                         "end": 2.0,
                         "text": "Wordcab is awesome",
                     },
-                ]
+                ],
+                "source_lang": "en",
+                "timestamps": "s",
+            }
+        }
+
+
+class CortexError(BaseModel):
+    """Error model for the Cortex API."""
+
+    detail: str
+
+    class Config:
+        """Pydantic config class."""
+
+        schema_extra = {
+            "example": {
+                "detail": "Error message here",
+            }
+        }
+
+
+class CortexPayload(BaseModel):
+    """Request object for Cortex endpoint."""
+
+    url_type: str = "audio_url"
+    url: str = None
+    source_lang: Optional[str] = "en"
+    timestamps: Optional[str] = "s"
+    job_name: Optional[str] = None
+    ping: Optional[bool] = False
+
+    @validator("timestamps")
+    def validate_timestamps_values(cls, value: str) -> str:  # noqa: B902, N805
+        """Validate the value of the timestamps field."""
+        if value not in ["hms", "ms", "s"]:
+            raise ValueError("timestamps must be one of 'hms', 'ms', 's'.")
+        return value
+
+    @validator("url_type")
+    def validate_url_type(cls, value: str) -> str:  # noqa: B902, N805
+        """Validate the value of the url_type field."""
+        if value not in ["audio_url", "youtube"]:
+            raise ValueError("Url must be one of 'audio_url', 'youtube'.")
+        return value
+
+    class Config:
+        """Pydantic config class."""
+
+        schema_extra = {
+            "example": {
+                "url_type": "youtube",
+                "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                "source_lang": "en",
+                "timestamps": "s",
+                "job_name": "job_abc123",
+                "ping": False,
+            }
+        }
+
+
+class CortexResponse(ASRResponse):
+    """Response model for the Cortex API."""
+
+    job_name: str
+    request_id: Optional[str] = None
+
+    class Config:
+        """Pydantic config class."""
+
+        schema_extra = {
+            "example": {
+                "utterances": [
+                    {
+                        "speaker": 0,
+                        "start": 0.0,
+                        "end": 1.0,
+                        "text": "Hello World!",
+                    },
+                    {
+                        "speaker": 0,
+                        "start": 1.0,
+                        "end": 2.0,
+                        "text": "Wordcab is awesome",
+                    },
+                ],
+                "source_lang": "en",
+                "timestamps": "s",
+                "job_name": "job_name",
+                "request_id": "request_id",
             }
         }
 
@@ -67,4 +158,19 @@ class DataRequest(BaseModel):
                 "source_lang": "en",
                 "timestamps": "s",
             }
+        }
+
+
+class PongResponse(BaseModel):
+    """Response model for the ping endpoint."""
+
+    message: str
+
+    class Config:
+        """Pydantic config class."""
+
+        schema_extra = {
+            "example": {
+                "message": "pong",
+            },
         }

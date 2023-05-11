@@ -46,6 +46,7 @@ class Settings:
     # API endpoints
     audio_file_endpoint: bool
     audio_url_endpoint: bool
+    cortex_endpoint: bool
     youtube_endpoint: bool
     live_endpoint: bool
 
@@ -124,6 +125,7 @@ settings = Settings(
     asr_type=getenv("ASR_TYPE", "async"),
     audio_file_endpoint=getenv("AUDIO_FILE_ENDPOINT", True),
     audio_url_endpoint=getenv("AUDIO_URL_ENDPOINT", True),
+    cortex_endpoint=getenv("CORTEX_ENDPOINT", True),
     youtube_endpoint=getenv("YOUTUBE_ENDPOINT", True),
     live_endpoint=getenv("LIVE_ENDPOINT", False),
 )

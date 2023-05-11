@@ -23,7 +23,7 @@ from loguru import logger
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.dependencies import asr
-from wordcab_transcribe.router.v1.endpoints import api_router
+from wordcab_transcribe.router.v1.endpoints import api_router, cortex_router
 from wordcab_transcribe.utils import retrieve_user_platform
 
 
@@ -35,6 +35,8 @@ app = FastAPI(
 )
 
 app.include_router(api_router, prefix=settings.api_prefix)
+if settings.cortex_endpoint:
+    app.include_router(cortex_router, tags=["cortex"])
 
 
 @app.on_event("startup")
@@ -53,8 +55,8 @@ async def startup_event():
 
 
 @app.get("/", tags=["status"])
-async def home():
-    """Health check endpoint."""
+async def home() -> HTMLResponse:
+    """Root endpoint returning a simple HTML page with the project info."""
     content = f"""
     <!DOCTYPE html>
     <html>
@@ -83,6 +85,6 @@ async def home():
 
 
 @app.get("/healthz", status_code=http_status.HTTP_200_OK, tags=["status"])
-async def health():
-    """Health check endpoint."""
+async def health() -> dict:
+    """Health check endpoint. Important for Kubernetes liveness probe."""
     return {"status": "ok"}

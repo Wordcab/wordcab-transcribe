@@ -20,11 +20,17 @@ from wordcab_transcribe.models import ASRResponse, DataRequest
 
 def test_asr_response() -> None:
     """Test the ASRResponse model."""
-    response = ASRResponse(utterances=[])
+    response = ASRResponse(utterances=[], source_lang="en", timestamps="s")
     assert response.utterances == []
+    assert response.source_lang == "en"
+    assert response.timestamps == "s"
 
-    response = ASRResponse(utterances=["Hello", "world"])
+    response = ASRResponse(
+        utterances=["Hello", "world"], source_lang="en", timestamps="s"
+    )
     assert response.utterances == ["Hello", "world"]
+    assert response.source_lang == "en"
+    assert response.timestamps == "s"
 
 
 def test_data_request_valid() -> None:

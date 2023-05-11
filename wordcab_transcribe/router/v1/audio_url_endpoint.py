@@ -72,4 +72,6 @@ async def inference_with_audio_url(
 
     background_tasks.add_task(delete_file, filepath=filepath)
 
-    return ASRResponse(utterances=utterances)
+    return ASRResponse(
+        utterances=utterances, source_lang=data.source_lang, timestamps=data.timestamps
+    )
