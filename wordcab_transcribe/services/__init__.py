@@ -11,17 +11,4 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Dependencies for the API."""
-
-from wordcab_transcribe.config import settings
-from wordcab_transcribe.services.asr_service import ASRAsyncService, ASRLiveService
-
-
-# Define the ASR service to use depending on the settings
-if settings.asr_type == "live":
-    asr = ASRLiveService()
-elif settings.asr_type == "async":
-    asr = ASRAsyncService()
-else:
-    asr = None
-    raise ValueError(f"Invalid ASR type: {settings.asr_type}")
+"""Services modules for the full ASR pipeline."""

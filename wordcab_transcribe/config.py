@@ -41,6 +41,8 @@ class Settings:
     nemo_domain_type: str
     nemo_storage_path: str
     nemo_output_path: str
+    # ASR service
+    asr_type: str
     # API endpoints
     audio_file_endpoint: bool
     audio_url_endpoint: bool
@@ -92,6 +94,15 @@ class Settings:
             raise ValueError(f"{value} is not a valid domain type.")
         return value
 
+    @validator("asr_type")
+    def asr_type_must_be_valid(cls, value: str):  # noqa: B902, N805
+        """Check that the ASR type is valid."""
+        if value not in {"async", "live"}:
+            raise ValueError(
+                f"{value} is not a valid ASR type. Choose between `async` or `live`."
+            )
+        return value
+
 
 load_dotenv()
 
@@ -110,6 +121,7 @@ settings = Settings(
     nemo_domain_type=getenv("NEMO_DOMAIN_TYPE", "general"),
     nemo_storage_path=getenv("NEMO_STORAGE_PATH", "nemo_storage"),
     nemo_output_path=getenv("NEMO_OUTPUT_PATH", "nemo_outputs"),
+    asr_type=getenv("ASR_TYPE", "async"),
     audio_file_endpoint=getenv("AUDIO_FILE_ENDPOINT", True),
     audio_url_endpoint=getenv("AUDIO_URL_ENDPOINT", True),
     youtube_endpoint=getenv("YOUTUBE_ENDPOINT", True),

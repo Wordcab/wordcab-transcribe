@@ -26,12 +26,19 @@ api_router = APIRouter()
 
 include_api = api_router.include_router
 
-routers = (
+async_routers = (
     ("audio_file_endpoint", audio_file_router, "/audio", "async"),
     ("audio_url_endpoint", audio_url_router, "/audio-url", "async"),
     ("youtube_endpoint", youtube_router, "/youtube", "async"),
-    ("live_endpoint", live_router, "/live", "live"),
 )
+live_routers = (("live_endpoint", live_router, "/live", "live"),)
+
+if settings.asr_type == "async":
+    routers = async_routers
+elif settings.asr_type == "live":
+    routers = live_routers
+else:
+    raise ValueError(f"Invalid ASR type: {settings.asr_type}")
 
 for router_items in routers:
     endpoint, router, prefix, tags = router_items
