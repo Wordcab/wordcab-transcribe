@@ -13,7 +13,7 @@
 # limitations under the License.
 """Post-Processing Service for audio files."""
 
-from typing import Any, List
+from typing import List
 
 from wordcab_transcribe.utils import get_segment_timestamp_anchor
 
@@ -25,7 +25,9 @@ class PostProcessingService:
         """Initialize the PostProcessingService."""
         pass
 
-    def __call__(self, transcript_segments: List[dict], speaker_timestamps: List[dict]) -> List[dict]:
+    def __call__(
+        self, transcript_segments: List[dict], speaker_timestamps: List[dict]
+    ) -> List[dict]:
         """Run the post-processing functions on the inputs.
 
         The postprocessing pipeline is as follows:

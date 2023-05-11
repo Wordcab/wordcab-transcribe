@@ -28,6 +28,7 @@ from wordcab_transcribe.services.transcribe_service import TranscribeService
 
 class ASRService:
     """Base ASR Service module that handle all AI interactions and batch processing."""
+
     def __init__(self) -> None:
         """Initialize the ASR Service.
 
@@ -144,7 +145,9 @@ class ASRAsyncService(ASRService):
         super().__init__()
 
         self.transcribe_model = TranscribeService(
-            model_path=settings.whisper_model, compute_type=settings.compute_type, device=self.device
+            model_path=settings.whisper_model,
+            compute_type=settings.compute_type,
+            device=self.device,
         )
         self.diarize_model = DiarizeService(
             domain_type=settings.nemo_domain_type,
@@ -183,7 +186,9 @@ class ASRAsyncService(ASRService):
 
         return speaker_timestamps
 
-    def post_process(self, segments: List[dict], speaker_timestamps: List[dict]) -> List[dict]:
+    def post_process(
+        self, segments: List[dict], speaker_timestamps: List[dict]
+    ) -> List[dict]:
         """
         Post process the segments using the PostProcessingService class.
 
@@ -228,15 +233,3 @@ class ASRLiveService(ASRService):
     def __init__(self) -> None:
         """Initialize the ASRLiveService class."""
         super().__init__()
-
-    def process_batch(self, file_batch: List[dict]) -> List[dict]:
-        """
-        Process a batch of requests.
-
-        Args:
-            file_batch (List[dict]): List of requests.
-
-        Returns:
-            List[dict]: List of results.
-        """
-        raise NotImplementedError("Live endpoints are not implemented yet.")

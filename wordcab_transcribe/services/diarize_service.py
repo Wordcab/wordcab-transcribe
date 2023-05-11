@@ -25,7 +25,10 @@ from wordcab_transcribe.utils import load_nemo_config
 
 class DiarizeService:
     """Diarize Service for audio files."""
-    def __init__(self, domain_type: str, storage_path: str, output_path: str, device: str) -> None:
+
+    def __init__(
+        self, domain_type: str, storage_path: str, output_path: str, device: str
+    ) -> None:
         """Initialize the Diarize Service.
 
         This service uses the NeuralDiarizer from NeMo to diarize audio files.
@@ -48,7 +51,6 @@ class DiarizeService:
                 output_path=self.output_path,
             )
         ).to(device)
-
 
     def __call__(self, filepath: str) -> List[dict]:
         """
