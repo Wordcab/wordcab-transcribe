@@ -25,7 +25,9 @@ def test_asr_response() -> None:
     assert response.source_lang == "en"
     assert response.timestamps == "s"
 
-    response = ASRResponse(utterances=["Hello", "world"], source_lang="en", timestamps="s")
+    response = ASRResponse(
+        utterances=["Hello", "world"], source_lang="en", timestamps="s"
+    )
     assert response.utterances == ["Hello", "world"]
     assert response.source_lang == "en"
     assert response.timestamps == "s"

@@ -37,7 +37,7 @@ router = APIRouter()
 @router.post(
     "/",
     response_model=Union[CortexError, CortexResponse, PongResponse],
-    status_code=http_status.HTTP_200_OK
+    status_code=http_status.HTTP_200_OK,
 )
 async def run_cortex(payload: CortexPayload, request: Request) -> CortexResponse:
     """Root endpoint for Cortex."""
