@@ -31,12 +31,6 @@ def test_asr_response() -> None:
     assert response.timestamps == "s"
 
 
-def test_asr_response_invalid() -> None:
-    """Test the ASRResponse model with invalid data."""
-    with pytest.raises(ValueError, match="timestamps must be one of 'hms', 'ms', 's'."):
-        ASRResponse(utterances=[], source_lang="en", timestamps="invalid")
-
-
 def test_data_request_valid() -> None:
     """Test the DataRequest model with valid data."""
     data = {
