@@ -21,7 +21,7 @@ import torch
 from loguru import logger
 
 from wordcab_transcribe.config import settings
-from wordcab_transcribe.services.alignment_service import AlignmentService
+from wordcab_transcribe.services.align_service import AlignService
 from wordcab_transcribe.services.diarize_service import DiarizeService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
@@ -150,7 +150,7 @@ class ASRAsyncService(ASRService):
             compute_type=settings.compute_type,
             device=self.device,
         )
-        self.alignment_model = AlignmentService()
+        self.align_model = AlignService()
         self.diarize_model = DiarizeService(
             domain_type=settings.nemo_domain_type,
             storage_path=settings.nemo_storage_path,
@@ -174,17 +174,18 @@ class ASRAsyncService(ASRService):
 
         return segments
 
-    def align(self, segments: List[dict]) -> List[dict]:
+    def align(self, segments: List[dict], source_lang: str) -> List[dict]:
         """
         Align the segments using the AlignmentService class.
 
         Args:
             segments (List[dict]): List of speaker segments.
+            source_lang (str): Source language of the audio file.
 
         Returns:
             List[dict]: List of aligned speaker segments.
         """
-        aligned_segments = self.alignment_model(segments)
+        aligned_segments = self.align_model(segments, source_lang)
 
         return aligned_segments
 
@@ -235,7 +236,7 @@ class ASRAsyncService(ASRService):
             source_lang = task["source_lang"]
 
             formatted_segments = self.transcribe(filepath, source_lang)
-            aligned_segments = self.align(formatted_segments)
+            aligned_segments = self.align(formatted_segments, source_lang)
             speaker_timestamps = self.diarize(filepath)
             utterances = self.post_process(aligned_segments, speaker_timestamps)
 
