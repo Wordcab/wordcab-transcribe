@@ -16,17 +16,14 @@
 
 import asyncio
 
-from fastapi import BackgroundTasks, FastAPI, Request
+from fastapi import FastAPI
 from fastapi import status as http_status
 from fastapi.responses import HTMLResponse
 from loguru import logger
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.dependencies import asr
-from wordcab_transcribe.models import CortexPayload, DataRequest
-from wordcab_transcribe.router.v1.audio_url_endpoint import inference_with_audio_url
 from wordcab_transcribe.router.v1.endpoints import api_router
-from wordcab_transcribe.router.v1.youtube_endpoint import inference_with_youtube
 from wordcab_transcribe.utils import retrieve_user_platform
 
 
@@ -55,49 +52,9 @@ async def startup_event():
     asyncio.create_task(asr.runner())
 
 
-@app.post("/", tags=["cortex"])
-async def run_cortex(payload: CortexPayload, request: Request):
-    """Endpoint for Cortex."""
-    logger.debug("Received a request from Cortex.")
-
-    if payload.dict()["ping"]:
-        return
-
-    url = payload.dict()["url"]
-    url_type = payload.dict()["url_type"]
-    source_lang = payload.dict()["source_lang"]
-    timestamps = payload.dict()["timestamps"]
-    data_request = DataRequest(source_lang=source_lang, timestamps=timestamps)
-
-    job_name = payload.dict()["job_name"]
-    request_id = request.headers.get("x-cortex-request-id", None)
-
-    if url_type == "audio_url":
-        utterances = await inference_with_audio_url(
-            background_tasks=BackgroundTasks(),
-            url=url,
-            data=data_request,
-        )
-    elif url_type == "youtube":
-        utterances = await inference_with_youtube(
-            background_tasks=BackgroundTasks(),
-            url=url,
-            data=data_request,
-        )
-    else:
-        return
-
-    return {
-        "transcript": utterances,
-        "job_name": job_name,
-        "request_id": request_id,
-        "settings": {"source_lang": source_lang, "timestamps": timestamps},
-    }
-
-
 @app.get("/", tags=["status"])
 async def home():
-    """Health check endpoint and default home screen."""
+    """Health check endpoint."""
     content = f"""
     <!DOCTYPE html>
     <html>
@@ -127,5 +84,5 @@ async def home():
 
 @app.get("/healthz", status_code=http_status.HTTP_200_OK, tags=["status"])
 async def health():
-    """Health check endpoint for Cortex."""
+    """Health check endpoint."""
     return {"status": "ok"}
