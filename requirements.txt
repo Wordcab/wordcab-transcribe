@@ -12,4 +12,5 @@ python-multipart>=0.0.6
 scikit-learn>=1.2.2
 shortuuid>=1.0.0
 uvicorn>=0.21.1
+youtokentome @ git+https://github.com/gbeckenkamp/YouTokenToMe.git@add_minimum_requirements
 yt-dlp>=2023.3.4
