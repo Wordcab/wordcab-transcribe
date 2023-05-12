@@ -66,6 +66,7 @@ class ASRService:
         self,
         filepath: str,
         source_lang: str,
+        alignment: bool,
     ) -> List[dict]:
         """
         Process the input request and return the result.
@@ -73,6 +74,7 @@ class ASRService:
         Args:
             filepath (str): Path to the audio file.
             source_lang (str): Source language of the audio file.
+            alignment (bool): Whether to do alignment or not.
 
         Returns:
             List[dict]: List of speaker segments.
@@ -80,6 +82,7 @@ class ASRService:
         task = {
             "input": filepath,
             "source_lang": source_lang,
+            "alignment": alignment,
             "done_event": asyncio.Event(),
             "time": asyncio.get_event_loop().time(),
         }
@@ -150,7 +153,7 @@ class ASRAsyncService(ASRService):
             compute_type=settings.compute_type,
             device=self.device,
         )
-        self.align_model = AlignService()
+        self.align_model = AlignService(self.device)
         self.diarize_model = DiarizeService(
             domain_type=settings.nemo_domain_type,
             storage_path=settings.nemo_storage_path,
@@ -174,7 +177,9 @@ class ASRAsyncService(ASRService):
 
         return segments
 
-    def align(self, filepath: str, segments: List[dict], source_lang: str) -> List[dict]:
+    def align(
+        self, filepath: str, segments: List[dict], source_lang: str
+    ) -> List[dict]:
         """
         Align the segments using the AlignmentService class.
 
@@ -235,11 +240,17 @@ class ASRAsyncService(ASRService):
         for task in file_batch:
             filepath = task["input"]
             source_lang = task["source_lang"]
+            alignment = task["alignment"]
 
-            formatted_segments = self.transcribe(filepath, source_lang)
-            aligned_segments = self.align(filepath, formatted_segments, source_lang)
+            segments = self.transcribe(filepath, source_lang)
+
+            if alignment:
+                formatted_segments = self.align(filepath, segments, source_lang)
+            else:
+                formatted_segments = segments
+
             speaker_timestamps = self.diarize(filepath)
-            utterances = self.post_process(aligned_segments, speaker_timestamps)
+            utterances = self.post_process(formatted_segments, speaker_timestamps)
 
             results.append(utterances)
 

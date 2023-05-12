@@ -48,7 +48,11 @@ async def run_cortex(payload: CortexPayload, request: Request) -> CortexResponse
 
     request_id = request.headers.get("x-cortex-request-id", None)
 
-    data = DataRequest(source_lang=payload.source_lang, timestamps=payload.timestamps)
+    data = DataRequest(
+        alignment=payload.alignment,
+        source_lang=payload.source_lang,
+        timestamps=payload.timestamps,
+    )
 
     if payload.url_type == "audio_url":
         utterances: ASRResponse = await inference_with_audio_url(

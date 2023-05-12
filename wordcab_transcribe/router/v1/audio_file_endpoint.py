@@ -59,7 +59,7 @@ async def inference_with_audio(
     else:
         data = DataRequest(**data.dict())
 
-    raw_utterances = await asr.process_input(filepath, data.source_lang)
+    raw_utterances = await asr.process_input(filepath, data.source_lang, data.alignment)
 
     timestamps_format = data.timestamps
     utterances = [
@@ -76,5 +76,8 @@ async def inference_with_audio(
     background_tasks.add_task(delete_file, filepath=filepath)
 
     return ASRResponse(
-        utterances=utterances, source_lang=data.source_lang, timestamps=data.timestamps
+        utterances=utterances,
+        alignment=data.alignment,
+        source_lang=data.source_lang,
+        timestamps=data.timestamps,
     )

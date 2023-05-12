@@ -22,6 +22,7 @@ class ASRResponse(BaseModel):
     """Response model for the ASR API."""
 
     utterances: list
+    alignment: bool
     source_lang: str
     timestamps: str
 
@@ -44,6 +45,7 @@ class ASRResponse(BaseModel):
                         "text": "Wordcab is awesome",
                     },
                 ],
+                "alignment": False,
                 "source_lang": "en",
                 "timestamps": "s",
             }
@@ -70,6 +72,7 @@ class CortexPayload(BaseModel):
 
     url_type: str = "audio_url"
     url: str = None
+    alignment: Optional[bool] = False
     source_lang: Optional[str] = "en"
     timestamps: Optional[str] = "s"
     job_name: Optional[str] = None
@@ -129,6 +132,7 @@ class CortexResponse(ASRResponse):
                         "text": "Wordcab is awesome",
                     },
                 ],
+                "alignment": False,
                 "source_lang": "en",
                 "timestamps": "s",
                 "job_name": "job_name",
@@ -140,6 +144,7 @@ class CortexResponse(ASRResponse):
 class DataRequest(BaseModel):
     """Request object for the audio file endpoint."""
 
+    alignment: Optional[bool] = False
     source_lang: Optional[str] = "en"
     timestamps: Optional[str] = "s"
 
@@ -155,6 +160,7 @@ class DataRequest(BaseModel):
 
         schema_extra = {
             "example": {
+                "alignment": False,
                 "source_lang": "en",
                 "timestamps": "s",
             }

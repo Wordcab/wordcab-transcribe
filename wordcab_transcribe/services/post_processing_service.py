@@ -15,7 +15,7 @@
 
 from typing import List
 
-from wordcab_transcribe.utils import get_segment_timestamp_anchor
+from wordcab_transcribe.utils import format_segments, get_segment_timestamp_anchor
 
 
 class PostProcessingService:
@@ -44,6 +44,7 @@ class PostProcessingService:
         segments_with_speaker_mapping = self.segments_speaker_mapping(
             transcript_segments, speaker_timestamps
         )
+
         utterances = self.utterances_speaker_mapping(
             segments_with_speaker_mapping, speaker_timestamps
         )
@@ -75,7 +76,7 @@ class PostProcessingService:
             segment_start, segment_end, segment_text = (
                 int(segment["start"] * 1000),
                 int(segment["end"] * 1000),
-                segment["text"],
+                segment["word"],
             )
 
             segment_position = get_segment_timestamp_anchor(
