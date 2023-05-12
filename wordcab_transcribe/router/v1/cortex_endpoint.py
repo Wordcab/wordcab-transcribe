@@ -104,7 +104,6 @@ async def run_cortex(payload: CortexPayload, request: Request) -> CortexResponse
         from svix.api import MessageIn, Svix
 
         logging.DEBUG(f"Sending payload to Svix: {_cortex_response}")
-
         svix = Svix(settings.svix_api_key)
         MessageIn(
             svix.message.create(
