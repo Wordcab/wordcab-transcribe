@@ -45,7 +45,7 @@ async def run_cortex(payload: CortexPayload, request: Request) -> CortexResponse
     """Root endpoint for Cortex."""
     logger.debug("Received a request from Cortex.")
 
-    if payload.api_key != settings.cortext_api_key or not payload.api_key:
+    if payload.api_key != settings.cortex_api_key or not payload.api_key:
         return CortexError(message="Invalid API key.")
 
     if payload.ping:
@@ -94,7 +94,7 @@ async def run_cortex(payload: CortexPayload, request: Request) -> CortexResponse
 
         return CortexError(message=error_message)
 
-    _cortext_response = {
+    _cortex_response = {
         **utterances.dict(),
         "job_name": payload.job_name,
         "request_id": request_id,
@@ -111,9 +111,9 @@ async def run_cortex(payload: CortexPayload, request: Request) -> CortexResponse
                     event_type="async_job.wordcab_transcribe.finished",
                     event_id=f"wordcab_transcribe_finished_{payload.job_name}_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')}",
                     payload_retention_period=5,
-                    payload=_cortext_response,
+                    payload=_cortex_response,
                 ),
             )
         )
 
-    return CortexResponse(**_cortext_response)
+    return CortexResponse(**_cortex_response)
