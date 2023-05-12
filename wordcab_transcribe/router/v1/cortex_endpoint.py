@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Cortex endpoint module of the Wordcab Transcribe API."""
-
+import logging
 from datetime import datetime
 from typing import Union
 
@@ -103,6 +103,7 @@ async def run_cortex(payload: CortexPayload, request: Request) -> CortexResponse
     if settings.svix_api_key and settings.svix_app_id:
         from svix.api import MessageIn, Svix
 
+        logging.DEBUG(f"Sending payload to Svix: {_cortex_response}")
         svix = Svix(settings.svix_api_key)
         MessageIn(
             svix.message.create(
