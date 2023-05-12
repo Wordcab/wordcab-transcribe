@@ -6024,6 +6024,25 @@ files = [
 test = ["pytest (>=6.0.0)"]
 
 [[package]]
+name = "whisperx"
+version = "3.1.0"
+description = ""
+category = "main"
+optional = false
+python-versions = ">=3.8"
+files = []
+develop = false
+
+[package.extras]
+dev = ["pytest"]
+
+[package.source]
+type = "git"
+url = "https://github.com/m-bain/whisperx.git"
+reference = "v3.1.0"
+resolved_reference = "1caddfb564c49636b4ea9675085993d48239330e"
+
+[[package]]
 name = "widgetsnbextension"
 version = "4.0.7"
 description = "Jupyter interactive widgets for Jupyter Notebook"
@@ -6281,4 +6300,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.10"
-content-hash = "efa06dadefa851c813794e089e28c53f1217bdbc42e91ac47333db121f460ecd"
+content-hash = "46c28813b4c90a1f5bda546518603c5e5f7742839a053dbc5d88a32e84eb0836"

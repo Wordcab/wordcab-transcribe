@@ -174,18 +174,19 @@ class ASRAsyncService(ASRService):
 
         return segments
 
-    def align(self, segments: List[dict], source_lang: str) -> List[dict]:
+    def align(self, filepath: str, segments: List[dict], source_lang: str) -> List[dict]:
         """
         Align the segments using the AlignmentService class.
 
         Args:
+            filepath (str): Path to the audio file.
             segments (List[dict]): List of speaker segments.
             source_lang (str): Source language of the audio file.
 
         Returns:
             List[dict]: List of aligned speaker segments.
         """
-        aligned_segments = self.align_model(segments, source_lang)
+        aligned_segments = self.align_model(filepath, segments, source_lang)
 
         return aligned_segments
 
@@ -236,7 +237,7 @@ class ASRAsyncService(ASRService):
             source_lang = task["source_lang"]
 
             formatted_segments = self.transcribe(filepath, source_lang)
-            aligned_segments = self.align(formatted_segments, source_lang)
+            aligned_segments = self.align(filepath, formatted_segments, source_lang)
             speaker_timestamps = self.diarize(filepath)
             utterances = self.post_process(aligned_segments, speaker_timestamps)
 

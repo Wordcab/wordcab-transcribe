@@ -14,35 +14,38 @@
 """Alignment Service for transcribed audio files."""
 
 from collections import OrderedDict
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
+import librosa
 import torch
 import torchaudio
+import whisperx
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 
 
 MODEL_MAPPING = OrderedDict(
+    # (language, model_name, source)
     [
-        ("ar", "jonatasgrosman/wav2vec2-large-xlsr-53-arabic", "hfhub"),
-        ("da", "saattrupdan/wav2vec2-xls-r-300m-ftspeech", "hfhub"),
+        ("ar", "jonatasgrosman/wav2vec2-large-xlsr-53-arabic", "huggingface"),
+        ("da", "saattrupdan/wav2vec2-xls-r-300m-ftspeech", "huggingface"),
         ("de", "WAV2VEC2_ASR_BASE_10K_DE", "torchaudio"),
-        ("el", "jonatasgrosman/wav2vec2-large-xlsr-53-greek", "hfhub"),
+        ("el", "jonatasgrosman/wav2vec2-large-xlsr-53-greek", "huggingface"),
         ("en", "WAV2VEC2_ASR_BASE_960H", "torchaudio"),
         ("es", "WAV2VEC2_ASR_BASE_10K_ES", "torchaudio"),
-        ("fa", "jonatasgrosman/wav2vec2-large-xlsr-53-persian", "hfhub"),
-        ("fi", "jonatasgrosman/wav2vec2-large-xlsr-53-finnish", "hfhub"),
+        ("fa", "jonatasgrosman/wav2vec2-large-xlsr-53-persian", "huggingface"),
+        ("fi", "jonatasgrosman/wav2vec2-large-xlsr-53-finnish", "huggingface"),
         ("fr", "WAV2VEC2_ASR_BASE_10K_FR", "torchaudio"),
-        ("he", "imvladikon/wav2vec2-xls-r-300m-hebrew", "hfhub"),
-        ("hu", "jonatasgrosman/wav2vec2-large-xlsr-53-hungarian", "hfhub"),
+        ("he", "imvladikon/wav2vec2-xls-r-300m-hebrew", "huggingface"),
+        ("hu", "jonatasgrosman/wav2vec2-large-xlsr-53-hungarian", "huggingface"),
         ("it", "WAV2VEC2_ASR_BASE_10K_IT", "torchaudio"),
-        ("ja", "jonatasgrosman/wav2vec2-large-xlsr-53-japanese", "hfhub"),
-        ("nl", "jonatasgrosman/wav2vec2-large-xlsr-53-dutch", "hfhub"),
-        ("pl", "jonatasgrosman/wav2vec2-large-xlsr-53-polish", "hfhub"),
-        ("pt", "jonatasgrosman/wav2vec2-large-xlsr-53-portuguese", "hfhub"),
-        ("ru", "jonatasgrosman/wav2vec2-large-xlsr-53-russian", "hfhub"),
-        ("tr", "mpoyraz/wav2vec2-xls-r-300m-cv7-turkish", "hfhub"),
-        ("uk", "Yehor/wav2vec2-xls-r-300m-uk-with-small-lm", "hfhub"),
-        ("zh", "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn", "hfhub"),
+        ("ja", "jonatasgrosman/wav2vec2-large-xlsr-53-japanese", "huggingface"),
+        ("nl", "jonatasgrosman/wav2vec2-large-xlsr-53-dutch", "huggingface"),
+        ("pl", "jonatasgrosman/wav2vec2-large-xlsr-53-polish", "huggingface"),
+        ("pt", "jonatasgrosman/wav2vec2-large-xlsr-53-portuguese", "huggingface"),
+        ("ru", "jonatasgrosman/wav2vec2-large-xlsr-53-russian", "huggingface"),
+        ("tr", "mpoyraz/wav2vec2-xls-r-300m-cv7-turkish", "huggingface"),
+        ("uk", "Yehor/wav2vec2-xls-r-300m-uk-with-small-lm", "huggingface"),
+        ("zh", "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn", "huggingface"),
     ]
 )
 
@@ -57,19 +60,51 @@ class AlignService:
         self.model_map = self.MODEL_MAPPING
         self.available_lang = self.model_map.keys()
 
-    def __call__(self, transcript_segments: List[dict], source_lang: str) -> None:
-        pass
+    def __call__(self, filepath: str, transcript_segments: List[dict], source_lang: str) -> None:
+        """Run the alignment service on the given transcript segments and source language."""
+        if source_lang not in self.available_lang:
+            return transcript_segments
 
-    def load_model(self, language: str) -> None:
-        """Load the model for the given language."""
+        model, metadata = self.load_model(source_lang)
+
+        result_aligned = whisperx.align(
+            transcript_segments, model, metadata, filepath, self.device
+        )
+        word_timestamps = result_aligned["word_segments"]
+
+        del model
+        torch.cuda.empty_cache()
+
+        return word_timestamps
+
+    def load_model(
+        self, language: str
+    ) -> Tuple[Union[Wav2Vec2ForCTC, torchaudio.models.Wav2Vec2Model], Dict[str, int]]:
+        """
+        Load the model for the given language from torch or huggingface hub.
+
+        Args:
+            language (str): The language to load the model for.
+
+        Returns:
+            Tuple[Union[Wav2Vec2ForCTC, torchaudio.models.Wav2Vec2Model], Dict[str, int]]: The model its metadata.
+        """
         model_path, model_type = self.model_map[language]
 
-        if model_type == "hfhub":
-            model, align_dictionary = self._load_hf_model(model_path)
-        elif model_type == "torchaudio":
-            model, align_dictionary = self._load_torch_model(model_path)
-        else:
-            raise NotImplementedError(f"Model type {model_type} not implemented.")
+        try:
+            if model_type == "huggingface":
+                model, align_dictionary = self._load_hf_model(model_path)
+            elif model_type == "torchaudio":
+                model, align_dictionary = self._load_torch_model(model_path)
+            else:
+                raise NotImplementedError(f"Model type {model_type} not implemented.")
+
+        except Exception as e:
+            raise ValueError(f"Could not load model for language {language}.") from e
+
+        metadata = {"language": language, "dictionary": align_dictionary, "type": model_type}
+
+        return model, metadata
 
     def _load_torch_model(self, model_path: str) -> Tuple[torchaudio.models.Wav2Vec2Model, Dict[str, int]]:
         """

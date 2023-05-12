@@ -23,6 +23,7 @@ scikit-learn = ">=1.2.2"
 shortuuid = ">=1.0.0"
 torch = ">=1.9,<2.0"
 uvicorn = ">=0.21.1"
+whisperx = { git = "https://github.com/m-bain/whisperx.git", rev = "v3.1.0" }
 yt-dlp = ">=2023.3.4"
 youtokentome = { git = "https://github.com/gbeckenkamp/YouTokenToMe.git", branch = "add_minimum_requirements" }
 
