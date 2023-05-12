@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Cortex endpoint module of the Wordcab Transcribe API."""
-import logging
+
 from datetime import datetime
 from typing import Union
 
@@ -80,16 +80,14 @@ async def run_cortex(payload: CortexPayload, request: Request) -> CortexResponse
             from svix.api import MessageIn, Svix
 
             svix = Svix(settings.svix_api_key)
-            MessageIn(
-                svix.message.create(
-                    settings.svix_app_id,
-                    MessageIn(
-                        event_type="async_job.wordcab_transcribe.error",
-                        event_id=f"wordcab_transcribe_error_{payload.job_name}_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')}",
-                        payload_retention_period=5,
-                        payload={"error": error_message},
-                    ),
-                )
+            svix.message.create(
+                settings.svix_app_id,
+                MessageIn(
+                    event_type="async_job.wordcab_transcribe.error",
+                    event_id=f"wordcab_transcribe_error_{payload.job_name}_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')}",
+                    payload_retention_period=5,
+                    payload={"error": error_message},
+                ),
             )
 
         return CortexError(message=error_message)
@@ -103,18 +101,15 @@ async def run_cortex(payload: CortexPayload, request: Request) -> CortexResponse
     if settings.svix_api_key and settings.svix_app_id:
         from svix.api import MessageIn, Svix
 
-        logging.DEBUG(f"Sending payload to Svix: {_cortex_response}")
         svix = Svix(settings.svix_api_key)
-        MessageIn(
-            svix.message.create(
-                settings.svix_app_id,
-                MessageIn(
-                    event_type="async_job.wordcab_transcribe.finished",
-                    event_id=f"wordcab_transcribe_finished_{payload.job_name}_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')}",
-                    payload_retention_period=5,
-                    payload=_cortex_response,
-                ),
-            )
+        svix.message.create(
+            settings.svix_app_id,
+            MessageIn(
+                event_type="async_job.wordcab_transcribe.finished",
+                event_id=f"wordcab_transcribe_finished_{payload.job_name}_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')}",
+                payload_retention_period=5,
+                payload=_cortex_response,
+            ),
         )
 
     return CortexResponse(**_cortex_response)

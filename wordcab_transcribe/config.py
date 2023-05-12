@@ -133,7 +133,7 @@ settings = Settings(
     cortex_endpoint=getenv("CORTEX_ENDPOINT", True),
     youtube_endpoint=getenv("YOUTUBE_ENDPOINT", True),
     live_endpoint=getenv("LIVE_ENDPOINT", False),
-    cortex_api_key=getenv("WORDCAB_TRANSCRIBE_API_KEY", None),
-    svix_api_key=getenv("SVIX_API_KEY", None),
-    svix_app_id=getenv("SVIX_APP_ID", None),
+    cortex_api_key=getenv("WORDCAB_TRANSCRIBE_API_KEY", ""),
+    svix_api_key=getenv("SVIX_API_KEY", ""),
+    svix_app_id=getenv("SVIX_APP_ID", ""),
 )
