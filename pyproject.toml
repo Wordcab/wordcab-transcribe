@@ -25,6 +25,7 @@ torch = ">=1.9,<2.0"
 uvicorn = ">=0.21.1"
 yt-dlp = ">=2023.3.4"
 youtokentome = { git = "https://github.com/gbeckenkamp/YouTokenToMe.git", branch = "add_minimum_requirements" }
+svix = "0.85.1"
 
 [tool.poetry.group.test.dependencies]
 black = ">=23.1.0"
