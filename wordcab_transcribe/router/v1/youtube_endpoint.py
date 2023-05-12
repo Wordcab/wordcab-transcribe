@@ -67,6 +67,6 @@ async def inference_with_youtube(
     return ASRResponse(
         utterances=utterances,
         alignment=data.alignment,
-        source_lang=data.source_lang, 
+        source_lang=data.source_lang,
         timestamps=data.timestamps,
     )

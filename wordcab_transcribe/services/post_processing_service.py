@@ -15,7 +15,7 @@
 
 from typing import List
 
-from wordcab_transcribe.utils import format_segments, get_segment_timestamp_anchor
+from wordcab_transcribe.utils import get_segment_timestamp_anchor
 
 
 class PostProcessingService:

@@ -266,48 +266,24 @@ def format_punct(text: str):
     return text.strip()
 
 
-def format_segments(
-    segments: list,
-    use_dict: Optional[bool] = False,
-    include_words: Optional[bool] = False,
-) -> List[dict]:
+def format_segments(segments: list) -> List[dict]:
     """
     Format the segments to a list of dicts with start, end and text keys.
 
     Args:
         segments (list): List of segments.
-        use_dict (bool, optional): Use dict instead of object. Defaults to False.
-        include_words (bool, optional): Include words. Defaults to False.
 
     Returns:
-        list: List of dicts with start, end and text keys.
+        list: List of dicts with start, end and word keys.
     """
     formatted_segments = []
 
     for segment in segments:
         segment_dict = {}
 
-        if use_dict:
-            segment_dict["start"] = segment["start"]
-            segment_dict["end"] = segment["end"]
-            segment_dict["text"] = segment["text"].strip()
-
-        else:
-            segment_dict["start"] = segment.start
-            segment_dict["end"] = segment.end
-            segment_dict["text"] = segment.text.strip()
-
-        if include_words:
-            words = [
-                {
-                    "start": word.start,
-                    "end": word.end,
-                    "word": word.word.strip(),
-                    "probability": word.probability,
-                }
-                for word in segment.words
-            ]
-            segment_dict["words"] = words
+        segment_dict["start"] = segment["start"]
+        segment_dict["end"] = segment["end"]
+        segment_dict["word"] = segment["text"].strip()
 
         formatted_segments.append(segment_dict)
 

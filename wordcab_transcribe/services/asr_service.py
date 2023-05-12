@@ -25,6 +25,7 @@ from wordcab_transcribe.services.align_service import AlignService
 from wordcab_transcribe.services.diarize_service import DiarizeService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
+from wordcab_transcribe.utils import format_segments
 
 
 class ASRService:
@@ -247,7 +248,7 @@ class ASRAsyncService(ASRService):
             if alignment:
                 formatted_segments = self.align(filepath, segments, source_lang)
             else:
-                formatted_segments = segments
+                formatted_segments = format_segments(segments)
 
             speaker_timestamps = self.diarize(filepath)
             utterances = self.post_process(formatted_segments, speaker_timestamps)
