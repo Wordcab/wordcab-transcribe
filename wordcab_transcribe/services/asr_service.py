@@ -14,6 +14,7 @@
 """ASR Service module that handle all AI interactions."""
 
 import asyncio
+import traceback
 from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
@@ -132,7 +133,7 @@ class ASRService:
                 del file_batch
 
             except Exception as e:
-                logger.error(f"Error processing batch: {e}")
+                logger.error(f"Error processing batch: {e}\n{traceback.format_exc()}")
                 for task in file_batch:  # Error handling
                     task["result"] = e
                     task["done_event"].set()
