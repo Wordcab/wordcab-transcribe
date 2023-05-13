@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import aiofiles
 import aiohttp
+import pandas as pd
 from loguru import logger
 from omegaconf import OmegaConf
 from yt_dlp import YoutubeDL
@@ -297,6 +298,13 @@ def get_segment_timestamp_anchor(start: float, end: float, option: str = "start"
     elif option == "mid":
         return (start + end) / 2
     return start
+
+
+def interpolate_nans(x: pd.Series, method="nearest"):
+    if x.notnull().sum() > 1:
+        return x.interpolate(method=method).ffill().bfill()
+    else:
+        return x.ffill().bfill()
 
 
 def load_nemo_config(

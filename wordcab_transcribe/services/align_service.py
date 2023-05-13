@@ -22,7 +22,10 @@ import numpy as np
 import pandas as pd
 import torch
 import torchaudio
+from loguru import logger
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
+
+from wordcab_transcribe.utils import interpolate_nans
 
 
 MODEL_MAPPING = OrderedDict(
@@ -106,14 +109,14 @@ class SingleAlignedSegment(TypedDict):
     start: float
     end: float
     text: str
-    words: list[SingleWordSegment]
-    chars: Optional[list[SingleCharSegment]]
+    words: List[SingleWordSegment]
+    chars: Optional[List[SingleCharSegment]]
 
 class TranscriptionResult(TypedDict):
     """
     A list of segments and word segments of a speech.
     """
-    segments: list[SingleSegment]
+    segments: List[SingleSegment]
     language: str
 
 
@@ -121,15 +124,8 @@ class AlignedTranscriptionResult(TypedDict):
     """
     A list of segments and word segments of a speech.
     """
-    segments: list[SingleAlignedSegment]
-    word_segments: list[SingleWordSegment]
-
-@staticmethod
-def interpolate_nans(x: pd.Series, method="nearest"):
-    if x.notnull().sum() > 1:
-        return x.interpolate(method=method).ffill().bfill()
-    else:
-        return x.ffill().bfill()
+    segments: List[SingleAlignedSegment]
+    word_segments: List[SingleWordSegment]
 
 class AlignService:
     """Alignment Service for transcribed audio files."""
@@ -268,13 +264,19 @@ class AlignService:
         Returns:
             AlignedTranscriptionResult: The aligned transcription result.
         """
-        audio, _ = torchaudio.load(
-            audio_path, normalize=True, num_frames=-1, channels_first=False, sample_rate=self.sample_rate
+        audio, sample_rate = torchaudio.load(
+            audio_path, normalize=True, num_frames=-1, channels_first=False,
         )
+        if sample_rate != self.sample_rate:
+            audio = torchaudio.transforms.Resample(
+                orig_freq=sample_rate, new_freq=self.sample_rate
+            )(audio)
+        audio = audio.flatten().float()
+
         if len(audio.shape) == 1:
             audio = audio.unsqueeze(0)
         
-        MAX_DURATION = audio.shape[1] / self.sample_rate
+        MAX_DURATION = audio.shape[0] / self.sample_rate if len(audio.shape) > 0 else 0.0
 
         model_dictionary = align_model_metadata["dictionary"]
         model_lang = align_model_metadata["language"]
@@ -291,7 +293,7 @@ class AlignService:
 
             clean_char, clean_cdx = [], []
             for cdx, char in enumerate(text):
-                char_ = char_.lower().replace(" ", "|") if model_lang not in ["ja", "zh"] else char_.lower()
+                char_ = char.lower().replace(" ", "|") if model_lang not in ["ja", "zh"] else char.lower()
                 
                 # ignore whitespace at beginning and end of transcript
                 if cdx < num_leading:
@@ -352,6 +354,7 @@ class AlignService:
             # TODO: Probably can get some speedup gain with batched inference here
             waveform_segment = audio[:, f1:f2]
 
+            logger.debug("Running inference on segment...")
             with torch.inference_mode():
                 if model_type == "torchaudio":
                     emissions, _ = model(waveform_segment.to(device))
