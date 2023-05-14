@@ -16,6 +16,7 @@ ffmpeg-python = ">=0.2.0"
 loguru = ">=0.6.0"
 nemo-toolkit = { version = ">=1.17.0", extras = ["asr"] }
 numpy = "==1.23.1"
+num2words = ">=0.5.12"
 pydantic = ">=1.10.7"
 python-dotenv = ">=1.0.0"
 python-multipart = ">=0.0.6"

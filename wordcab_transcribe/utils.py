@@ -300,7 +300,17 @@ def get_segment_timestamp_anchor(start: float, end: float, option: str = "start"
     return start
 
 
-def interpolate_nans(x: pd.Series, method="nearest"):
+def interpolate_nans(x: pd.Series, method="nearest") -> pd.Series:
+    """
+    Interpolate NaNs in a pandas Series using a given method.
+
+    Args:
+        x (pd.Series): The Series to interpolate.
+        method (str, optional): The interpolation method. Defaults to "nearest".
+
+    Returns:
+        pd.Series: The interpolated Series.
+    """
     if x.notnull().sum() > 1:
         return x.interpolate(method=method).ffill().bfill()
     else:
