@@ -17,12 +17,11 @@ from typing import Optional
 
 import aiofiles
 import shortuuid
-from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, UploadFile
 from fastapi import status as http_status
 
 from wordcab_transcribe.dependencies import asr
 from wordcab_transcribe.models import ASRResponse, DataRequest
-from wordcab_transcribe.router.authentication import get_current_user
 from wordcab_transcribe.utils import (
     convert_file_to_wav,
     convert_timestamp,
@@ -40,7 +39,6 @@ async def inference_with_audio(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),  # noqa: B008
     data: Optional[DataRequest] = None,
-    current_user: str = Depends(get_current_user),  # for authentication purposes
 ) -> ASRResponse:
     """Inference endpoint with audio file."""
     extension = file.filename.split(".")[-1]

@@ -16,12 +16,11 @@
 from typing import Optional
 
 import shortuuid
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks
 from fastapi import status as http_status
 
 from wordcab_transcribe.dependencies import asr
 from wordcab_transcribe.models import ASRResponse, DataRequest
-from wordcab_transcribe.router.authentication import get_current_user
 from wordcab_transcribe.utils import (
     convert_file_to_wav,
     convert_timestamp,
@@ -40,7 +39,6 @@ async def inference_with_audio_url(
     background_tasks: BackgroundTasks,
     url: str,
     data: Optional[DataRequest] = None,
-    current_user: str = Depends(get_current_user),  # for authentication purposes
 ) -> ASRResponse:
     """Inference endpoint with audio url."""
     filename = f"audio_url_{shortuuid.ShortUUID().random(length=32)}"

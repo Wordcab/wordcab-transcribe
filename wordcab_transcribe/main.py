@@ -16,13 +16,14 @@
 
 import asyncio
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi import status as http_status
 from fastapi.responses import HTMLResponse
 from loguru import logger
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.dependencies import asr
+from wordcab_transcribe.router.authentication import get_current_user
 from wordcab_transcribe.router.v1.endpoints import (
     api_router,
     auth_router,
@@ -38,13 +39,15 @@ app = FastAPI(
     debug=settings.debug,
 )
 
-app.include_router(api_router, prefix=settings.api_prefix)
+if settings.debug is False:
+    app.include_router(auth_router, tags=["authentication"])
+    app.include_router(api_router, prefix=settings.api_prefix, dependencies=[Depends(get_current_user)])
+else:
+    app.include_router(api_router, prefix=settings.api_prefix)
 
 if settings.cortex_endpoint:
     app.include_router(cortex_router, tags=["cortex"])
 
-if settings.debug is False:
-    app.include_router(auth_router, tags=["authentication"])
 
 
 @app.on_event("startup")

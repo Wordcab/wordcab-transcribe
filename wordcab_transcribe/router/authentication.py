@@ -80,10 +80,6 @@ async def get_current_user(
     Returns:
         str: Username.
     """
-    if settings.debug is True:
-        # In debug mode, authentication is disabled so we don't need to check the credentials
-        return credentials
-
     try:
         payload = jwt.decode(token, settings.openssl_key, algorithms=[settings.openssl_algorithm])
         username: str = payload.get("sub")
