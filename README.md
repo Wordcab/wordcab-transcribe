@@ -38,6 +38,7 @@ docker run -d --name wordcab-transcribe \
     --shm-size 1g \
     --restart unless-stopped \
     -p 5001:5001 \
+    -v ~/.cache:/root/.cache \
     wordcab-transcribe:latest
 ```
 
@@ -51,6 +52,7 @@ docker run -d --name wordcab-transcribe \
     --shm-size 1g \
     --restart unless-stopped \
     -p 5001:5001 \
+    -v ~/.cache:/root/.cache \
     -v /path/to/whisper/models:/app/whisper/models \
     wordcab-transcribe:latest
 ```
