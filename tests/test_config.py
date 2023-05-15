@@ -15,9 +15,7 @@
 
 from collections import OrderedDict
 
-import logging
 import pytest
-from loguru import logger
 
 from wordcab_transcribe.config import Settings, settings
 
