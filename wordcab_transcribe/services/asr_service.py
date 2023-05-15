@@ -14,6 +14,7 @@
 """ASR Service module that handle all AI interactions."""
 
 import asyncio
+import traceback
 from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
@@ -21,9 +22,11 @@ import torch
 from loguru import logger
 
 from wordcab_transcribe.config import settings
+from wordcab_transcribe.services.align_service import AlignService
 from wordcab_transcribe.services.diarize_service import DiarizeService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
+from wordcab_transcribe.utils import format_segments
 
 
 class ASRService:
@@ -65,6 +68,7 @@ class ASRService:
         self,
         filepath: str,
         source_lang: str,
+        alignment: bool,
     ) -> List[dict]:
         """
         Process the input request and return the result.
@@ -72,6 +76,7 @@ class ASRService:
         Args:
             filepath (str): Path to the audio file.
             source_lang (str): Source language of the audio file.
+            alignment (bool): Whether to do alignment or not.
 
         Returns:
             List[dict]: List of speaker segments.
@@ -79,6 +84,7 @@ class ASRService:
         task = {
             "input": filepath,
             "source_lang": source_lang,
+            "alignment": alignment,
             "done_event": asyncio.Event(),
             "time": asyncio.get_event_loop().time(),
         }
@@ -127,7 +133,7 @@ class ASRService:
                 del file_batch
 
             except Exception as e:
-                logger.error(f"Error processing batch: {e}")
+                logger.error(f"Error processing batch: {e}\n{traceback.format_exc()}")
                 for task in file_batch:  # Error handling
                     task["result"] = e
                     task["done_event"].set()
@@ -149,6 +155,7 @@ class ASRAsyncService(ASRService):
             compute_type=settings.compute_type,
             device=self.device,
         )
+        self.align_model = AlignService(self.device)
         self.diarize_model = DiarizeService(
             domain_type=settings.nemo_domain_type,
             storage_path=settings.nemo_storage_path,
@@ -171,6 +178,24 @@ class ASRAsyncService(ASRService):
         segments = self.transcribe_model(filepath, source_lang)
 
         return segments
+
+    def align(
+        self, filepath: str, segments: List[dict], source_lang: str
+    ) -> List[dict]:
+        """
+        Align the segments using the AlignmentService class.
+
+        Args:
+            filepath (str): Path to the audio file.
+            segments (List[dict]): List of speaker segments.
+            source_lang (str): Source language of the audio file.
+
+        Returns:
+            List[dict]: List of aligned speaker segments.
+        """
+        aligned_segments = self.align_model(filepath, segments, source_lang)
+
+        return aligned_segments
 
     def diarize(self, filepath: str) -> List[dict]:
         """
@@ -208,7 +233,7 @@ class ASRAsyncService(ASRService):
         Process a batch of requests.
 
         Args:
-            file_batch (List[dict]): List of requests.
+            file_batch (List[dict]): List of requests to process with their respective parameters.
 
         Returns:
             List[dict]: List of results.
@@ -217,9 +242,17 @@ class ASRAsyncService(ASRService):
         for task in file_batch:
             filepath = task["input"]
             source_lang = task["source_lang"]
+            alignment = task["alignment"]
 
-            formatted_segments = self.transcribe(filepath, source_lang)
+            segments = self.transcribe(filepath, source_lang)
+
+            if alignment:
+                formatted_segments = self.align(filepath, segments, source_lang)
+            else:
+                formatted_segments = format_segments(segments)
+
             speaker_timestamps = self.diarize(filepath)
+
             utterances = self.post_process(formatted_segments, speaker_timestamps)
 
             results.append(utterances)

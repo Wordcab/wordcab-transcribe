@@ -17,8 +17,6 @@ from typing import List, Optional
 
 from faster_whisper import WhisperModel
 
-from wordcab_transcribe.utils import format_segments
-
 
 class TranscribeService:
     """Transcribe Service for audio files."""
@@ -60,6 +58,7 @@ class TranscribeService:
             beam_size=beam_size,
             word_timestamps=word_timestamps,
         )
-        segments = format_segments(list(segments))
 
-        return segments
+        results = [segment._asdict() for segment in segments]
+
+        return results

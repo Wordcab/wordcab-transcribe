@@ -16,20 +16,22 @@ ffmpeg-python = ">=0.2.0"
 loguru = ">=0.6.0"
 nemo-toolkit = { version = ">=1.17.0", extras = ["asr"] }
 numpy = "==1.23.1"
+num2words = ">=0.5.12"
 pydantic = ">=1.10.7"
 python-dotenv = ">=1.0.0"
 python-multipart = ">=0.0.6"
 scikit-learn = ">=1.2.2"
 shortuuid = ">=1.0.0"
 svix = ">=0.85.1"
-torch = ">=1.9,<2.0"
+torch = ">=2.0"
+torchaudio = ">=2.0.1"
 uvicorn = ">=0.21.1"
 yt-dlp = ">=2023.3.4"
 youtokentome = { git = "https://github.com/gbeckenkamp/YouTokenToMe.git", branch = "add_minimum_requirements" }
 
 [tool.poetry.group.test.dependencies]
 black = ">=23.1.0"
-coverage = {extras = ["toml"], version = ">=7.2.1"}
+coverage = { extras = ["toml"], version = ">=7.2.1" }
 darglint = ">=1.8.1"
 flake8 = ">=6.0.0"
 flake8-bandit = ">=4.1.1"

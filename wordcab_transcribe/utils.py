@@ -24,11 +24,40 @@ from typing import Any, Dict, List, Optional, Union
 
 import aiofiles
 import aiohttp
+import pandas as pd
 from loguru import logger
+from num2words import num2words
 from omegaconf import OmegaConf
 from yt_dlp import YoutubeDL
 
 
+CURRENCIES_CHARACTERS = [
+    "$",
+    "€",
+    "£",
+    "¥",
+    "₹",
+    "₽",
+    "₱",
+    "฿",
+    "₺",
+    "₴",
+    "₩",
+    "₦",
+    "₫",
+    "₭",
+    "₡",
+    "₲",
+    "₪",
+    "₵",
+    "₸",
+    "₼",
+    "₾",
+    "₿",
+]
+
+
+# pragma: no cover
 async def run_subprocess(command: List[str]) -> tuple:
     """
     Run a subprocess asynchronously.
@@ -148,6 +177,7 @@ async def convert_file_to_wav(filepath: str) -> str:
     return str(new_filepath)
 
 
+# pragma: no cover
 async def download_file_from_youtube(url: str, filename: str) -> str:
     """
     Download a file from YouTube using youtube-dl.
@@ -171,6 +201,7 @@ async def download_file_from_youtube(url: str, filename: str) -> str:
     return filename + ".wav"
 
 
+# pragma: no cover
 async def download_audio_file(
     url: str, filename: str, url_headers: Optional[Dict[str, str]] = None
 ) -> str:
@@ -266,48 +297,24 @@ def format_punct(text: str):
     return text.strip()
 
 
-def format_segments(
-    segments: list,
-    use_dict: Optional[bool] = False,
-    include_words: Optional[bool] = False,
-) -> List[dict]:
+def format_segments(segments: list) -> List[dict]:
     """
     Format the segments to a list of dicts with start, end and text keys.
 
     Args:
         segments (list): List of segments.
-        use_dict (bool, optional): Use dict instead of object. Defaults to False.
-        include_words (bool, optional): Include words. Defaults to False.
 
     Returns:
-        list: List of dicts with start, end and text keys.
+        list: List of dicts with start, end and word keys.
     """
     formatted_segments = []
 
     for segment in segments:
         segment_dict = {}
 
-        if use_dict:
-            segment_dict["start"] = segment["start"]
-            segment_dict["end"] = segment["end"]
-            segment_dict["text"] = segment["text"].strip()
-
-        else:
-            segment_dict["start"] = segment.start
-            segment_dict["end"] = segment.end
-            segment_dict["text"] = segment.text.strip()
-
-        if include_words:
-            words = [
-                {
-                    "start": word.start,
-                    "end": word.end,
-                    "word": word.word.strip(),
-                    "probability": word.probability,
-                }
-                for word in segment.words
-            ]
-            segment_dict["words"] = words
+        segment_dict["start"] = segment["start"]
+        segment_dict["end"] = segment["end"]
+        segment_dict["word"] = segment["text"].strip()
 
         formatted_segments.append(segment_dict)
 
@@ -321,6 +328,23 @@ def get_segment_timestamp_anchor(start: float, end: float, option: str = "start"
     elif option == "mid":
         return (start + end) / 2
     return start
+
+
+def interpolate_nans(x: pd.Series, method="nearest") -> pd.Series:
+    """
+    Interpolate NaNs in a pandas Series using a given method.
+
+    Args:
+        x (pd.Series): The Series to interpolate.
+        method (str, optional): The interpolation method. Defaults to "nearest".
+
+    Returns:
+        pd.Series: The interpolated Series.
+    """
+    if x.notnull().sum() > 1:
+        return x.interpolate(method=method).ffill().bfill()
+    else:
+        return x.ffill().bfill()
 
 
 def load_nemo_config(
@@ -384,3 +408,54 @@ def retrieve_user_platform() -> str:
         str: User's platform. Either 'linux', 'darwin' or 'win32'.
     """
     return sys.platform
+
+
+# pragma: no cover
+def experimental_num_to_words(sentence: str, model_lang: str) -> str:
+    """
+    Convert numerical values to words. This is an experimental feature.
+
+    Args:
+        sentence (str): The sentence to convert.
+        model_lang (str): The language of the model.
+
+    Returns:
+        str: The converted sentence.
+    """
+    for wdx, word in enumerate(sentence):
+        if any([char.isdigit() for char in word]):
+            logger.debug(f"Transcript contains digits: {word}")
+
+            if any([char == "%" for char in word]):
+                word = word.replace("%", "")
+                to_ = "ordinal" if model_lang not in ["ja", "zh"] else "cardinal"
+            elif any([char in CURRENCIES_CHARACTERS for char in word]):
+                word = "".join(
+                    [char for char in word if char not in CURRENCIES_CHARACTERS]
+                )
+                to_ = "currency"
+            else:
+                to_ = "cardinal"
+
+            if word[-1] in [".", ",", "?", "!", ":", ";"]:
+                punctuation = word[-1]
+                word = word[:-1]
+            else:
+                punctuation = None
+
+            if "-" in word:
+                splitted_word = word.split("-")
+            else:
+                splitted_word = [word]
+
+            reformatted_word = []
+            for word in splitted_word:
+                reformatted_word.append(num2words(word, lang=model_lang, to=to_))
+
+            reformatted_word = (
+                reformatted_word + [punctuation] if punctuation else reformatted_word
+            )
+
+            sentence = sentence[:wdx] + reformatted_word + sentence[wdx + 1 :]
+
+    return " ".join(sentence)
