@@ -26,32 +26,34 @@ from pydantic.dataclasses import dataclass
 class Settings:
     """Configuration settings for the Wordcab Transcribe API."""
 
-    # Basic API settings
+    # General configuration
     project_name: str
     version: str
     description: str
     api_prefix: str
     debug: bool
-    # Batch request settings
+    # Batch configuration
     batch_size: int
     max_wait: float
-    # Model settings
+    # Models configuration
+    # Whisper
     whisper_model: str
     compute_type: str
+    # NVIDIA NeMo
     nemo_domain_type: str
     nemo_storage_path: str
     nemo_output_path: str
-    # ASR service
+    # ASR type configuration
     asr_type: str
-    # API endpoints
+    # Endpoints configuration
     audio_file_endpoint: bool
     audio_url_endpoint: bool
     cortex_endpoint: bool
     youtube_endpoint: bool
     live_endpoint: bool
-    # Auth
+    # Cortex configuration
     cortex_api_key: str
-    # Svix
+    # Svix configuration
     svix_api_key: str
     svix_app_id: str
 
@@ -112,7 +114,9 @@ class Settings:
 
 load_dotenv()
 
+
 settings = Settings(
+    # General configuration
     project_name=getenv("PROJECT_NAME", "Wordcab Transcribe"),
     version=getenv("VERSION", "0.2.0"),
     description=getenv(
@@ -120,20 +124,28 @@ settings = Settings(
     ),
     api_prefix=getenv("API_PREFIX", "/api/v1"),
     debug=getenv("DEBUG", True),
+    # Batch configuration
     batch_size=getenv("BATCH_SIZE", 1),
     max_wait=getenv("MAX_WAIT", 0.1),
+    # Models configuration
+    # Whisper
     whisper_model=getenv("WHISPER_MODEL", "large-v2"),
     compute_type=getenv("COMPUTE_TYPE", "int8_float16"),
+    # NeMo
     nemo_domain_type=getenv("NEMO_DOMAIN_TYPE", "general"),
     nemo_storage_path=getenv("NEMO_STORAGE_PATH", "nemo_storage"),
     nemo_output_path=getenv("NEMO_OUTPUT_PATH", "nemo_outputs"),
+    # ASR type
     asr_type=getenv("ASR_TYPE", "async"),
+    # Endpoints configuration
     audio_file_endpoint=getenv("AUDIO_FILE_ENDPOINT", True),
     audio_url_endpoint=getenv("AUDIO_URL_ENDPOINT", True),
     cortex_endpoint=getenv("CORTEX_ENDPOINT", True),
     youtube_endpoint=getenv("YOUTUBE_ENDPOINT", True),
     live_endpoint=getenv("LIVE_ENDPOINT", False),
+    # Cortex configuration
     cortex_api_key=getenv("WORDCAB_TRANSCRIBE_API_KEY", ""),
+    # Svix configuration
     svix_api_key=getenv("SVIX_API_KEY", ""),
     svix_app_id=getenv("SVIX_APP_ID", ""),
 )

@@ -41,6 +41,20 @@ docker run -d --name wordcab-transcribe \
     wordcab-transcribe:latest
 ```
 
+You can mount a volume to the container to load local whisper models.
+
+If you mount a volume, you need to update the `WHISPER_MODEL` environment variable in the `.env` file.
+
+```bash
+docker run -d --name wordcab-transcribe \
+    --gpus all \
+    --shm-size 1g \
+    --restart unless-stopped \
+    -p 5001:5001 \
+    -v /path/to/whisper/models:/app/whisper/models \
+    wordcab-transcribe:latest
+```
+
 ## Test the API
 
 Once the container is running, you can test the API.
