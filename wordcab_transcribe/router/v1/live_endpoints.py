@@ -13,13 +13,17 @@
 # limitations under the License.
 """Live endpoints for the Wordcab Transcribe API."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from wordcab_transcribe.router.authentication import get_current_user
 
 
 router = APIRouter()
 
 
 @router.post("")
-async def live() -> None:
+async def live(
+    current_user: str = Depends(get_current_user),  # for authentication purposes
+) -> None:
     """Live endpoint for the API."""
     pass
