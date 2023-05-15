@@ -233,7 +233,7 @@ class ASRAsyncService(ASRService):
         Process a batch of requests.
 
         Args:
-            file_batch (List[dict]): List of requests.
+            file_batch (List[dict]): List of requests to process with their respective parameters.
 
         Returns:
             List[dict]: List of results.
@@ -252,6 +252,7 @@ class ASRAsyncService(ASRService):
                 formatted_segments = format_segments(segments)
 
             speaker_timestamps = self.diarize(filepath)
+
             utterances = self.post_process(formatted_segments, speaker_timestamps)
 
             results.append(utterances)

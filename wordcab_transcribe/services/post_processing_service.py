@@ -72,7 +72,18 @@ class PostProcessingService:
         segment_position, turn_idx = 0, 0
         segment_speaker_mapping = []
 
-        for segment in transcript_segments:
+        for idx, segment in enumerate(transcript_segments):
+            if "start" not in segment:
+                if idx == 0:
+                    segment["start"] = 0
+                else:
+                    segment["start"] = transcript_segments[idx - 1]["end"]
+            if "end" not in segment:
+                if idx == len(transcript_segments) - 1:
+                    segment["end"] = segment["start"] + 1
+                else:
+                    segment["end"] = transcript_segments[idx + 1]["start"]
+
             segment_start, segment_end, segment_text = (
                 int(segment["start"] * 1000),
                 int(segment["end"] * 1000),
