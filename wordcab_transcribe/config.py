@@ -19,6 +19,7 @@ from typing import Union
 
 from dotenv import load_dotenv
 from faster_whisper.utils import _MODELS
+from loguru import logger
 from pydantic import validator
 from pydantic.dataclasses import dataclass
 
@@ -121,44 +122,22 @@ class Settings:
             )
         return value
 
-    @validator("username", "password")
-    def username_and_password_must_be_valid(cls, value: str):  # noqa: B902, N805
-        """Check that the authentication parameters are not None."""
-        if getenv("DEBUG", True) is False:
-            if value is None or value == "admin":
-                raise ValueError(
-                    "username and password must not be None or 'admin', please verify the `.env` file."
-                )
-        return value
-
-    @validator("openssl_key")
-    def openssl_key_must_be_valid(cls, value: str):  # noqa: B902, N805
-        """Check that the OpenSSL key is not the default value or empty. Only if debug is False."""
-        if getenv("DEBUG", True) is False:
-            if value == "0123456789abcdefghijklmnopqrstuvwyz" or value == "":
-                raise ValueError(
-                    "openssl_key must be a valid key, please verify the `.env` file."
-                )
-        return value
-
     @validator("openssl_algorithm")
     def openssl_algorithm_must_be_valid(cls, value: str):  # noqa: B902, N805
-        """Check that the OpenSSL algorithm is valid. Only if debug is False."""
-        if getenv("DEBUG", True) is False:
-            if value not in {"HS256", "HS384", "HS512"}:
-                raise ValueError(
-                    "openssl_algorithm must be a valid algorithm, please verify the `.env` file."
-                )
+        """Check that the OpenSSL algorithm is valid."""
+        if value not in {"HS256", "HS384", "HS512"}:
+            raise ValueError(
+                "openssl_algorithm must be a valid algorithm, please verify the `.env` file."
+            )
         return value
 
     @validator("access_token_expire_minutes")
     def access_token_expire_minutes_must_be_valid(cls, value: int):  # noqa: B902, N805
         """Check that the access token expiration is valid. Only if debug is False."""
-        if getenv("DEBUG", True) is False:
-            if value <= 0:
-                raise ValueError(
-                    "access_token_expire_minutes must be positive, please verify the `.env` file."
-                )
+        if value <= 0:
+            raise ValueError(
+                "access_token_expire_minutes must be positive, please verify the `.env` file."
+            )
         return value
 
     def __post_init__(self):
@@ -172,6 +151,18 @@ class Settings:
         ]
         if not any(endpoints):
             raise ValueError("At least one endpoint configuration must be set to True.")
+
+        if self.debug:
+            if self.username == "admin" or self.username is None:
+                logger.warning(f"Username is set to `{self.username}`, which is not secure for production.")
+            if self.password == "admin" or self.password is None:
+                logger.warning(f"Password is set to `{self.password}`, which is not secure for production.")
+            if self.openssl_key == "0123456789abcdefghijklmnopqrstuvwyz" or self.openssl_key is None:
+                logger.warning(
+                    f"OpenSSL key is set to `{self.openssl_key}`, which is the default encryption key. "
+                    "It's absolutely not secure for production. Please change it in the `.env` file. "
+                    "You can generate a new key with `openssl rand -hex 32`."
+                )
 
 
 load_dotenv()
