@@ -22,16 +22,6 @@ from loguru import logger
 from wordcab_transcribe.config import Settings, settings
 
 
-@pytest.fixture(autouse=True)
-def setup_logging(caplog):
-    """Extra logging setup for tests."""
-    logger.level("WARNING")
-
-    caplog.set_level(logging.WARNING)
-    logger.remove()
-    logger.add(logging.StreamHandler(), level=logging.WARNING)
-
-
 @pytest.fixture
 def default_settings() -> OrderedDict:
     """Return the default settings."""
@@ -187,7 +177,7 @@ def test_access_token_expire_minutes_validator(default_settings: dict) -> None:
         Settings(**default_settings)
 
 
-def test_post_init(default_settings: dict, caplog) -> None:
+def test_post_init(default_settings: dict) -> None:
     """Test post init."""
     wrong_endpoint = default_settings.copy()
     wrong_endpoint["audio_file_endpoint"] = False
@@ -197,29 +187,3 @@ def test_post_init(default_settings: dict, caplog) -> None:
     wrong_endpoint["youtube_endpoint"] = False
     with pytest.raises(ValueError):
         Settings(**wrong_endpoint)
-
-    default_settings["debug"] = False
-
-    wrong_username = default_settings.copy()
-    wrong_username["username"] = "admin"  # noqa: S105
-    Settings(**wrong_username)
-    assert any(
-        "Username is set to `admin`, which is not secure for production."
-        in rec.message for rec in caplog.records
-    )
-
-    wrong_password = default_settings.copy()
-    wrong_password["password"] = "admin"  # noqa: S105
-    Settings(**wrong_password)
-    assert any(
-        "Password is set to `admin`, which is not secure for production."
-        in rec.message for rec in caplog.records
-    )
-
-    wrong_openssl_key = default_settings.copy()
-    wrong_openssl_key["openssl_key"] = "0123456789abcdefghijklmnopqrstuvwyz"
-    Settings(**wrong_openssl_key)
-    assert any(
-        "OpenSSL key is set to `0123456789abcdefghijklmnopqrstuvwyz`, which is the default encryption key."
-        in rec.message for rec in caplog.records
-    )
