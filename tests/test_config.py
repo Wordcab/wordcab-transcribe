@@ -42,3 +42,7 @@ def test_config() -> None:
     assert settings.cortex_endpoint is True
     assert settings.youtube_endpoint is True
     assert settings.live_endpoint is False
+
+    assert settings.cortex_api_key == ""
+    assert settings.svix_api_key == ""
+    assert settings.svix_app_id == ""

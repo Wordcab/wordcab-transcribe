@@ -72,6 +72,7 @@ class CortexPayload(BaseModel):
 
     url_type: str = "audio_url"
     url: str = None
+    api_key: str = None
     alignment: Optional[bool] = False
     source_lang: Optional[str] = "en"
     timestamps: Optional[str] = "s"
