@@ -26,8 +26,35 @@ import aiofiles
 import aiohttp
 import pandas as pd
 from loguru import logger
+from num2words import num2words
 from omegaconf import OmegaConf
 from yt_dlp import YoutubeDL
+
+
+CURRENCIES_CHARACTERS = [
+    "$",
+    "€",
+    "£",
+    "¥",
+    "₹",
+    "₽",
+    "₱",
+    "฿",
+    "₺",
+    "₴",
+    "₩",
+    "₦",
+    "₫",
+    "₭",
+    "₡",
+    "₲",
+    "₪",
+    "₵",
+    "₸",
+    "₼",
+    "₾",
+    "₿",
+]
 
 
 async def run_subprocess(command: List[str]) -> tuple:
@@ -378,3 +405,42 @@ def retrieve_user_platform() -> str:
         str: User's platform. Either 'linux', 'darwin' or 'win32'.
     """
     return sys.platform
+
+def experimental_num_to_words(sentence: str, model_lang: str) -> str:
+    for wdx, word in enumerate(sentence):
+        if any([char.isdigit() for char in word]):
+            logger.debug(f"Transcript contains digits: {word}")
+
+            if any([char == "%" for char in word]):
+                word = word.replace("%", "")
+                to_ = (
+                    "ordinal" if model_lang not in ["ja", "zh"] else "cardinal"
+                )
+            elif any([char in CURRENCIES_CHARACTERS for char in word]):
+                word = "".join(
+                    [char for char in word if char not in CURRENCIES_CHARACTERS]
+                )
+                to_ = "currency"
+            else:
+                to_ = "cardinal"
+
+            if word[-1] in [".", ",", "?", "!", ":", ";"]:
+                punctuation = word[-1]
+                word = word[:-1]
+            else:
+                punctuation = None
+
+            if "-" in word:
+                splitted_word = word.split("-")
+            else:
+                splitted_word = [word]
+
+            reformatted_word = []
+            for word in splitted_word:
+                reformatted_word.append(num2words(word, lang=model_lang, to=to_))
+
+            reformatted_word = reformatted_word + [punctuation] if punctuation else reformatted_word
+
+            sentence = sentence[:wdx] + reformatted_word + sentence[wdx + 1 :]
+
+    return " ".join(sentence)

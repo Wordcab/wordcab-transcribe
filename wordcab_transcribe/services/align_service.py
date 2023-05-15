@@ -54,30 +54,6 @@ MODEL_MAPPING = OrderedDict(
         ("zh", ("jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn", "huggingface")),
     ]
 )
-CURRENCIES_CHARACTERS = [
-    "$",
-    "€",
-    "£",
-    "¥",
-    "₹",
-    "₽",
-    "₱",
-    "฿",
-    "₺",
-    "₴",
-    "₩",
-    "₦",
-    "₫",
-    "₭",
-    "₡",
-    "₲",
-    "₪",
-    "₵",
-    "₸",
-    "₼",
-    "₾",
-    "₿",
-]
 
 
 @dataclass
@@ -328,42 +304,6 @@ class AlignService:
             text = segment["text"]
 
             per_word = text.split(" ") if model_lang not in ["ja", "zh"] else text
-
-            for wdx, word in enumerate(per_word):
-                if any([char.isdigit() for char in word]):
-                    logger.debug(f"Transcript contains digits: {word}")
-
-                    if any([char == "%" for char in word]):
-                        word = word.replace("%", "")
-                        to_ = (
-                            "ordinal" if model_lang not in ["ja", "zh"] else "cardinal"
-                        )
-                    elif any([char in CURRENCIES_CHARACTERS for char in word]):
-                        word = "".join(
-                            [char for char in word if char not in CURRENCIES_CHARACTERS]
-                        )
-                        to_ = "currency"
-                    else:
-                        to_ = "cardinal"
-
-                    if word[-1] in [".", ",", "?", "!", ":", ";"]:
-                        punctuation = word[-1]
-                        word = word[:-1]
-                    else:
-                        punctuation = None
-
-                    if "-" in word:
-                        splitted_word = word.split("-")
-                    else:
-                        splitted_word = [word]
-
-                    reformatted_word = []
-                    for word in splitted_word:
-                        reformatted_word.append(num2words(word, lang=model_lang, to=to_))
-
-                    reformatted_word = reformatted_word + [punctuation] if punctuation else reformatted_word
-
-                    per_word = per_word[:wdx] + reformatted_word + per_word[wdx + 1 :]
 
             clean_char, clean_cdx = [], []
             for cdx, char in enumerate(text):
