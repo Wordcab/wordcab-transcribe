@@ -1,1 +1,12 @@
+__pycache__
+.coverage
+.darglint
+.flake8
+.gitignore
+.nox
+.pre-commit-config.yaml
+.pytest_cache
+dist
+noxfile.py
+test.py
 whisper_model
