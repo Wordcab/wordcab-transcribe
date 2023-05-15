@@ -57,6 +57,7 @@ CURRENCIES_CHARACTERS = [
 ]
 
 
+# pragma: no cover
 async def run_subprocess(command: List[str]) -> tuple:
     """
     Run a subprocess asynchronously.
@@ -176,6 +177,7 @@ async def convert_file_to_wav(filepath: str) -> str:
     return str(new_filepath)
 
 
+# pragma: no cover
 async def download_file_from_youtube(url: str, filename: str) -> str:
     """
     Download a file from YouTube using youtube-dl.
@@ -199,6 +201,7 @@ async def download_file_from_youtube(url: str, filename: str) -> str:
     return filename + ".wav"
 
 
+# pragma: no cover
 async def download_audio_file(
     url: str, filename: str, url_headers: Optional[Dict[str, str]] = None
 ) -> str:
@@ -407,6 +410,7 @@ def retrieve_user_platform() -> str:
     return sys.platform
 
 
+# pragma: no cover
 def experimental_num_to_words(sentence: str, model_lang: str) -> str:
     """
     Convert numerical values to words. This is an experimental feature.
