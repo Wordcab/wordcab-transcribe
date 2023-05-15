@@ -16,7 +16,7 @@
 
 import asyncio
 
-from fastapi import FastAPI, Depends
+from fastapi import Depends, FastAPI
 from fastapi import status as http_status
 from fastapi.responses import HTMLResponse
 from loguru import logger
@@ -41,13 +41,14 @@ app = FastAPI(
 
 if settings.debug is False:
     app.include_router(auth_router, tags=["authentication"])
-    app.include_router(api_router, prefix=settings.api_prefix, dependencies=[Depends(get_current_user)])
+    app.include_router(
+        api_router, prefix=settings.api_prefix, dependencies=[Depends(get_current_user)]
+    )
 else:
     app.include_router(api_router, prefix=settings.api_prefix)
 
 if settings.cortex_endpoint:
     app.include_router(cortex_router, tags=["cortex"])
-
 
 
 @app.on_event("startup")

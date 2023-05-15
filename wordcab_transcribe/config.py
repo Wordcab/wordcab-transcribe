@@ -152,12 +152,19 @@ class Settings:
         if not any(endpoints):
             raise ValueError("At least one endpoint configuration must be set to True.")
 
-        if self.debug:
-            if self.username == "admin" or self.username is None:
-                logger.warning(f"Username is set to `{self.username}`, which is not secure for production.")
-            if self.password == "admin" or self.password is None:
-                logger.warning(f"Password is set to `{self.password}`, which is not secure for production.")
-            if self.openssl_key == "0123456789abcdefghijklmnopqrstuvwyz" or self.openssl_key is None:
+        if self.debug is False:
+            if self.username == "admin" or self.username is None:  # noqa: S105
+                logger.warning(
+                    f"Username is set to `{self.username}`, which is not secure for production."
+                )
+            if self.password == "admin" or self.password is None:  # noqa: S105
+                logger.warning(
+                    f"Password is set to `{self.password}`, which is not secure for production."
+                )
+            if (
+                self.openssl_key == "0123456789abcdefghijklmnopqrstuvwyz"  # noqa: S105
+                or self.openssl_key is None
+            ):
                 logger.warning(
                     f"OpenSSL key is set to `{self.openssl_key}`, which is the default encryption key. "
                     "It's absolutely not secure for production. Please change it in the `.env` file. "

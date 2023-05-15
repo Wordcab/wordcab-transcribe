@@ -41,7 +41,9 @@ def _get_username() -> str:
     return settings.username
 
 
-def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None) -> str:
+def create_access_token(
+    data: dict, expires_delta: Union[timedelta, None] = None
+) -> str:
     """
     Create access token for user authentication.
 
@@ -60,19 +62,21 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None
         expire = datetime.utcnow() + timedelta(minutes=30)
     to_encode.update({"exp": expire})
 
-    return jwt.encode(to_encode, settings.openssl_key, algorithm=settings.openssl_algorithm)
+    return jwt.encode(
+        to_encode, settings.openssl_key, algorithm=settings.openssl_algorithm
+    )
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    credentials: str = Depends(_get_username),
+    token: str = Depends(oauth2_scheme),  # noqa: B008
+    credentials: str = Depends(_get_username),  # noqa: B008
 ) -> str:
     """
     Get current user dependency function for authentication. Not meant to be used with Cortex endpoint.
 
     Args:
-        token (str, optional): Access token. Defaults to Depends(oauth2_scheme).
-        credentials (str, optional): Username. Defaults to Depends(_get_username).
+        token (str): Access token. Depends(oauth2_scheme).
+        credentials (str): Username. Depends(_get_username).
 
     Raises:
         credentials_exception: If the credentials are not valid.
@@ -81,7 +85,9 @@ async def get_current_user(
         str: Username.
     """
     try:
-        payload = jwt.decode(token, settings.openssl_key, algorithms=[settings.openssl_algorithm])
+        payload = jwt.decode(
+            token, settings.openssl_key, algorithms=[settings.openssl_algorithm]
+        )
         username: str = payload.get("sub")
 
         if username is None:
@@ -119,7 +125,9 @@ async def authenticate_user(username: str, password: str) -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=1440)
-    access_token = create_access_token(data={"sub": username}, expires_delta=access_token_expires)
+    access_token = create_access_token(
+        data={"sub": username}, expires_delta=access_token_expires
+    )
 
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -130,7 +138,7 @@ async def authenticate_user(username: str, password: str) -> dict:
     status_code=http_status.HTTP_200_OK,
 )
 async def authentication(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    form_data: OAuth2PasswordRequestForm = Depends(),  # noqa: B008
 ):
     """Authentication endpoint for the API."""
     user = await authenticate_user(form_data.username, form_data.password)
