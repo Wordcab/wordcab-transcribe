@@ -53,6 +53,8 @@ class Settings:
     youtube_endpoint: bool
     live_endpoint: bool
     # API authentication configuration
+    username: str
+    password: str
     openssl_key: str
     openssl_algorithm: str
     access_token_expire_minutes: int
