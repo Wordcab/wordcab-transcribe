@@ -24,7 +24,7 @@ def test_asr_response() -> None:
         utterances=[], alignment=False, source_lang="en", timestamps="s"
     )
     assert response.utterances == []
-    assert response.alignment == False
+    assert response.alignment is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
 
@@ -32,7 +32,7 @@ def test_asr_response() -> None:
         utterances=["Hello", "world"], alignment=True, source_lang="en", timestamps="s"
     )
     assert response.utterances == ["Hello", "world"]
-    assert response.alignment == True
+    assert response.alignment is True
     assert response.source_lang == "en"
     assert response.timestamps == "s"
 
