@@ -119,6 +119,16 @@ class Settings:
             )
         return value
 
+    @validator("username", "password")
+    def username_and_password_must_be_valid(cls, value: str):  # noqa: B902, N805
+        """Check that the authentication parameters are not None."""
+        if getenv("DEBUG", True) is False:
+            if value is None or value == "admin":
+                raise ValueError(
+                    "username and password must not be None or 'admin', please verify the `.env` file."
+                )
+        return value
+
     @validator("openssl_key")
     def openssl_key_must_be_valid(cls, value: str):  # noqa: B902, N805
         """Check that the OpenSSL key is not the default value or empty. Only if debug is False."""
@@ -150,13 +160,13 @@ class Settings:
         return value
 
     def __post_init__(self):
-        # Ensure that at least one endpoint is set to True during initialization
+        """Post initialization checks."""
         endpoints = [
             self.audio_file_endpoint,
             self.audio_url_endpoint,
             self.cortex_endpoint,
             self.youtube_endpoint,
-            self.live_endpoint
+            self.live_endpoint,
         ]
         if not any(endpoints):
             raise ValueError("At least one endpoint configuration must be set to True.")
@@ -194,6 +204,8 @@ settings = Settings(
     youtube_endpoint=getenv("YOUTUBE_ENDPOINT", True),
     live_endpoint=getenv("LIVE_ENDPOINT", False),
     # API authentication configuration
+    username=getenv("USERNAME", "admin"),
+    password=getenv("PASSWORD", "admin"),
     openssl_key=getenv("OPENSSL_KEY", "0123456789abcdefghijklmnopqrstuvwyz"),
     openssl_algorithm=getenv("OPENSSL_ALGORITHM", "HS256"),
     access_token_expire_minutes=getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30),

@@ -23,7 +23,11 @@ from loguru import logger
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.dependencies import asr
-from wordcab_transcribe.router.v1.endpoints import api_router, cortex_router
+from wordcab_transcribe.router.v1.endpoints import (
+    api_router,
+    auth_router,
+    cortex_router,
+)
 from wordcab_transcribe.utils import retrieve_user_platform
 
 
@@ -35,8 +39,12 @@ app = FastAPI(
 )
 
 app.include_router(api_router, prefix=settings.api_prefix)
+
 if settings.cortex_endpoint:
     app.include_router(cortex_router, tags=["cortex"])
+
+if settings.debug is False:
+    app.include_router(auth_router, tags=["authentication"])
 
 
 @app.on_event("startup")

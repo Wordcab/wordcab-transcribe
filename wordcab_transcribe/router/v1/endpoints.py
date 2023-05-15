@@ -16,6 +16,7 @@
 from fastapi import APIRouter
 
 from wordcab_transcribe.config import settings
+from wordcab_transcribe.router.authentication import router as auth_router  # noqa: F401
 from wordcab_transcribe.router.v1.audio_file_endpoint import router as audio_file_router
 from wordcab_transcribe.router.v1.audio_url_endpoint import router as audio_url_router
 from wordcab_transcribe.router.v1.cortex_endpoint import (  # noqa: F401
