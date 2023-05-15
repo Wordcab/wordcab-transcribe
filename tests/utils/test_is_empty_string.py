@@ -17,32 +17,39 @@ from wordcab_transcribe.utils import is_empty_string
 
 def test_is_empty_string_empty() -> None:
     """Test the is_empty_string function for empty."""
-    assert is_empty_string("") == True
+    assert is_empty_string("") is True
+
 
 def test_is_empty_string_only_spaces() -> None:
     """Test the is_empty_string function for spaces."""
-    assert is_empty_string("   ") == True
+    assert is_empty_string("   ") is True
+
 
 def test_is_empty_string_only_periods() -> None:
     """Test the is_empty_string function for periods."""
-    assert is_empty_string("...") == True
+    assert is_empty_string("...") is True
+
 
 def test_is_empty_string_spaces_and_periods() -> None:
     """Test the is_empty_string function for spaces and periods."""
-    assert is_empty_string(" . . .  ") == True
+    assert is_empty_string(" . . .  ") is True
+
 
 def test_is_empty_string_non_empty() -> None:
     """Test the is_empty_string function for non-empty."""
-    assert is_empty_string("Hello, world!") == False
+    assert is_empty_string("Hello, world!") is False
+
 
 def test_is_empty_string_non_empty_with_spaces() -> None:
     """Test the is_empty_string function for non-empty with spaces."""
-    assert is_empty_string(" Wordcab Transcribe ") == False
+    assert is_empty_string(" Wordcab Transcribe ") is False
+
 
 def test_is_empty_string_non_empty_with_periods() -> None:
     """Test the is_empty_string function for non-empty with periods."""
-    assert is_empty_string("Hello. World.") == False
+    assert is_empty_string("Hello. World.") is False
+
 
 def test_is_empty_string_non_empty_with_spaces_and_periods() -> None:
     """Test the is_empty_string function for non-empty with spaces and periods."""
-    assert is_empty_string("  Hello.  World.  ") == False
+    assert is_empty_string("  Hello.  World.  ") is False
