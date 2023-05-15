@@ -406,16 +406,25 @@ def retrieve_user_platform() -> str:
     """
     return sys.platform
 
+
 def experimental_num_to_words(sentence: str, model_lang: str) -> str:
+    """
+    Convert numerical values to words. This is an experimental feature.
+
+    Args:
+        sentence (str): The sentence to convert.
+        model_lang (str): The language of the model.
+
+    Returns:
+        str: The converted sentence.
+    """
     for wdx, word in enumerate(sentence):
         if any([char.isdigit() for char in word]):
             logger.debug(f"Transcript contains digits: {word}")
 
             if any([char == "%" for char in word]):
                 word = word.replace("%", "")
-                to_ = (
-                    "ordinal" if model_lang not in ["ja", "zh"] else "cardinal"
-                )
+                to_ = "ordinal" if model_lang not in ["ja", "zh"] else "cardinal"
             elif any([char in CURRENCIES_CHARACTERS for char in word]):
                 word = "".join(
                     [char for char in word if char not in CURRENCIES_CHARACTERS]
@@ -439,7 +448,9 @@ def experimental_num_to_words(sentence: str, model_lang: str) -> str:
             for word in splitted_word:
                 reformatted_word.append(num2words(word, lang=model_lang, to=to_))
 
-            reformatted_word = reformatted_word + [punctuation] if punctuation else reformatted_word
+            reformatted_word = (
+                reformatted_word + [punctuation] if punctuation else reformatted_word
+            )
 
             sentence = sentence[:wdx] + reformatted_word + sentence[wdx + 1 :]
 
