@@ -14,10 +14,12 @@
 """Configuration module of the Wordcab Transcribe."""
 
 from os import getenv
+from pathlib import Path
 from typing import Union
 
 from dotenv import load_dotenv
 from faster_whisper.utils import _MODELS
+from loguru import logger
 from pydantic import validator
 from pydantic.dataclasses import dataclass
 
@@ -51,6 +53,12 @@ class Settings:
     cortex_endpoint: bool
     youtube_endpoint: bool
     live_endpoint: bool
+    # API authentication configuration
+    username: str
+    password: str
+    openssl_key: str
+    openssl_algorithm: str
+    access_token_expire_minutes: int
     # Cortex configuration
     cortex_api_key: str
     # Svix configuration
@@ -79,11 +87,14 @@ class Settings:
 
     @validator("whisper_model")
     def whisper_model_must_be_valid(cls, value: str):  # noqa: B902, N805
-        """Check that the model name is valid."""
-        if value not in _MODELS:
-            raise ValueError(
-                f"{value} is not a valid model name. Choose one of {_MODELS}."
-            )
+        """Check that the model name is valid. It can be a local path or a model name."""
+        model_path = Path(value)
+        if model_path.exists() is False:
+            if value not in _MODELS:
+                raise ValueError(
+                    f"{value} is not a valid model name. Choose one of {_MODELS}."
+                    "If you want to use a local model, please provide a valid path."
+                )
         return value
 
     @validator("compute_type")
@@ -110,6 +121,55 @@ class Settings:
                 f"{value} is not a valid ASR type. Choose between `async` or `live`."
             )
         return value
+
+    @validator("openssl_algorithm")
+    def openssl_algorithm_must_be_valid(cls, value: str):  # noqa: B902, N805
+        """Check that the OpenSSL algorithm is valid."""
+        if value not in {"HS256", "HS384", "HS512"}:
+            raise ValueError(
+                "openssl_algorithm must be a valid algorithm, please verify the `.env` file."
+            )
+        return value
+
+    @validator("access_token_expire_minutes")
+    def access_token_expire_minutes_must_be_valid(cls, value: int):  # noqa: B902, N805
+        """Check that the access token expiration is valid. Only if debug is False."""
+        if value <= 0:
+            raise ValueError(
+                "access_token_expire_minutes must be positive, please verify the `.env` file."
+            )
+        return value
+
+    def __post_init__(self):
+        """Post initialization checks."""
+        endpoints = [
+            self.audio_file_endpoint,
+            self.audio_url_endpoint,
+            self.cortex_endpoint,
+            self.youtube_endpoint,
+            self.live_endpoint,
+        ]
+        if not any(endpoints):
+            raise ValueError("At least one endpoint configuration must be set to True.")
+
+        if self.debug is False:
+            if self.username == "admin" or self.username is None:  # noqa: S105
+                logger.warning(
+                    f"Username is set to `{self.username}`, which is not secure for production."
+                )
+            if self.password == "admin" or self.password is None:  # noqa: S105
+                logger.warning(
+                    f"Password is set to `{self.password}`, which is not secure for production."
+                )
+            if (
+                self.openssl_key == "0123456789abcdefghijklmnopqrstuvwyz"  # noqa: S105
+                or self.openssl_key is None
+            ):
+                logger.warning(
+                    f"OpenSSL key is set to `{self.openssl_key}`, which is the default encryption key. "
+                    "It's absolutely not secure for production. Please change it in the `.env` file. "
+                    "You can generate a new key with `openssl rand -hex 32`."
+                )
 
 
 load_dotenv()
@@ -143,6 +203,12 @@ settings = Settings(
     cortex_endpoint=getenv("CORTEX_ENDPOINT", True),
     youtube_endpoint=getenv("YOUTUBE_ENDPOINT", True),
     live_endpoint=getenv("LIVE_ENDPOINT", False),
+    # API authentication configuration
+    username=getenv("USERNAME", "admin"),
+    password=getenv("PASSWORD", "admin"),
+    openssl_key=getenv("OPENSSL_KEY", "0123456789abcdefghijklmnopqrstuvwyz"),
+    openssl_algorithm=getenv("OPENSSL_ALGORITHM", "HS256"),
+    access_token_expire_minutes=getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30),
     # Cortex configuration
     cortex_api_key=getenv("WORDCAB_TRANSCRIBE_API_KEY", ""),
     # Svix configuration

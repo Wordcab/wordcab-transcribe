@@ -181,3 +181,16 @@ class PongResponse(BaseModel):
                 "message": "pong",
             },
         }
+
+
+class Token(BaseModel):
+    """Token model for authentication."""
+
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    """TokenData model for authentication."""
+
+    username: str = None
