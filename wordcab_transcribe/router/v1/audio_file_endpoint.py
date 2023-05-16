@@ -17,7 +17,7 @@ from typing import Optional
 
 import aiofiles
 import shortuuid
-from fastapi import APIRouter, BackgroundTasks, File, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, UploadFile
 from fastapi import status as http_status
 
 from wordcab_transcribe.dependencies import asr
@@ -37,8 +37,10 @@ router = APIRouter()
 @router.post("", response_model=ASRResponse, status_code=http_status.HTTP_200_OK)
 async def inference_with_audio(
     background_tasks: BackgroundTasks,
+    alignment: Optional[bool] = Form(False),  # noqa: B008
+    source_lang: Optional[str] = Form("en"),  # noqa: B008
+    timestamps: Optional[str] = Form("s"),  # noqa: B008
     file: UploadFile = File(...),  # noqa: B008
-    data: Optional[DataRequest] = None,
 ) -> ASRResponse:
     """Inference endpoint with audio file."""
     extension = file.filename.split(".")[-1]
@@ -54,10 +56,9 @@ async def inference_with_audio(
     else:
         filepath = filename
 
-    if data is None:
-        data = DataRequest()
-    else:
-        data = DataRequest(**data.dict())
+    data = DataRequest(
+        alignment=alignment, source_lang=source_lang, timestamps=timestamps
+    )
 
     raw_utterances = await asr.process_input(filepath, data.source_lang, data.alignment)
 

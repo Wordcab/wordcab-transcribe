@@ -79,10 +79,7 @@ class PostProcessingService:
                 else:
                     segment["start"] = transcript_segments[idx - 1]["end"]
             if "end" not in segment:
-                if idx == len(transcript_segments) - 1:
-                    segment["end"] = segment["start"] + 1
-                else:
-                    segment["end"] = transcript_segments[idx + 1]["start"]
+                segment["end"] = segment["start"] + 1
 
             segment_start, segment_end, segment_text = (
                 int(segment["start"] * 1000),
