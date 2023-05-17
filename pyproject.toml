@@ -20,6 +20,7 @@ numpy = "==1.23.1"
 num2words = ">=0.5.12"
 onnxruntime = ">=1.14.1"
 pydantic = ">=1.10.7"
+pydub = ">=0.25.1"
 python-dotenv = ">=1.0.0"
 python-jose = { extras = ["cryptography"], version = ">=3.3.0" }
 python-multipart = ">=0.0.6"
