@@ -18,6 +18,7 @@ loguru = ">=0.6.0"
 nemo-toolkit = { version = ">=1.17.0", extras = ["asr"] }
 numpy = "==1.23.1"
 num2words = ">=0.5.12"
+onnxruntime = ">=1.14.1"
 pydantic = ">=1.10.7"
 python-dotenv = ">=1.0.0"
 python-jose = { extras = ["cryptography"], version = ">=3.3.0" }

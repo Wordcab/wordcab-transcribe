@@ -57,6 +57,7 @@ class TranscribeService:
             language=source_lang,
             beam_size=beam_size,
             word_timestamps=word_timestamps,
+            vad_filter=True,
         )
 
         results = [segment._asdict() for segment in segments]
