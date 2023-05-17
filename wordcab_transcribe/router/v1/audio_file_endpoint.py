@@ -38,6 +38,7 @@ router = APIRouter()
 async def inference_with_audio(
     background_tasks: BackgroundTasks,
     alignment: Optional[bool] = Form(False),  # noqa: B008
+    dual_channel: Optional[bool] = Form(False),  # noqa: B008
     source_lang: Optional[str] = Form("en"),  # noqa: B008
     timestamps: Optional[str] = Form("s"),  # noqa: B008
     file: UploadFile = File(...),  # noqa: B008
@@ -57,10 +58,15 @@ async def inference_with_audio(
         filepath = filename
 
     data = DataRequest(
-        alignment=alignment, source_lang=source_lang, timestamps=timestamps
+        alignment=alignment, dual_channel=dual_channel, source_lang=source_lang, timestamps=timestamps
     )
 
-    raw_utterances = await asr.process_input(filepath, data.source_lang, data.alignment)
+    raw_utterances = await asr.process_input(
+        filepath,
+        alignment=data.alignment,
+        dual_channel=data.dual_channel,
+        source_lang=data.source_lang
+    )
 
     timestamps_format = data.timestamps
     utterances = [
@@ -79,6 +85,7 @@ async def inference_with_audio(
     return ASRResponse(
         utterances=utterances,
         alignment=data.alignment,
+        dual_channel=data.dual_channel,
         source_lang=data.source_lang,
         timestamps=data.timestamps,
     )

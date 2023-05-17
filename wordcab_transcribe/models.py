@@ -23,6 +23,7 @@ class ASRResponse(BaseModel):
 
     utterances: list
     alignment: bool
+    dual_channel: bool
     source_lang: str
     timestamps: str
 
@@ -46,6 +47,7 @@ class ASRResponse(BaseModel):
                     },
                 ],
                 "alignment": False,
+                "dual_channel": False,
                 "source_lang": "en",
                 "timestamps": "s",
             }
@@ -74,6 +76,7 @@ class CortexPayload(BaseModel):
     url: str = None
     api_key: str = None
     alignment: Optional[bool] = False
+    dual_channel: Optional[bool] = False
     source_lang: Optional[str] = "en"
     timestamps: Optional[str] = "s"
     job_name: Optional[str] = None
@@ -100,6 +103,9 @@ class CortexPayload(BaseModel):
             "example": {
                 "url_type": "youtube",
                 "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                "api_key": "1234567890",
+                "alignment": False,
+                "dual_channel": False,
                 "source_lang": "en",
                 "timestamps": "s",
                 "job_name": "job_abc123",
@@ -134,6 +140,7 @@ class CortexResponse(ASRResponse):
                     },
                 ],
                 "alignment": False,
+                "dual_channel": False,
                 "source_lang": "en",
                 "timestamps": "s",
                 "job_name": "job_name",
@@ -146,6 +153,7 @@ class DataRequest(BaseModel):
     """Request object for the audio file endpoint."""
 
     alignment: Optional[bool] = False
+    dual_channel: Optional[bool] = False
     source_lang: Optional[str] = "en"
     timestamps: Optional[str] = "s"
 
@@ -162,6 +170,7 @@ class DataRequest(BaseModel):
         schema_extra = {
             "example": {
                 "alignment": False,
+                "dual_channel": False,
                 "source_lang": "en",
                 "timestamps": "s",
             }

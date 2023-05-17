@@ -38,6 +38,11 @@ class TranscribeService:
         filepath: str,
         source_lang: str,
         beam_size: Optional[int] = 5,
+        patience: Optional[int] = 1,
+        length_penalty: Optional[int] = 1,
+        suppress_blank: Optional[bool] = False,
+        temperature: Optional[List[float]] = [0.0, 0.2],
+        vad_filter: Optional[bool] = True,
         word_timestamps: Optional[bool] = True,
     ) -> List[dict]:
         """
@@ -47,6 +52,11 @@ class TranscribeService:
             filepath (str): Path to the audio file to transcribe.
             source_lang (str): Language of the audio file.
             beam_size (Optional[int], optional): Beam size to use for inference. Defaults to 5.
+            length_penalty (Optional[int], optional): Length penalty to use for inference. Defaults to 1.
+            patience (Optional[int], optional): Patience to use for inference. Defaults to 1.
+            suppress_blank (Optional[bool], optional): Whether to suppress blank tokens. Defaults to False.
+            temperature (Optional[float], optional): Temperature to use for inference. Defaults to 0.0.
+            vad_filter (Optional[bool], optional): Whether to apply VAD filtering. Defaults to True.
             word_timestamps (Optional[bool], optional): Whether to return word timestamps. Defaults to True.
 
         Returns:
@@ -54,10 +64,14 @@ class TranscribeService:
         """
         segments, _ = self.model.transcribe(
             filepath,
-            language=source_lang,
             beam_size=beam_size,
+            language=source_lang,
+            length_penalty=length_penalty,
+            patience=patience,
+            suppress_blank=suppress_blank,
+            temperature=temperature,
+            vad_filter=vad_filter,
             word_timestamps=word_timestamps,
-            vad_filter=True,
         )
 
         results = [segment._asdict() for segment in segments]

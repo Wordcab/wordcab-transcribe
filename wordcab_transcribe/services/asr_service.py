@@ -67,24 +67,27 @@ class ASRService:
     async def process_input(
         self,
         filepath: str,
-        source_lang: str,
         alignment: bool,
+        dual_channel: bool,
+        source_lang: str,
     ) -> List[dict]:
         """
         Process the input request and return the result.
 
         Args:
             filepath (str): Path to the audio file.
-            source_lang (str): Source language of the audio file.
             alignment (bool): Whether to do alignment or not.
+            dual_channel (bool): Whether to do dual channel or not.
+            source_lang (str): Source language of the audio file.
 
         Returns:
             List[dict]: List of speaker segments.
         """
         task = {
             "input": filepath,
-            "source_lang": source_lang,
             "alignment": alignment,
+            "dual_channel": dual_channel,
+            "source_lang": source_lang,
             "done_event": asyncio.Event(),
             "time": asyncio.get_event_loop().time(),
         }
@@ -241,8 +244,9 @@ class ASRAsyncService(ASRService):
         results = []
         for task in file_batch:
             filepath = task["input"]
-            source_lang = task["source_lang"]
             alignment = task["alignment"]
+            dual_channel = task["dual_channel"]
+            source_lang = task["source_lang"]
 
             segments = self.transcribe(filepath, source_lang)
 

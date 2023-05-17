@@ -56,7 +56,12 @@ async def inference_with_audio_url(
     else:
         data = DataRequest(**data.dict())
 
-    raw_utterances = await asr.process_input(filepath, data.source_lang, data.alignment)
+    raw_utterances = await asr.process_input(
+        filepath,
+        alignment=data.alignment,
+        dual_channel=data.dual_channel,
+        source_lang=data.source_lang
+    )
 
     timestamps_format = data.timestamps
     utterances = [
@@ -75,6 +80,7 @@ async def inference_with_audio_url(
     return ASRResponse(
         utterances=utterances,
         alignment=data.alignment,
+        dual_channel=data.dual_channel,
         source_lang=data.source_lang,
         timestamps=data.timestamps,
     )

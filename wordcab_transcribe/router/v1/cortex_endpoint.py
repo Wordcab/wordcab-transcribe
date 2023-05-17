@@ -55,6 +55,7 @@ async def run_cortex(payload: CortexPayload, request: Request) -> CortexResponse
 
     data = DataRequest(
         alignment=payload.alignment,
+        dual_channel=payload.dual_channel,
         source_lang=payload.source_lang,
         timestamps=payload.timestamps,
     )
