@@ -303,6 +303,7 @@ class ASRAsyncService(ASRService):
         Returns:
             List[dict]: List of speaker segments.
         """
+        filepath = self.post_processing_model.enhance_audio(filepath)
         left_channel, right_channel = split_dual_channel_file(filepath)
         
         left_segments = self.transcribe(left_channel, source_lang, word_timestamps=True)

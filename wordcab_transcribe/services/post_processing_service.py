@@ -13,7 +13,11 @@
 # limitations under the License.
 """Post-Processing Service for audio files."""
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+from pydub import AudioSegment
+from pydub.effects import high_pass_filter, low_pass_filter, normalize
 
 from wordcab_transcribe.utils import get_segment_timestamp_anchor
 
@@ -70,7 +74,16 @@ class PostProcessingService:
         _left_segments = self.reconstruct_segments(left_segments, speaker_label=0)
         _right_segments = self.reconstruct_segments(right_segments, speaker_label=1)
 
+        # Save the segments in separate files for debugging purposes.
+        import json
+        with open("./left_segments.json", "w", encoding="utf-8") as f:
+            json.dump(_left_segments, f, indent=4, ensure_ascii=False)
+        with open("./right_segments.json", "w", encoding="utf-8") as f:
+            json.dump(_right_segments, f, indent=4, ensure_ascii=False)
+
         utterances = self.merge_segments(_left_segments, _right_segments)
+        with open("./merged_segments.json", "w", encoding="utf-8") as f:
+            json.dump(utterances, f, indent=4, ensure_ascii=False)
 
         utterances = self.utterances_speaker_mapping_dual_channel(utterances)
 
@@ -287,3 +300,34 @@ class PostProcessingService:
             segment["end"] = round(segment["end"] * 1000, 3)
 
         return reconstructed_segments
+
+    def enhance_audio(
+        self,
+        file_path: str, 
+        apply_agc: Optional[bool] = True, 
+        apply_bandpass: Optional[bool] = True, 
+    ) -> np.ndarray:
+        """
+        Enhance the audio by applying automatic gain control and bandpass filter.
+
+        Args:
+            file_path (str): Path to the audio file.
+            apply_agc (Optional[bool], optional): Whether to apply automatic gain control. Defaults to True.
+            apply_bandpass (Optional[bool], optional): Whether to apply bandpass filter. Defaults to True.
+
+        Returns:
+            np.ndarray: The enhanced audio.
+        """
+        audio = AudioSegment.from_file(file_path)
+
+        if apply_agc:
+            audio = normalize(audio)
+
+        if apply_bandpass:
+            audio = high_pass_filter(audio, 300)
+            audio = low_pass_filter(audio, 3400)
+
+        # Save the enhanced audio to the same file
+        audio.export(file_path, format="wav")
+
+        return file_path
