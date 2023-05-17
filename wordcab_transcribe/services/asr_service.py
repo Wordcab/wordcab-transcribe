@@ -248,20 +248,57 @@ class ASRAsyncService(ASRService):
             dual_channel = task["dual_channel"]
             source_lang = task["source_lang"]
 
-            segments = self.transcribe(filepath, source_lang)
-
-            if alignment:
-                formatted_segments = self.align(filepath, segments, source_lang)
+            if dual_channel:
+                utterances = self._process_dual_channel(
+                    filepath, alignment, source_lang
+                )
             else:
-                formatted_segments = format_segments(segments)
-
-            speaker_timestamps = self.diarize(filepath)
-
-            utterances = self.post_process(formatted_segments, speaker_timestamps)
+                utterances = self._process_single_channel(
+                    filepath, alignment, source_lang
+                )
 
             results.append(utterances)
 
         return results
+
+    def _process_single_channel(self, filepath: str, alignment: bool, source_lang: str) -> List[dict]:
+        """
+        Process a single channel audio file.
+
+        Args:
+            filepath (str): Path to the audio file.
+            alignment (bool): Whether to align the segments.
+            source_lang (str): Source language of the audio file.
+
+        Returns:
+            List[dict]: List of speaker segments.
+        """
+        segments = self.transcribe(filepath, source_lang)
+
+        if alignment:
+            formatted_segments = self.align(filepath, segments, source_lang)
+        else:
+            formatted_segments = format_segments(segments)
+
+        speaker_timestamps = self.diarize(filepath)
+
+        utterances = self.post_process(formatted_segments, speaker_timestamps)
+
+        return utterances
+
+    def _process_dual_channel(self, filepath: str, alignment: bool, source_lang: str) -> List[dict]:
+        """
+        Process a dual channel audio file.
+
+        Args:
+            filepath (str): Path to the audio file.
+            alignment (bool): Whether to align the segments.
+            source_lang (str): Source language of the audio file.
+
+        Returns:
+            List[dict]: List of speaker segments.
+        """
+        raise NotImplementedError("This method should be implemented in a subclass.")
 
 
 class ASRLiveService(ASRService):
