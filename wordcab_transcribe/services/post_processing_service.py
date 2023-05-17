@@ -282,4 +282,8 @@ class PostProcessingService:
 
             reconstructed_segments.append(new_segment)
 
+        for segment in reconstructed_segments:
+            segment["start"] = round(segment["start"] * 1000, 3)
+            segment["end"] = round(segment["end"] * 1000, 3)
+
         return reconstructed_segments
