@@ -41,9 +41,9 @@ class TranscribeService:
         patience: Optional[int] = 1,
         length_penalty: Optional[int] = 1,
         suppress_blank: Optional[bool] = False,
-        temperature: Optional[List[float]] = [0.0, 0.2],
+        temperature: Optional[List[float]] = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
         vad_filter: Optional[bool] = True,
-        word_timestamps: Optional[bool] = True,
+        word_timestamps: Optional[bool] = False,
     ) -> List[dict]:
         """
         Run inference with the transcribe model.
@@ -57,7 +57,7 @@ class TranscribeService:
             suppress_blank (Optional[bool], optional): Whether to suppress blank tokens. Defaults to False.
             temperature (Optional[float], optional): Temperature to use for inference. Defaults to 0.0.
             vad_filter (Optional[bool], optional): Whether to apply VAD filtering. Defaults to True.
-            word_timestamps (Optional[bool], optional): Whether to return word timestamps. Defaults to True.
+            word_timestamps (Optional[bool], optional): Whether to return word timestamps. Defaults to False.
 
         Returns:
             List[dict]: List of segments with the following keys: "start", "end", "text", "confidence".

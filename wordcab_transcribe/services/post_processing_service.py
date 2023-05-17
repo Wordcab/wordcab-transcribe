@@ -13,7 +13,7 @@
 # limitations under the License.
 """Post-Processing Service for audio files."""
 
-from typing import List
+from typing import Any, Dict, List
 
 from wordcab_transcribe.utils import get_segment_timestamp_anchor
 
@@ -25,7 +25,7 @@ class PostProcessingService:
         """Initialize the PostProcessingService."""
         pass
 
-    def __call__(
+    def single_channel_postprocessing(
         self, transcript_segments: List[dict], speaker_timestamps: List[dict]
     ) -> List[dict]:
         """Run the post-processing functions on the inputs.
@@ -48,6 +48,31 @@ class PostProcessingService:
         utterances = self.utterances_speaker_mapping(
             segments_with_speaker_mapping, speaker_timestamps
         )
+
+        return utterances
+
+    def dual_channel_postprocessing(
+        self, left_segments: List[dict], right_segments: List[dict]
+    ) -> List[dict]:
+        """Run the dual channel post-processing functions on the inputs.
+
+        The postprocessing pipeline is as follows:
+        1. Reconstruct proper timestamps for each segment.
+        2. Merge the left and right segments together and sort them by timestamp.
+
+        Args:
+            left_segments (List[dict]): List of left channel segments.
+            right_segments (List[dict]): List of right channel segments.
+
+        Returns:
+            List[dict]: List of sentences with speaker mapping.
+        """
+        _left_segments = self.reconstruct_segments(left_segments, speaker_label=0)
+        _right_segments = self.reconstruct_segments(right_segments, speaker_label=1)
+
+        utterances = self.merge_segments(_left_segments, _right_segments)
+
+        utterances = self.utterances_speaker_mapping_dual_channel(utterances)
 
         return utterances
 
@@ -157,3 +182,104 @@ class PostProcessingService:
         sentences.append(current_sentence)
 
         return sentences
+
+    def utterances_speaker_mapping_dual_channel(self, transcript_segments: List[dict]) -> List[dict]:
+        """
+        Map utterances of the same speaker together for dual channel use case.
+
+        Args:
+            transcript_segments (List[dict]): List of transcript segments.
+
+        Returns:
+            List[dict]: List of sentences with speaker mapping.
+        """
+        current_sentence = {
+            "speaker": transcript_segments[0]["speaker"],
+            "start": transcript_segments[0]["start"],
+            "end": transcript_segments[0]["end"],
+            "text": "",
+        }
+        previous_speaker = transcript_segments[0]["speaker"]
+
+        sentences = []
+        for segment in transcript_segments:
+            text_segment, speaker = segment["text"], segment["speaker"]
+            start_t, end_t = segment["start"], segment["end"]
+
+            if speaker != previous_speaker:
+                sentences.append(current_sentence)
+                current_sentence = {
+                    "speaker": speaker,
+                    "start": start_t,
+                    "end": end_t,
+                    "text": "",
+                }
+            else:
+                current_sentence["end"] = end_t
+
+            current_sentence["text"] += text_segment + " "
+            previous_speaker = speaker
+
+        sentences.append(current_sentence)
+
+        return sentences
+
+    def merge_segments(
+        self, speaker_0_segments: List[Dict[str, Any]], speaker_1_segments: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Merge two lists of segments, keeping the chronological order.
+
+        Args:
+            speaker_0_segments (List[Dict[str, Any]]): List of segments from speaker 0.
+            speaker_1_segments (List[Dict[str, Any]]): List of segments from speaker 1.
+        
+        Returns:
+            List[Dict[str, Any]]: Merged list of segments.
+        """
+        merged_segments = speaker_0_segments + speaker_1_segments
+        merged_segments.sort(key=lambda seg: seg['start'])
+        
+        return merged_segments
+
+    def reconstruct_segments(
+        self, segment_list: list, speaker_label: int, time_threshold: float = 1.0
+    ) -> List[Dict[str, Any]]:
+        """
+        Reconstruct segments based on the words timestamps.
+
+        Args:
+            segment_list (list): List of the transcript segments.
+            speaker_label (int): The speaker label.
+            time_threshold (float, optional): The time threshold in seconds. Defaults to 1.0.
+        """
+        reconstructed_segments = []
+
+        for segment in segment_list:
+            words = segment["words"]
+            if not words:
+                continue
+
+            new_segment = {
+                "start": words[0].start,
+                "end": words[0].end,
+                "text": words[0].word.strip(),
+                "speaker": speaker_label,
+            }
+
+            for i in range(1, len(words)):
+                if words[i].start - new_segment["end"] > time_threshold:
+                    reconstructed_segments.append(new_segment)
+                    new_segment = {
+                        "start": words[i].start,
+                        "end": words[i].end,
+                        "text": words[i].word.strip(),
+                        "speaker": speaker_label,
+                    }
+                else:
+                    new_segment["end"] = words[i].end
+                    new_segment["text"] += " " + words[i].word.strip()
+
+            reconstructed_segments.append(new_segment)
+
+        return reconstructed_segments

@@ -20,7 +20,7 @@ import re
 import subprocess  # noqa: S404
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import aiofiles
 import aiohttp
@@ -459,3 +459,39 @@ def experimental_num_to_words(sentence: str, model_lang: str) -> str:
             sentence = sentence[:wdx] + reformatted_word + sentence[wdx + 1 :]
 
     return " ".join(sentence)
+
+
+# pragma: no cover
+def split_dual_channel_file(filepath: str) -> Tuple[str, str]:
+    """
+    Split a dual channel audio file into two mono files using ffmpeg.
+
+    Args:
+        filepath (str): The path to the dual channel audio file.
+
+    Returns:
+        Tuple[str, str]: The paths to the two mono files.
+    """
+    logger.debug(f"Splitting dual channel file: {filepath}")
+
+    filename = Path(filepath).stem
+    filename_left = f"{filename}_left.wav"
+    filename_right = f"{filename}_right.wav"
+
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-i",
+            filepath,
+            "-map_channel",
+            "0.0.0",
+            filename_left,
+            "-map_channel",
+            "0.0.1",
+            filename_right,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    return filename_left, filename_right

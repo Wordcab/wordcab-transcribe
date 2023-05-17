@@ -16,7 +16,7 @@
 import asyncio
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from typing import List
+from typing import List, Optional
 
 import torch
 from loguru import logger
@@ -26,7 +26,7 @@ from wordcab_transcribe.services.align_service import AlignService
 from wordcab_transcribe.services.diarize_service import DiarizeService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
-from wordcab_transcribe.utils import format_segments
+from wordcab_transcribe.utils import format_segments, split_dual_channel_file
 
 
 class ASRService:
@@ -167,18 +167,21 @@ class ASRAsyncService(ASRService):
         )
         self.post_processing_model = PostProcessingService()
 
-    def transcribe(self, filepath: str, source_lang: str) -> List[dict]:
+    def transcribe(
+        self, filepath: str, source_lang: str, word_timestamps: Optional[bool] = False
+    ) -> List[dict]:
         """
         Transcribe the audio file using the TranscribeService class.
 
         Args:
             filepath (str): Path to the audio file.
             source_lang (str): Source language of the audio file.
+            word_timestamps (Optional[bool], optional): Whether to return word timestamps or not. Defaults to False.
 
         Returns:
             List[dict]: List of speaker segments.
         """
-        segments = self.transcribe_model(filepath, source_lang)
+        segments = self.transcribe_model(filepath, source_lang, word_timestamps=word_timestamps)
 
         return segments
 
@@ -282,7 +285,9 @@ class ASRAsyncService(ASRService):
 
         speaker_timestamps = self.diarize(filepath)
 
-        utterances = self.post_process(formatted_segments, speaker_timestamps)
+        utterances = self.post_processing_model.single_channel_postprocessing(
+            transcript_segments=formatted_segments, speaker_timestamps=speaker_timestamps
+        )
 
         return utterances
 
@@ -298,7 +303,16 @@ class ASRAsyncService(ASRService):
         Returns:
             List[dict]: List of speaker segments.
         """
-        raise NotImplementedError("This method should be implemented in a subclass.")
+        left_channel, right_channel = split_dual_channel_file(filepath)
+        
+        left_segments = self.transcribe(left_channel, source_lang, word_timestamps=True)
+        right_segments = self.transcribe(right_channel, source_lang, word_timestamps=True)
+
+        utterances = self.post_processing_model.dual_channel_postprocessing(
+            left_segments=left_segments, right_segments=right_segments,
+        )
+
+        return utterances
 
 
 class ASRLiveService(ASRService):
