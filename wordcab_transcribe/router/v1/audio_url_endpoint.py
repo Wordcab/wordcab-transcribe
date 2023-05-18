@@ -57,7 +57,7 @@ async def inference_with_audio_url(
         filepath = await convert_file_to_wav(filename)
         background_tasks.add_task(delete_file, filepath=f"{filename}.{extension}")
     else:
-        enhanced_audio_filepath = asyncio.run_in_executor(
+        enhanced_audio_filepath = await asyncio.get_event_loop().run_in_executor(
             None, enhance_audio, filename
         )
         filepath = await split_dual_channel_file(enhanced_audio_filepath)
