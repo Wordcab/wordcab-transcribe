@@ -283,7 +283,7 @@ def delete_file(filepath: Union[str, Tuple[str]]) -> None:
 def enhance_audio(
     filepath: str,
     apply_agc: Optional[bool] = True,
-    apply_bandpass: Optional[bool] = True,
+    apply_bandpass: Optional[bool] = False,
 ) -> str:
         """
         Enhance the audio by applying automatic gain control and bandpass filter.
@@ -305,10 +305,10 @@ def enhance_audio(
             audio = high_pass_filter(audio, 300)
             audio = low_pass_filter(audio, 3400)
 
-        # Save the enhanced audio to the same file
-        audio.export(filepath, format="wav")
+        enhanced_filepath = filepath.replace(".wav", "_enhanced.wav")
+        audio.export(enhanced_filepath, format="wav")
 
-        return filepath
+        return enhanced_filepath
 
 
 def is_empty_string(text: str):
