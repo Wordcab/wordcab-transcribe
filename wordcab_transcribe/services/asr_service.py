@@ -181,7 +181,9 @@ class ASRAsyncService(ASRService):
         Returns:
             List[dict]: List of speaker segments.
         """
-        segments = self.transcribe_model(filepath, source_lang, word_timestamps=word_timestamps)
+        segments = self.transcribe_model(
+            filepath, source_lang, word_timestamps=word_timestamps
+        )
 
         return segments
 
@@ -264,7 +266,9 @@ class ASRAsyncService(ASRService):
 
         return results
 
-    def _process_single_channel(self, filepath: str, alignment: bool, source_lang: str) -> List[dict]:
+    def _process_single_channel(
+        self, filepath: str, alignment: bool, source_lang: str
+    ) -> List[dict]:
         """
         Process a single channel audio file.
 
@@ -286,12 +290,15 @@ class ASRAsyncService(ASRService):
         speaker_timestamps = self.diarize(filepath)
 
         utterances = self.post_processing_model.single_channel_postprocessing(
-            transcript_segments=formatted_segments, speaker_timestamps=speaker_timestamps
+            transcript_segments=formatted_segments,
+            speaker_timestamps=speaker_timestamps,
         )
 
         return utterances
 
-    def _process_dual_channel(self, filepath: str, alignment: bool, source_lang: str) -> List[dict]:
+    def _process_dual_channel(
+        self, filepath: str, alignment: bool, source_lang: str
+    ) -> List[dict]:
         """
         Process a dual channel audio file.
 
@@ -305,12 +312,15 @@ class ASRAsyncService(ASRService):
         """
         filepath = self.post_processing_model.enhance_audio(filepath)
         left_channel, right_channel = split_dual_channel_file(filepath)
-        
+
         left_segments = self.transcribe(left_channel, source_lang, word_timestamps=True)
-        right_segments = self.transcribe(right_channel, source_lang, word_timestamps=True)
+        right_segments = self.transcribe(
+            right_channel, source_lang, word_timestamps=True
+        )
 
         utterances = self.post_processing_model.dual_channel_postprocessing(
-            left_segments=left_segments, right_segments=right_segments,
+            left_segments=left_segments,
+            right_segments=right_segments,
         )
 
         return utterances

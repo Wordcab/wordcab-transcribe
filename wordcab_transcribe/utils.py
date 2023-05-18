@@ -462,7 +462,7 @@ def experimental_num_to_words(sentence: str, model_lang: str) -> str:
 
 
 # pragma: no cover
-def split_dual_channel_file(filepath: str) -> Tuple[str, str]:
+async def split_dual_channel_file(filepath: str) -> Tuple[str, str]:
     """
     Split a dual channel audio file into two mono files using ffmpeg.
 
@@ -471,6 +471,9 @@ def split_dual_channel_file(filepath: str) -> Tuple[str, str]:
 
     Returns:
         Tuple[str, str]: The paths to the two mono files.
+
+    Raises:
+        Exception: If the file could not be split.
     """
     logger.debug(f"Splitting dual channel file: {filepath}")
 
@@ -478,20 +481,20 @@ def split_dual_channel_file(filepath: str) -> Tuple[str, str]:
     filename_left = f"{filename}_left.wav"
     filename_right = f"{filename}_right.wav"
 
-    subprocess.run(
-        [
-            "ffmpeg",
-            "-i",
-            filepath,
-            "-map_channel",
-            "0.0.0",
-            filename_left,
-            "-map_channel",
-            "0.0.1",
-            filename_right,
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+    cmd = [
+        "ffmpeg",
+        "-i",
+        str(filepath),
+        "-map_channel",
+        "0.0.0",
+        str(filename_left),
+        "-map_channel",
+        "0.0.1",
+        str(filename_right),
+    ]
+    result = await run_subprocess(cmd)
+
+    if result[0] != 0:
+        raise Exception(f"Error splitting dual channel file: {filepath}")
 
     return filename_left, filename_right

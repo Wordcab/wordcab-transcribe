@@ -38,10 +38,10 @@ class TranscribeService:
         filepath: str,
         source_lang: str,
         beam_size: Optional[int] = 5,
-        patience: Optional[int] = 1,
         length_penalty: Optional[int] = 1,
+        max_initial_timestamp: Optional[float] = 0.2,
+        patience: Optional[int] = 1,
         suppress_blank: Optional[bool] = False,
-        temperature: Optional[List[float]] = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
         vad_filter: Optional[bool] = True,
         word_timestamps: Optional[bool] = False,
     ) -> List[dict]:
@@ -53,9 +53,9 @@ class TranscribeService:
             source_lang (str): Language of the audio file.
             beam_size (Optional[int], optional): Beam size to use for inference. Defaults to 5.
             length_penalty (Optional[int], optional): Length penalty to use for inference. Defaults to 1.
+            max_initial_timestamp (Optional[float], optional): Maximum initial timestamp to use for inference. Defaults to 0.2.
             patience (Optional[int], optional): Patience to use for inference. Defaults to 1.
             suppress_blank (Optional[bool], optional): Whether to suppress blank tokens. Defaults to False.
-            temperature (Optional[float], optional): Temperature to use for inference. Defaults to 0.0.
             vad_filter (Optional[bool], optional): Whether to apply VAD filtering. Defaults to True.
             word_timestamps (Optional[bool], optional): Whether to return word timestamps. Defaults to False.
 
@@ -67,9 +67,9 @@ class TranscribeService:
             beam_size=beam_size,
             language=source_lang,
             length_penalty=length_penalty,
+            max_initial_timestamp=max_initial_timestamp,
             patience=patience,
             suppress_blank=suppress_blank,
-            temperature=temperature,
             vad_filter=vad_filter,
             word_timestamps=word_timestamps,
         )

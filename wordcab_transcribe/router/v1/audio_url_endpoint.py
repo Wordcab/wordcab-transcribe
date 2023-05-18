@@ -60,7 +60,7 @@ async def inference_with_audio_url(
         filepath,
         alignment=data.alignment,
         dual_channel=data.dual_channel,
-        source_lang=data.source_lang
+        source_lang=data.source_lang,
     )
 
     timestamps_format = data.timestamps

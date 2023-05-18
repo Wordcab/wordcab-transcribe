@@ -58,14 +58,17 @@ async def inference_with_audio(
         filepath = filename
 
     data = DataRequest(
-        alignment=alignment, dual_channel=dual_channel, source_lang=source_lang, timestamps=timestamps
+        alignment=alignment,
+        dual_channel=dual_channel,
+        source_lang=source_lang,
+        timestamps=timestamps,
     )
 
     raw_utterances = await asr.process_input(
         filepath,
         alignment=data.alignment,
         dual_channel=data.dual_channel,
-        source_lang=data.source_lang
+        source_lang=data.source_lang,
     )
 
     timestamps_format = data.timestamps

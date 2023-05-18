@@ -13,7 +13,7 @@
 # limitations under the License.
 """Post-Processing Service for audio files."""
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 from pydub import AudioSegment
@@ -74,16 +74,7 @@ class PostProcessingService:
         _left_segments = self.reconstruct_segments(left_segments, speaker_label=0)
         _right_segments = self.reconstruct_segments(right_segments, speaker_label=1)
 
-        # Save the segments in separate files for debugging purposes.
-        import json
-        with open("./left_segments.json", "w", encoding="utf-8") as f:
-            json.dump(_left_segments, f, indent=4, ensure_ascii=False)
-        with open("./right_segments.json", "w", encoding="utf-8") as f:
-            json.dump(_right_segments, f, indent=4, ensure_ascii=False)
-
         utterances = self.merge_segments(_left_segments, _right_segments)
-        with open("./merged_segments.json", "w", encoding="utf-8") as f:
-            json.dump(utterances, f, indent=4, ensure_ascii=False)
 
         utterances = self.utterances_speaker_mapping_dual_channel(utterances)
 
@@ -196,7 +187,9 @@ class PostProcessingService:
 
         return sentences
 
-    def utterances_speaker_mapping_dual_channel(self, transcript_segments: List[dict]) -> List[dict]:
+    def utterances_speaker_mapping_dual_channel(
+        self, transcript_segments: List[dict]
+    ) -> List[dict]:
         """
         Map utterances of the same speaker together for dual channel use case.
 
@@ -238,7 +231,9 @@ class PostProcessingService:
         return sentences
 
     def merge_segments(
-        self, speaker_0_segments: List[Dict[str, Any]], speaker_1_segments: List[Dict[str, Any]]
+        self,
+        speaker_0_segments: List[Dict[str, Any]],
+        speaker_1_segments: List[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
         """
         Merge two lists of segments, keeping the chronological order.
@@ -246,17 +241,20 @@ class PostProcessingService:
         Args:
             speaker_0_segments (List[Dict[str, Any]]): List of segments from speaker 0.
             speaker_1_segments (List[Dict[str, Any]]): List of segments from speaker 1.
-        
+
         Returns:
             List[Dict[str, Any]]: Merged list of segments.
         """
         merged_segments = speaker_0_segments + speaker_1_segments
-        merged_segments.sort(key=lambda seg: seg['start'])
-        
+        merged_segments.sort(key=lambda seg: seg["start"])
+
         return merged_segments
 
     def reconstruct_segments(
-        self, segment_list: list, speaker_label: int, time_threshold: float = 1.0
+        self,
+        segment_list: list,
+        speaker_label: int,
+        time_threshold: Optional[float] = 1.0,
     ) -> List[Dict[str, Any]]:
         """
         Reconstruct segments based on the words timestamps.
@@ -265,6 +263,9 @@ class PostProcessingService:
             segment_list (list): List of the transcript segments.
             speaker_label (int): The speaker label.
             time_threshold (float, optional): The time threshold in seconds. Defaults to 1.0.
+
+        Returns:
+            List[Dict[str, Any]]: List of reconstructed segments.
         """
         reconstructed_segments = []
 
@@ -303,9 +304,9 @@ class PostProcessingService:
 
     def enhance_audio(
         self,
-        file_path: str, 
-        apply_agc: Optional[bool] = True, 
-        apply_bandpass: Optional[bool] = True, 
+        file_path: str,
+        apply_agc: Optional[bool] = True,
+        apply_bandpass: Optional[bool] = True,
     ) -> np.ndarray:
         """
         Enhance the audio by applying automatic gain control and bandpass filter.
