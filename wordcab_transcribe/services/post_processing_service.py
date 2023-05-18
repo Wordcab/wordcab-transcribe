@@ -13,7 +13,7 @@
 # limitations under the License.
 """Post-Processing Service for audio files."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from wordcab_transcribe.utils import get_segment_timestamp_anchor
 
@@ -23,7 +23,7 @@ class PostProcessingService:
 
     def __init__(self) -> None:
         """Initialize the PostProcessingService."""
-        pass
+        self.sample_rate = 16000
 
     def single_channel_postprocessing(
         self, transcript_segments: List[dict], speaker_timestamps: List[dict]
@@ -67,12 +67,9 @@ class PostProcessingService:
         Returns:
             List[dict]: List of sentences with speaker mapping.
         """
-        _left_segments = self.reconstruct_segments(left_segments, speaker_label=0)
-        _right_segments = self.reconstruct_segments(right_segments, speaker_label=1)
+        utterances = self.merge_segments(left_segments, right_segments)
 
-        utterances = self.merge_segments(_left_segments, _right_segments)
-
-        utterances = self.utterances_speaker_mapping_dual_channel(utterances)
+        # utterances = self.utterances_speaker_mapping_dual_channel(utterances)
 
         return utterances
 
@@ -263,17 +260,20 @@ class PostProcessingService:
         """
         final_speaker_segments = []
         for grouped_segments in grouped_list_of_segments:
+            if not grouped_segments:  # Skip empty segments
+                continue
+
             group_start = grouped_segments[0]["start"]
             for segment in grouped_segments:
                 segment_dict = {
                     "start": None,
                     "end": None,
-                    "text": segment.text,
+                    "text": segment["text"],
                     "words": [],
                     "speaker": speaker_label,
                 }
 
-                for word in segment.words:
+                for word in segment["words"]:
                     word_start_adjusted = (group_start / self.sample_rate) + word.start
                     word_end_adjusted = (group_start / self.sample_rate) + word.end
 

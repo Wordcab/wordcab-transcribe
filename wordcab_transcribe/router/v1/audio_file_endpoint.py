@@ -63,14 +63,13 @@ async def inference_with_audio(
 
     if data.dual_channel:
         enhanced_audio_filepath = await asyncio.get_event_loop().run_in_executor(
-            None, enhance_audio, filename
+            None, enhance_audio, filename, True, False
         )
         filepath = await split_dual_channel_file(enhanced_audio_filepath)
         background_tasks.add_task(delete_file, filepath=enhanced_audio_filepath)
     else:
         filepath = await convert_file_to_wav(filename)
         background_tasks.add_task(delete_file, filepath=filename)
-
 
     raw_utterances = await asr.process_input(
         filepath,
