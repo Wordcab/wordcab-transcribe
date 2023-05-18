@@ -15,10 +15,6 @@
 
 from typing import Any, Dict, List, Optional
 
-import numpy as np
-from pydub import AudioSegment
-from pydub.effects import high_pass_filter, low_pass_filter, normalize
-
 from wordcab_transcribe.utils import get_segment_timestamp_anchor
 
 
@@ -301,34 +297,3 @@ class PostProcessingService:
             segment["end"] = round(segment["end"] * 1000, 3)
 
         return reconstructed_segments
-
-    def enhance_audio(
-        self,
-        file_path: str,
-        apply_agc: Optional[bool] = True,
-        apply_bandpass: Optional[bool] = True,
-    ) -> np.ndarray:
-        """
-        Enhance the audio by applying automatic gain control and bandpass filter.
-
-        Args:
-            file_path (str): Path to the audio file.
-            apply_agc (Optional[bool], optional): Whether to apply automatic gain control. Defaults to True.
-            apply_bandpass (Optional[bool], optional): Whether to apply bandpass filter. Defaults to True.
-
-        Returns:
-            np.ndarray: The enhanced audio.
-        """
-        audio = AudioSegment.from_file(file_path)
-
-        if apply_agc:
-            audio = normalize(audio)
-
-        if apply_bandpass:
-            audio = high_pass_filter(audio, 300)
-            audio = low_pass_filter(audio, 3400)
-
-        # Save the enhanced audio to the same file
-        audio.export(file_path, format="wav")
-
-        return file_path

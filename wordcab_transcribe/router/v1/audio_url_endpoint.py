@@ -16,6 +16,7 @@
 from typing import Optional
 
 import shortuuid
+import asyncio
 from fastapi import APIRouter, BackgroundTasks
 from fastapi import status as http_status
 
@@ -26,8 +27,10 @@ from wordcab_transcribe.utils import (
     convert_timestamp,
     delete_file,
     download_audio_file,
+    enhance_audio,
     format_punct,
     is_empty_string,
+    split_dual_channel_file,
 )
 
 
@@ -45,16 +48,20 @@ async def inference_with_audio_url(
     filepath = await download_audio_file(url, filename)
     extension = filepath.split(".")[-1]
 
-    if extension != "wav":
-        filepath = await convert_file_to_wav(filepath)
-        background_tasks.add_task(delete_file, filepath=f"{filename}.{extension}")
-    else:
-        filepath = filename
-
     if data is None:
         data = DataRequest()
     else:
         data = DataRequest(**data.dict())
+
+    if data.dual_channel is False:
+        filepath = await convert_file_to_wav(filename)
+        background_tasks.add_task(delete_file, filepath=f"{filename}.{extension}")
+    else:
+        enhanced_audio_filepath = asyncio.run_in_executor(
+            None, enhance_audio, filename
+        )
+        filepath = await split_dual_channel_file(enhanced_audio_filepath)
+        background_tasks.add_task(delete_file, filepath=enhanced_audio_filepath)
 
     raw_utterances = await asr.process_input(
         filepath,

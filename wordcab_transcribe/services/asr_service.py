@@ -16,7 +16,7 @@
 import asyncio
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Optional
+from typing import List, Optional, Tuple, Union
 
 import torch
 from loguru import logger
@@ -66,7 +66,7 @@ class ASRService:
 
     async def process_input(
         self,
-        filepath: str,
+        filepath: Union[str, Tuple[str]],
         alignment: bool,
         dual_channel: bool,
         source_lang: str,
@@ -75,7 +75,7 @@ class ASRService:
         Process the input request and return the result.
 
         Args:
-            filepath (str): Path to the audio file.
+            filepath (Union[str, Tuple[str]]): Path to the audio file.
             alignment (bool): Whether to do alignment or not.
             dual_channel (bool): Whether to do dual channel or not.
             source_lang (str): Source language of the audio file.
@@ -246,12 +246,12 @@ class ASRAsyncService(ASRService):
         Returns:
             List[dict]: List of results.
         """
-        results = []
+        results: List[dict] = []
         for task in file_batch:
-            filepath = task["input"]
-            alignment = task["alignment"]
-            dual_channel = task["dual_channel"]
-            source_lang = task["source_lang"]
+            filepath: Union[str, Tuple[str]] = task["input"]
+            alignment: bool = task["alignment"]
+            dual_channel: bool = task["dual_channel"]
+            source_lang: str = task["source_lang"]
 
             if dual_channel:
                 utterances = self._process_dual_channel(
@@ -297,21 +297,20 @@ class ASRAsyncService(ASRService):
         return utterances
 
     def _process_dual_channel(
-        self, filepath: str, alignment: bool, source_lang: str
+        self, filepath: Tuple[str], alignment: bool, source_lang: str
     ) -> List[dict]:
         """
         Process a dual channel audio file.
 
         Args:
-            filepath (str): Path to the audio file.
+            filepath (Tuple[str]): Tuple of paths to the splitted audio files.
             alignment (bool): Whether to align the segments.
             source_lang (str): Source language of the audio file.
 
         Returns:
             List[dict]: List of speaker segments.
         """
-        filepath = self.post_processing_model.enhance_audio(filepath)
-        left_channel, right_channel = split_dual_channel_file(filepath)
+        left_channel, right_channel = filepath
 
         left_segments = self.transcribe(left_channel, source_lang, word_timestamps=True)
         right_segments = self.transcribe(

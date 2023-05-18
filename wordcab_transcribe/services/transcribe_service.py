@@ -39,7 +39,7 @@ class TranscribeService:
         source_lang: str,
         beam_size: Optional[int] = 5,
         length_penalty: Optional[int] = 1,
-        max_initial_timestamp: Optional[float] = 0.2,
+        max_initial_timestamp: Optional[float] = 1.0,
         patience: Optional[int] = 1,
         suppress_blank: Optional[bool] = False,
         vad_filter: Optional[bool] = True,
@@ -53,7 +53,7 @@ class TranscribeService:
             source_lang (str): Language of the audio file.
             beam_size (Optional[int], optional): Beam size to use for inference. Defaults to 5.
             length_penalty (Optional[int], optional): Length penalty to use for inference. Defaults to 1.
-            max_initial_timestamp (Optional[float], optional): Maximum initial timestamp to use for inference. Defaults to 0.2.
+            max_initial_timestamp (Optional[float], optional): Maximum initial timestamp to use for inference. Defaults to 1.0.
             patience (Optional[int], optional): Patience to use for inference. Defaults to 1.
             suppress_blank (Optional[bool], optional): Whether to suppress blank tokens. Defaults to False.
             vad_filter (Optional[bool], optional): Whether to apply VAD filtering. Defaults to True.

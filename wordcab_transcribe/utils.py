@@ -28,6 +28,8 @@ import pandas as pd
 from loguru import logger
 from num2words import num2words
 from omegaconf import OmegaConf
+from pydub import AudioSegment
+from pydub.effects import high_pass_filter, low_pass_filter, normalize
 from yt_dlp import YoutubeDL
 
 
@@ -173,7 +175,7 @@ async def convert_file_to_wav(filepath: str) -> str:
     if not filepath.exists():
         raise FileNotFoundError(f"File {filepath} does not exist.")
 
-    new_filepath = filepath.with_suffix(".wav")
+    new_filepath = f"{filepath.stem}_{filepath.stat().st_mtime_ns}.wav"
     cmd = [
         "ffmpeg",
         "-i",
@@ -264,18 +266,49 @@ async def download_audio_file(
     return filename
 
 
-def delete_file(filepath: str) -> None:
+def delete_file(filepath: Union[str, Tuple[str]]) -> None:
     """
-    Delete a file.
+    Delete a file or a list of files.
 
     Args:
-        filepath (str): Path to the file to delete.
+        filepath (Union[str, Tuple[str]]): Path to the file to delete.
     """
     if isinstance(filepath, str):
-        filepath = Path(filepath)
+        filepath = (filepath,)
 
-    if filepath.exists():
-        filepath.unlink()
+    for path in filepath:
+        Path(path).unlink(missing_ok=True)
+
+
+def enhance_audio(
+    filepath: str,
+    apply_agc: Optional[bool] = True,
+    apply_bandpass: Optional[bool] = True,
+) -> str:
+        """
+        Enhance the audio by applying automatic gain control and bandpass filter.
+
+        Args:
+            file_path (str): Path to the audio file.
+            apply_agc (Optional[bool], optional): Whether to apply automatic gain control. Defaults to True.
+            apply_bandpass (Optional[bool], optional): Whether to apply bandpass filter. Defaults to True.
+
+        Returns:
+            str: Path to the enhanced audio file.
+        """
+        audio = AudioSegment.from_file(filepath)
+
+        if apply_agc:
+            audio = normalize(audio)
+
+        if apply_bandpass:
+            audio = high_pass_filter(audio, 300)
+            audio = low_pass_filter(audio, 3400)
+
+        # Save the enhanced audio to the same file
+        audio.export(filepath, format="wav")
+
+        return filepath
 
 
 def is_empty_string(text: str):
@@ -481,7 +514,7 @@ def experimental_num_to_words(sentence: str, model_lang: str) -> str:
 
 
 # pragma: no cover
-def split_dual_channel_file(filepath: str) -> Tuple[str, str]:
+async def split_dual_channel_file(filepath: str) -> Tuple[str, str]:
     """
     Split a dual channel audio file into two mono files using ffmpeg.
 
@@ -504,6 +537,14 @@ def split_dual_channel_file(filepath: str) -> Tuple[str, str]:
         "ffmpeg",
         "-i",
         str(filepath),
+        "-vn",
+        "-acodec",
+        "pcm_s16le",
+        "-ar",
+        "16000",
+        "-ac",
+        "1",
+        "-y",
         "-map_channel",
         "0.0.0",
         str(filename_left),
@@ -511,9 +552,9 @@ def split_dual_channel_file(filepath: str) -> Tuple[str, str]:
         "0.0.1",
         str(filename_right),
     ]
-    result = run_subprocess(cmd)
+    result = await async_run_subprocess(cmd)
 
     if result[0] != 0:
-        raise Exception(f"Error splitting dual channel file: {filepath}")
+        raise Exception(f"Error splitting dual channel file: {filepath}. {result[2]}")
 
     return filename_left, filename_right
