@@ -48,20 +48,17 @@ async def inference_with_audio_url(
     filepath = await download_audio_file(url, filename)
     extension = filepath.split(".")[-1]
 
-    if data is None:
-        data = DataRequest()
-    else:
-        data = DataRequest(**data.dict())
+    data = DataRequest() if data is None else DataRequest(**data.dict())
 
-    if data.dual_channel is False:
-        filepath = await convert_file_to_wav(filename)
-        background_tasks.add_task(delete_file, filepath=f"{filename}.{extension}")
-    else:
+    if data.dual_channel:
         enhanced_audio_filepath = await asyncio.get_event_loop().run_in_executor(
             None, enhance_audio, filename
         )
         filepath = await split_dual_channel_file(enhanced_audio_filepath)
         background_tasks.add_task(delete_file, filepath=enhanced_audio_filepath)
+    else:
+        filepath = await convert_file_to_wav(filename)
+        background_tasks.add_task(delete_file, filepath=f"{filename}.{extension}")
 
     raw_utterances = await asr.process_input(
         filepath,

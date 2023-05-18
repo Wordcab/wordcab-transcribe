@@ -43,10 +43,7 @@ async def inference_with_youtube(
     filename = f"yt_{shortuuid.ShortUUID().random(length=32)}"
     filepath = await download_file_from_youtube(url, filename)
 
-    if data is None:
-        data = DataRequest()
-    else:
-        data = DataRequest(**data.dict())
+    data = DataRequest() if data is None else DataRequest(**data.dict())
 
     raw_utterances = await asr.process_input(
         filepath,
