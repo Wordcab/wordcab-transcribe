@@ -58,7 +58,7 @@ CURRENCIES_CHARACTERS = [
 
 
 # pragma: no cover
-async def run_subprocess(command: List[str]) -> tuple:
+async def async_run_subprocess(command: List[str]) -> tuple:
     """
     Run a subprocess asynchronously.
 
@@ -72,6 +72,25 @@ async def run_subprocess(command: List[str]) -> tuple:
         *command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     stdout, stderr = await process.communicate()
+
+    return process.returncode, stdout, stderr
+
+
+# pragma: no cover
+def run_subprocess(command: List[str]) -> tuple:
+    """
+    Run a subprocess synchronously.
+
+    Args:
+        command (List[str]): Command to run.
+
+    Returns:
+        tuple: Tuple with the return code, stdout and stderr.
+    """
+    process = subprocess.Popen(
+        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )  # noqa: S603,S607
+    stdout, stderr = process.communicate()
 
     return process.returncode, stdout, stderr
 
@@ -169,7 +188,7 @@ async def convert_file_to_wav(filepath: str) -> str:
         "-y",
         str(new_filepath),
     ]
-    result = await run_subprocess(cmd)
+    result = await async_run_subprocess(cmd)
 
     if result[0] != 0:
         raise Exception(f"Error converting file {filepath} to wav format: {result[2]}")
@@ -462,7 +481,7 @@ def experimental_num_to_words(sentence: str, model_lang: str) -> str:
 
 
 # pragma: no cover
-async def split_dual_channel_file(filepath: str) -> Tuple[str, str]:
+def split_dual_channel_file(filepath: str) -> Tuple[str, str]:
     """
     Split a dual channel audio file into two mono files using ffmpeg.
 
@@ -492,7 +511,7 @@ async def split_dual_channel_file(filepath: str) -> Tuple[str, str]:
         "0.0.1",
         str(filename_right),
     ]
-    result = await run_subprocess(cmd)
+    result = run_subprocess(cmd)
 
     if result[0] != 0:
         raise Exception(f"Error splitting dual channel file: {filepath}")
