@@ -14,9 +14,10 @@
 """ASR Service module that handle all AI interactions."""
 
 import asyncio
+import numpy as np
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 import torch
 from loguru import logger
@@ -26,7 +27,8 @@ from wordcab_transcribe.services.align_service import AlignService
 from wordcab_transcribe.services.diarize_service import DiarizeService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
-from wordcab_transcribe.utils import format_segments, split_dual_channel_file
+from wordcab_transcribe.services.vad_service import VadService
+from wordcab_transcribe.utils import format_segments
 
 
 class ASRService:
@@ -41,6 +43,7 @@ class ASRService:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.thread_executor = ThreadPoolExecutor(max_workers=4)
+        self.sample_rate = 16000
 
         # Multi requests support
         self.queue = []
@@ -153,22 +156,23 @@ class ASRAsyncService(ASRService):
         """Initialize the ASRAsyncService class."""
         super().__init__()
 
+        self.align_model = AlignService(self.device)
         self.transcribe_model = TranscribeService(
             model_path=settings.whisper_model,
             compute_type=settings.compute_type,
             device=self.device,
         )
-        self.align_model = AlignService(self.device)
         self.diarize_model = DiarizeService(
             domain_type=settings.nemo_domain_type,
             storage_path=settings.nemo_storage_path,
             output_path=settings.nemo_output_path,
             device=self.device,
         )
-        self.post_processing_model = PostProcessingService()
+        self.post_processing_service = PostProcessingService()
+        self.vad_service = VadService()
 
     def transcribe(
-        self, filepath: str, source_lang: str, word_timestamps: Optional[bool] = False
+        self, filepath: str, source_lang: str, **kwargs: Any
     ) -> List[dict]:
         """
         Transcribe the audio file using the TranscribeService class.
@@ -176,16 +180,49 @@ class ASRAsyncService(ASRService):
         Args:
             filepath (str): Path to the audio file.
             source_lang (str): Source language of the audio file.
-            word_timestamps (Optional[bool], optional): Whether to return word timestamps or not. Defaults to False.
+            **kwargs (Any): Additional arguments to pass to the transcribe method.
 
         Returns:
             List[dict]: List of speaker segments.
         """
-        segments = self.transcribe_model(
-            filepath, source_lang, word_timestamps=word_timestamps
-        )
+        segments = self.transcribe_model(filepath, source_lang, **kwargs)
 
         return segments
+
+    def transcribe_dual_channel(
+        self, grouped_segments: List[List[dict]], audio: torch.Tensor, source_lang: str
+    ) -> List[List[dict]]:
+        """
+        Transcribe multiple segments of audio in the dual channel mode.
+
+        Args:
+            grouped_segments (List[List[dict]]): List of grouped segments.
+            audio (torch.Tensor): Audio tensor.
+            source_lang (str): Source language of the audio file.
+
+        Returns:
+            List[List[dict]]: List of grouped transcribed segments.
+        """
+        silence_padding = torch.from_numpy(np.zeros(int(3 * self.sample_rate))).float()
+
+        grouped_transcribed_segments = []
+        for group in grouped_segments:
+            audio_segments = []
+            for segment in group:
+                audio_segments.extend(
+                    [audio[segment["start"]:segment["end"]], silence_padding]
+                )
+
+            audio_segments = torch.cat(audio_segments)
+            audio_segments = audio_segments.numpy()
+
+            transcribed_segments = self.transcribe_model(
+                audio_segments, source_lang, word_timestamps=True
+            )
+
+            grouped_transcribed_segments.append(transcribed_segments)
+
+        return grouped_transcribed_segments
 
     def align(
         self, filepath: str, segments: List[dict], source_lang: str
@@ -218,23 +255,6 @@ class ASRAsyncService(ASRService):
         speaker_timestamps = self.diarize_model(filepath)
 
         return speaker_timestamps
-
-    def post_process(
-        self, segments: List[dict], speaker_timestamps: List[dict]
-    ) -> List[dict]:
-        """
-        Post process the segments using the PostProcessingService class.
-
-        Args:
-            segments (List[dict]): List of speaker segments.
-            speaker_timestamps (List[dict]): List of speaker timestamps.
-
-        Returns:
-            List[dict]: List of speaker segments.
-        """
-        utterances = self.post_processing_model(segments, speaker_timestamps)
-
-        return utterances
 
     def process_batch(self, file_batch: List[dict]) -> List[dict]:
         """
@@ -289,7 +309,7 @@ class ASRAsyncService(ASRService):
 
         speaker_timestamps = self.diarize(filepath)
 
-        utterances = self.post_processing_model.single_channel_postprocessing(
+        utterances = self.post_processing_service.single_channel_postprocessing(
             transcript_segments=formatted_segments,
             speaker_timestamps=speaker_timestamps,
         )
@@ -312,14 +332,19 @@ class ASRAsyncService(ASRService):
         """
         left_channel, right_channel = filepath
 
-        left_segments = self.transcribe(left_channel, source_lang, word_timestamps=True)
-        right_segments = self.transcribe(
-            right_channel, source_lang, word_timestamps=True
+        left_grouped_timestamps, left_audio = self.vad_service(left_channel)
+        right_grouped_timestamps, right_audio = self.vad_service(right_channel)
+
+        left_transcribed_segments = self.transcribe_dual_channel(
+            left_grouped_timestamps, left_audio, source_lang
+        )
+        right_transcribed_segments = self.transcribe_dual_channel(
+            right_grouped_timestamps, right_audio, source_lang
         )
 
-        utterances = self.post_processing_model.dual_channel_postprocessing(
-            left_segments=left_segments,
-            right_segments=right_segments,
+        utterances = self.post_processing_service.dual_channel_postprocessing(
+            left_segments=left_transcribed_segments,
+            right_segments=right_transcribed_segments,
         )
 
         return utterances

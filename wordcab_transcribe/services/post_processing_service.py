@@ -248,52 +248,46 @@ class PostProcessingService:
 
     def reconstruct_segments(
         self,
-        segment_list: list,
+        grouped_list_of_segments: List[List[dict]],
         speaker_label: int,
-        time_threshold: Optional[float] = 1.0,
     ) -> List[Dict[str, Any]]:
         """
         Reconstruct segments based on the words timestamps.
 
         Args:
-            segment_list (list): List of the transcript segments.
-            speaker_label (int): The speaker label.
-            time_threshold (float, optional): The time threshold in seconds. Defaults to 1.0.
+            grouped_list_of_segments (List[List[dict]]): List of grouped segments.
+            speaker_label (int): Speaker label.
 
         Returns:
             List[Dict[str, Any]]: List of reconstructed segments.
         """
-        reconstructed_segments = []
+        final_speaker_segments = []
+        for grouped_segments in grouped_list_of_segments:
+            group_start = grouped_segments[0]["start"]
+            for segment in grouped_segments:
+                segment_dict = {
+                    "start": None,
+                    "end": None,
+                    "text": segment.text,
+                    "words": [],
+                    "speaker": speaker_label,
+                }
 
-        for segment in segment_list:
-            words = segment["words"]
-            if not words:
-                continue
+                for word in segment.words:
+                    word_start_adjusted = (group_start / self.sample_rate) + word.start
+                    word_end_adjusted = (group_start / self.sample_rate) + word.end
 
-            new_segment = {
-                "start": words[0].start,
-                "end": words[0].end,
-                "text": words[0].word.strip(),
-                "speaker": speaker_label,
-            }
+                    segment_dict["words"].append({
+                        "start": word_start_adjusted,
+                        "end": word_end_adjusted,
+                        "text": word.word,
+                    })
 
-            for i in range(1, len(words)):
-                if words[i].start - new_segment["end"] > time_threshold:
-                    reconstructed_segments.append(new_segment)
-                    new_segment = {
-                        "start": words[i].start,
-                        "end": words[i].end,
-                        "text": words[i].word.strip(),
-                        "speaker": speaker_label,
-                    }
-                else:
-                    new_segment["end"] = words[i].end
-                    new_segment["text"] += " " + words[i].word.strip()
+                    if segment_dict["start"] is None or word_start_adjusted < segment_dict["start"]:
+                        segment_dict["start"] = word_start_adjusted
+                    if segment_dict["end"] is None or word_end_adjusted > segment_dict["end"]:
+                        segment_dict["end"] = word_end_adjusted
 
-            reconstructed_segments.append(new_segment)
+                final_speaker_segments.append(segment_dict)
 
-        for segment in reconstructed_segments:
-            segment["start"] = round(segment["start"] * 1000, 3)
-            segment["end"] = round(segment["end"] * 1000, 3)
-
-        return reconstructed_segments
+        return final_speaker_segments

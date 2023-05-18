@@ -14,7 +14,7 @@
 """Voice Activation Detection (VAD) Service for audio files."""
 
 from collections import OrderedDict
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 import torchaudio
@@ -52,7 +52,7 @@ class VadService:
 
     def __call__(
         self, filepath: str, group_timestamps: Optional[bool] = True
-    ) -> Union[List[dict], List[List[dict]]]:
+    ) -> Tuple[Union[List[dict], List[List[dict]]], torch.Tensor]:
         """
         Use the VAD model to get the speech timestamps.
 
@@ -61,7 +61,7 @@ class VadService:
             group_timestamps (Optional[bool], optional): Group timestamps. Defaults to True.
 
         Returns:
-            List[dict]: List of speech timestamps.
+            Tuple[Union[List[dict], List[List[dict]]], torch.Tensor]: Speech timestamps and audio tensor.
         """
         audio = self.read_audio(filepath)
         speech_timestamps = get_speech_timestamps(audio, self.vad_options)
@@ -74,7 +74,7 @@ class VadService:
         if group_timestamps:
             speech_timestamps_list = self.group_timestamps(speech_timestamps_list)
 
-        return speech_timestamps_list
+        return speech_timestamps_list, audio
 
     def read_audio(self, path: str) -> torch.Tensor:
         """
@@ -112,6 +112,7 @@ class VadService:
             threshold (float, optional): Threshold to use for grouping. Defaults to 3.0.
 
         Returns:
+            List[List[dict]]: List of grouped timestamps.
         """
         grouped_segments = [[]]
 
