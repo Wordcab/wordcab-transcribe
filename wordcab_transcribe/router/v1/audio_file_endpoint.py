@@ -39,9 +39,11 @@ router = APIRouter()
 async def inference_with_audio(
     background_tasks: BackgroundTasks,
     alignment: Optional[bool] = Form(False),  # noqa: B008
+    diarization: Optional[bool] = Form(False),  # noqa: B008
     dual_channel: Optional[bool] = Form(False),  # noqa: B008
     source_lang: Optional[str] = Form("en"),  # noqa: B008
     timestamps: Optional[str] = Form("s"),  # noqa: B008
+    word_timestamps: Optional[bool] = Form(False),  # noqa: B008
     file: UploadFile = File(...),  # noqa: B008
 ) -> AudioResponse:
     """Inference endpoint with audio file."""
@@ -54,9 +56,11 @@ async def inference_with_audio(
 
     data = AudioRequest(
         alignment=alignment,
-        dual_channel=dual_channel,
+        diarization=diarization,
         source_lang=source_lang,
         timestamps=timestamps,
+        word_timestamps=word_timestamps,
+        dual_channel=dual_channel,
     )
 
     if data.dual_channel:
@@ -68,8 +72,10 @@ async def inference_with_audio(
     raw_utterances = await asr.process_input(
         filepath,
         alignment=data.alignment,
+        diarization=data.diarization,
         dual_channel=data.dual_channel,
         source_lang=data.source_lang,
+        word_timestamps=data.word_timestamps,
     )
 
     timestamps_format = data.timestamps
@@ -83,6 +89,7 @@ async def inference_with_audio(
                 utterance["end"], timestamps_format, data.dual_channel
             ),
             "speaker": int(utterance["speaker"]),
+            "words": utterance["words"] if data.word_timestamps else [],
         }
         for utterance in raw_utterances
         if not is_empty_string(utterance["text"])
@@ -93,7 +100,9 @@ async def inference_with_audio(
     return AudioResponse(
         utterances=utterances,
         alignment=data.alignment,
+        diarization=data.diarization,
         dual_channel=data.dual_channel,
         source_lang=data.source_lang,
         timestamps=data.timestamps,
+        word_timestamps=data.word_timestamps,
     )

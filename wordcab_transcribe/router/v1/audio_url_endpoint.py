@@ -61,8 +61,10 @@ async def inference_with_audio_url(
     raw_utterances = await asr.process_input(
         filepath,
         alignment=data.alignment,
+        diarization=data.diarization,
         dual_channel=data.dual_channel,
         source_lang=data.source_lang,
+        word_timestamps=data.word_timestamps,
     )
 
     timestamps_format = data.timestamps
@@ -76,6 +78,7 @@ async def inference_with_audio_url(
                 utterance["end"], timestamps_format, data.dual_channel
             ),
             "speaker": int(utterance["speaker"]),
+            "words": utterance["words"] if data.word_timestamps else [],
         }
         for utterance in raw_utterances
         if not is_empty_string(utterance["text"])
@@ -86,7 +89,9 @@ async def inference_with_audio_url(
     return AudioResponse(
         utterances=utterances,
         alignment=data.alignment,
+        diarization=data.diarization,
         dual_channel=data.dual_channel,
         source_lang=data.source_lang,
         timestamps=data.timestamps,
+        word_timestamps=data.word_timestamps,
     )
