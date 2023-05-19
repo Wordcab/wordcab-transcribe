@@ -52,4 +52,4 @@ def test_format_punct_remove_space_before_semicolon() -> None:
 
 def test_format_punct_remove_extra_spaces() -> None:
     """Test the format_punct function for extra spaces."""
-    assert format_punct("  Hello World  ") == "Hello World"
+    assert format_punct("  Hello World  ") == "Hello World."

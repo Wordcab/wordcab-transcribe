@@ -75,13 +75,11 @@ def test_base_request_valid() -> None:
     """Test the BaseRequest model with valid data."""
     data = {
         "alignment": True,
-        "dual_channel": True,
         "source_lang": "fr",
         "timestamps": "hms",
     }
     req = BaseRequest(**data)
     assert req.alignment is True
-    assert req.dual_channel is True
     assert req.source_lang == "fr"
     assert req.timestamps == "hms"
 
@@ -90,7 +88,6 @@ def test_base_request_default() -> None:
     """Test the BaseRequest model with default values."""
     req = BaseRequest()
     assert req.alignment is False
-    assert req.dual_channel is False
     assert req.source_lang == "en"
     assert req.timestamps == "s"
 

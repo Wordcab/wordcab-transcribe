@@ -197,7 +197,7 @@ def _convert_s_to_hms(timestamp: float) -> str:
     hours, remainder = divmod(timestamp, 3600)
     minutes, seconds = divmod(remainder, 60)
 
-    output = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+    output = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}.000"
 
     return output
 
@@ -400,7 +400,7 @@ def format_punct(text: str):
 
     if text[0].islower():
         text = text[0].upper() + text[1:]
-    if text[-1] not in [".", "?", "!"]:
+    if text[-1] not in [".", "?", "!", ":", ";", ","]:
         text += "."
 
     text = text.replace("...", "")
