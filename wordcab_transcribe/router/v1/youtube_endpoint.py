@@ -57,10 +57,10 @@ async def inference_with_youtube(
         {
             "text": format_punct(utterance["text"]),
             "start": convert_timestamp(
-                utterance["start"], timestamps_format, data.dual_channel
+                utterance["start"], timestamps_format, False
             ),
             "end": convert_timestamp(
-                utterance["end"], timestamps_format, data.dual_channel
+                utterance["end"], timestamps_format, False
             ),
             "speaker": int(utterance["speaker"]),
         }
