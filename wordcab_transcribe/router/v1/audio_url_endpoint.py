@@ -22,6 +22,7 @@ from fastapi import status as http_status
 from wordcab_transcribe.dependencies import asr
 from wordcab_transcribe.models import AudioRequest, AudioResponse
 from wordcab_transcribe.utils import (
+    convert_file_to_wav,
     convert_timestamp,
     delete_file,
     download_audio_file,
@@ -45,18 +46,14 @@ async def inference_with_audio_url(
 
     data = AudioRequest() if data is None else AudioRequest(**data.dict())
 
-    if (
-        data.dual_channel
-    ):  # TODO: In AWS URLs extension seems to be in URL, also generally find extension from any file
-        filepath = await download_audio_file(url, filename, guess_extension=False)
+    if data.dual_channel:
+        filepath, extension = await download_audio_file(url, filename)
         filepath = await split_dual_channel_file(filepath)
-        background_tasks.add_task(delete_file, filepath=f"{filename}.wav")
+        background_tasks.add_task(delete_file, filepath=f"{filename}.{extension}")
     else:
-        filepath = await download_audio_file(url, filename, guess_extension=False)
-        # extension = filepath.split(".")[-1]
-        # filepath = await convert_file_to_wav(filepath)
-        # TODO: As only Wordcab would really use this, and we convert to wav, commenting this out
-        background_tasks.add_task(delete_file, filepath=f"{filename}.wav")
+        filepath, extension = await download_audio_file(url, filename)
+        filepath = await convert_file_to_wav(filepath)
+        background_tasks.add_task(delete_file, filepath=f"{filename}.{extension}")
 
     raw_utterances = await asr.process_input(
         filepath,

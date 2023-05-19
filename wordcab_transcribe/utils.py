@@ -15,15 +15,16 @@
 import asyncio
 import json
 import math
-import mimetypes
 import re
 import subprocess  # noqa: S404
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
+from urllib.parse import urlparse
 
 import aiofiles
 import aiohttp
+import filetype
 import pandas as pd
 from loguru import logger
 from num2words import num2words
@@ -275,7 +276,7 @@ async def download_audio_file(
     filename: str,
     url_headers: Optional[Dict[str, str]] = None,
     guess_extension: Optional[bool] = True,
-) -> str:
+) -> Tuple[str, str]:
     """
     Download an audio file from a URL.
 
@@ -298,13 +299,19 @@ async def download_audio_file(
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=url_headers) as response:
             if response.status == 200:
-                if guess_extension:
-                    content_type = response.headers.get("Content-Type")
-                    extension = mimetypes.guess_extension(content_type)
+                parsed_url = urlparse(url)
+                url_path = parsed_url.path
+                possible_filename = url_path.split("/")[-1]
+                logger.info(f"Possible filename: {possible_filename}")
+                if "." not in possible_filename:
+                    logger.info("No '.' found in path file, guessing file type")
+                    file_content = await response.read()
+                    extension = filetype.guess(file_content).extension
                 else:
-                    extension = ".wav"
+                    extension = possible_filename.split(".")[-1]
+                    logger.info(f"Extension detected: {extension}")
 
-                filename = f"{filename}{extension}"
+                filename = f"{filename}.{extension}"
 
                 logger.info(f"New file name: {filename}")
                 async with aiofiles.open(filename, "wb") as f:
@@ -318,7 +325,7 @@ async def download_audio_file(
             else:
                 raise Exception(f"Failed to download file. Status: {response.status}")
 
-    return filename
+    return filename, extension
 
 
 def delete_file(filepath: Union[str, Tuple[str]]) -> None:
