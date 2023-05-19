@@ -3,13 +3,14 @@ __pycache__/
 /.coverage
 .coverage
 .coverage.*
+.DS_Store
 .nox/
 .python-version
 /.pytype/
+/data/
 /dist/
 /docs/_build/
 /src/*.egg-info/
-.DS_Store
 test.ipynb
 test.py
 whisper_model

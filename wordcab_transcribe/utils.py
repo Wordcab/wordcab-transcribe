@@ -15,19 +15,22 @@
 import asyncio
 import json
 import math
-import mimetypes
 import re
 import subprocess  # noqa: S404
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
+from urllib.parse import urlparse
 
 import aiofiles
 import aiohttp
+import filetype
 import pandas as pd
 from loguru import logger
 from num2words import num2words
 from omegaconf import OmegaConf
+from pydub import AudioSegment
+from pydub.effects import high_pass_filter, low_pass_filter, normalize
 from yt_dlp import YoutubeDL
 
 
@@ -58,7 +61,7 @@ CURRENCIES_CHARACTERS = [
 
 
 # pragma: no cover
-async def run_subprocess(command: List[str]) -> tuple:
+async def async_run_subprocess(command: List[str]) -> tuple:
     """
     Run a subprocess asynchronously.
 
@@ -76,13 +79,36 @@ async def run_subprocess(command: List[str]) -> tuple:
     return process.returncode, stdout, stderr
 
 
-def convert_timestamp(timestamp: float, target: str) -> Union[str, float]:
+# pragma: no cover
+def run_subprocess(command: List[str]) -> tuple:
+    """
+    Run a subprocess synchronously.
+
+    Args:
+        command (List[str]): Command to run.
+
+    Returns:
+        tuple: Tuple with the return code, stdout and stderr.
+    """
+    process = subprocess.Popen(  # noqa: S603,S607
+        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    stdout, stderr = process.communicate()
+
+    return process.returncode, stdout, stderr
+
+
+def convert_timestamp(
+    timestamp: float, target: str, dual_channel: bool
+) -> Union[str, float]:
     """
     Use the right function to convert the timestamp.
 
     Args:
         timestamp (float): Timestamp to convert.
         target (str): Timestamp to convert.
+        dual_channel (bool): Whether the audio is dual channel or not. If True, the
+            timestamp is already in seconds. If False, the timestamp is in milliseconds.
 
     Returns:
         Union[str, float]: Converted timestamp.
@@ -90,16 +116,28 @@ def convert_timestamp(timestamp: float, target: str) -> Union[str, float]:
     Raises:
         ValueError: If the target is invalid. Valid targets are: ms, hms, s.
     """
-    if target == "ms":
-        return timestamp
-    elif target == "hms":
-        return _convert_ms_to_hms(timestamp)
-    elif target == "s":
-        return _convert_ms_to_s(timestamp)
+    if dual_channel:
+        if target == "ms":
+            return _convert_s_to_ms(timestamp)
+        elif target == "hms":
+            return _convert_s_to_hms(timestamp)
+        elif target == "s":
+            return timestamp
+        else:
+            raise ValueError(
+                f"Invalid conversion target: {target}. Valid targets are: ms, hms, s."
+            )
     else:
-        raise ValueError(
-            f"Invalid conversion target: {target}. Valid targets are: ms, hms, s."
-        )
+        if target == "ms":
+            return timestamp
+        elif target == "hms":
+            return _convert_ms_to_hms(timestamp)
+        elif target == "s":
+            return _convert_ms_to_s(timestamp)
+        else:
+            raise ValueError(
+                f"Invalid conversion target: {target}. Valid targets are: ms, hms, s."
+            )
 
 
 def _convert_ms_to_hms(timestamp: float) -> str:
@@ -134,6 +172,37 @@ def _convert_ms_to_s(timestamp: float) -> float:
     return timestamp / 1000
 
 
+def _convert_s_to_ms(timestamp: float) -> float:
+    """
+    Convert a timestamp from seconds to milliseconds.
+
+    Args:
+        timestamp (float): Timestamp in seconds to convert.
+
+    Returns:
+        float: Milliseconds.
+    """
+    return timestamp * 1000
+
+
+def _convert_s_to_hms(timestamp: float) -> str:
+    """
+    Convert a timestamp from seconds to hours, minutes and seconds.
+
+    Args:
+        timestamp (float): Timestamp in seconds to convert.
+
+    Returns:
+        str: Hours, minutes and seconds.
+    """
+    hours, remainder = divmod(timestamp, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    output = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}.000"
+
+    return output
+
+
 async def convert_file_to_wav(filepath: str) -> str:
     """
     Convert a file to wav format using ffmpeg.
@@ -154,7 +223,7 @@ async def convert_file_to_wav(filepath: str) -> str:
     if not filepath.exists():
         raise FileNotFoundError(f"File {filepath} does not exist.")
 
-    new_filepath = filepath.with_suffix(".wav")
+    new_filepath = f"{filepath.stem}_{filepath.stat().st_mtime_ns}.wav"
     cmd = [
         "ffmpeg",
         "-i",
@@ -169,7 +238,7 @@ async def convert_file_to_wav(filepath: str) -> str:
         "-y",
         str(new_filepath),
     ]
-    result = await run_subprocess(cmd)
+    result = await async_run_subprocess(cmd)
 
     if result[0] != 0:
         raise Exception(f"Error converting file {filepath} to wav format: {result[2]}")
@@ -203,8 +272,11 @@ async def download_file_from_youtube(url: str, filename: str) -> str:
 
 # pragma: no cover
 async def download_audio_file(
-    url: str, filename: str, url_headers: Optional[Dict[str, str]] = None
-) -> str:
+    url: str,
+    filename: str,
+    url_headers: Optional[Dict[str, str]] = None,
+    guess_extension: Optional[bool] = True,
+) -> Tuple[str, str]:
     """
     Download an audio file from a URL.
 
@@ -212,6 +284,8 @@ async def download_audio_file(
         url (str): URL of the audio file.
         filename (str): Filename to save the file as.
         url_headers (Optional[Dict[str, str]]): Headers to send with the request. Defaults to None.
+        guess_extension (Optional[bool]): Whether to guess the file extension based on the
+            Content-Type header. Defaults to True.
 
     Raises:
         Exception: If the file failed to download.
@@ -225,10 +299,19 @@ async def download_audio_file(
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=url_headers) as response:
             if response.status == 200:
-                content_type = response.headers.get("Content-Type")
-                extension = mimetypes.guess_extension(content_type)
+                parsed_url = urlparse(url)
+                url_path = parsed_url.path
+                possible_filename = url_path.split("/")[-1]
+                logger.info(f"Possible filename: {possible_filename}")
+                if "." not in possible_filename:
+                    logger.info("No '.' found in path file, guessing file type")
+                    file_content = await response.read()
+                    extension = filetype.guess(file_content).extension
+                else:
+                    extension = possible_filename.split(".")[-1]
+                    logger.info(f"Extension detected: {extension}")
 
-                filename = f"{filename}{extension}"
+                filename = f"{filename}.{extension}"
 
                 logger.info(f"New file name: {filename}")
                 async with aiofiles.open(filename, "wb") as f:
@@ -242,21 +325,55 @@ async def download_audio_file(
             else:
                 raise Exception(f"Failed to download file. Status: {response.status}")
 
-    return filename
+    return filename, extension
 
 
-def delete_file(filepath: str) -> None:
+def delete_file(filepath: Union[str, Tuple[str]]) -> None:
     """
-    Delete a file.
+    Delete a file or a list of files.
 
     Args:
-        filepath (str): Path to the file to delete.
+        filepath (Union[str, Tuple[str]]): Path to the file to delete.
     """
     if isinstance(filepath, str):
-        filepath = Path(filepath)
+        filepath = (filepath,)
 
-    if filepath.exists():
-        filepath.unlink()
+    for path in filepath:
+        Path(path).unlink(missing_ok=True)
+
+
+def enhance_audio(
+    filepath: str,
+    speaker_label: Optional[int] = 0,
+    apply_agc: Optional[bool] = True,
+    apply_bandpass: Optional[bool] = False,
+) -> str:
+    """
+    Enhance the audio by applying automatic gain control and bandpass filter.
+
+    Args:
+        filepath (str): Path to the audio file.
+        speaker_label (Optional[str], optional): Speaker label. Defaults to "".
+        apply_agc (Optional[bool], optional): Whether to apply automatic gain control. Defaults to True.
+        apply_bandpass (Optional[bool], optional): Whether to apply bandpass filter. Defaults to False.
+
+    Returns:
+        str: Path to the enhanced audio file.
+    """
+    audio = AudioSegment.from_file(filepath)
+    audio = audio.set_frame_rate(16000)
+
+    if apply_agc:
+        audio = normalize(audio)
+
+    if apply_bandpass:
+        audio = high_pass_filter(audio, 300)
+        audio = low_pass_filter(audio, 3400)
+
+    enhanced_filepath = filepath.replace(".wav", f"_enhanced_{speaker_label}.wav")
+    audio.export(enhanced_filepath, format="wav")
+
+    return enhanced_filepath
 
 
 def is_empty_string(text: str):
@@ -286,6 +403,13 @@ def format_punct(text: str):
     Returns:
         str: The formatted text.
     """
+    text = text.strip()
+
+    if text[0].islower():
+        text = text[0].upper() + text[1:]
+    if text[-1] not in [".", "?", "!", ":", ";", ","]:
+        text += "."
+
     text = text.replace("...", "")
     text = text.replace(" ?", "?")
     text = text.replace(" !", "!")
@@ -293,7 +417,9 @@ def format_punct(text: str):
     text = text.replace(" ,", ",")
     text = text.replace(" :", ":")
     text = text.replace(" ;", ";")
-    text = re.sub("/s+", " ", text)
+    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"\bi\b", "I", text)
+
     return text.strip()
 
 
@@ -459,3 +585,42 @@ def experimental_num_to_words(sentence: str, model_lang: str) -> str:
             sentence = sentence[:wdx] + reformatted_word + sentence[wdx + 1 :]
 
     return " ".join(sentence)
+
+
+# pragma: no cover
+async def split_dual_channel_file(filepath: str) -> Tuple[str, str]:
+    """
+    Split a dual channel audio file into two mono files using ffmpeg.
+
+    Args:
+        filepath (str): The path to the dual channel audio file.
+
+    Returns:
+        Tuple[str, str]: The paths to the two mono files.
+
+    Raises:
+        Exception: If the file could not be split.
+    """
+    logger.debug(f"Splitting dual channel file: {filepath}")
+
+    filename = Path(filepath).stem
+    filename_left = f"{filename}_left.wav"
+    filename_right = f"{filename}_right.wav"
+
+    cmd = [
+        "ffmpeg",
+        "-i",
+        str(filepath),
+        "-map_channel",
+        "0.0.0",
+        str(filename_left),
+        "-map_channel",
+        "0.0.1",
+        str(filename_right),
+    ]
+    result = await async_run_subprocess(cmd)
+
+    if result[0] != 0:
+        raise Exception(f"Error splitting dual channel file: {filepath}. {result[2]}")
+
+    return filename_left, filename_right

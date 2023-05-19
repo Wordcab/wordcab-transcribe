@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Youtube endpoint for the Wordcab Transcribe API."""
+"""YouTube endpoint for the Wordcab Transcribe API."""
 
 from typing import Optional
 
@@ -20,7 +20,7 @@ from fastapi import APIRouter, BackgroundTasks
 from fastapi import status as http_status
 
 from wordcab_transcribe.dependencies import asr
-from wordcab_transcribe.models import ASRResponse, DataRequest
+from wordcab_transcribe.models import BaseRequest, YouTubeResponse
 from wordcab_transcribe.utils import (
     convert_timestamp,
     delete_file,
@@ -33,29 +33,31 @@ from wordcab_transcribe.utils import (
 router = APIRouter()
 
 
-@router.post("", response_model=ASRResponse, status_code=http_status.HTTP_200_OK)
+@router.post("", response_model=YouTubeResponse, status_code=http_status.HTTP_200_OK)
 async def inference_with_youtube(
     background_tasks: BackgroundTasks,
     url: str,
-    data: Optional[DataRequest] = None,
-) -> ASRResponse:
+    data: Optional[BaseRequest] = None,
+) -> YouTubeResponse:
     """Inference endpoint with YouTube url."""
     filename = f"yt_{shortuuid.ShortUUID().random(length=32)}"
     filepath = await download_file_from_youtube(url, filename)
 
-    if data is None:
-        data = DataRequest()
-    else:
-        data = DataRequest(**data.dict())
+    data = BaseRequest() if data is None else BaseRequest(**data.dict())
 
-    raw_utterances = await asr.process_input(filepath, data.source_lang, data.alignment)
+    raw_utterances = await asr.process_input(
+        filepath,
+        alignment=data.alignment,
+        dual_channel=False,
+        source_lang=data.source_lang,
+    )
 
     timestamps_format = data.timestamps
     utterances = [
         {
             "text": format_punct(utterance["text"]),
-            "start": convert_timestamp(utterance["start"], timestamps_format),
-            "end": convert_timestamp(utterance["end"], timestamps_format),
+            "start": convert_timestamp(utterance["start"], timestamps_format, False),
+            "end": convert_timestamp(utterance["end"], timestamps_format, False),
             "speaker": int(utterance["speaker"]),
         }
         for utterance in raw_utterances
@@ -64,9 +66,10 @@ async def inference_with_youtube(
 
     background_tasks.add_task(delete_file, filepath=filepath)
 
-    return ASRResponse(
+    return YouTubeResponse(
         utterances=utterances,
         alignment=data.alignment,
         source_lang=data.source_lang,
         timestamps=data.timestamps,
+        video_url=url,
     )

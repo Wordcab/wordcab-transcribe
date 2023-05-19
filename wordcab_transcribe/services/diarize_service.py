@@ -66,7 +66,7 @@ class DiarizeService:
 
         tmp_save_path = self.temp_folder / "mono_file.wav"
 
-        sf.write(str(tmp_save_path), signal, sample_rate, "PCM_24")
+        sf.write(str(tmp_save_path), signal, sample_rate, "PCM_16")
 
         self.model.diarize()
 
@@ -74,7 +74,8 @@ class DiarizeService:
 
     @staticmethod
     def _format_timestamps(output_path: str) -> List[dict]:
-        """Format timestamps from the diarization pipeline.
+        """
+        Format timestamps from the diarization pipeline.
 
         Args:
             output_path (str): Path where the diarization pipeline saved the final output files.

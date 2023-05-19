@@ -13,8 +13,9 @@
 # limitations under the License.
 """Transcribe Service for audio files."""
 
-from typing import List, Optional
+from typing import List, Optional, Union
 
+import numpy as np
 from faster_whisper import WhisperModel
 
 
@@ -34,30 +35,20 @@ class TranscribeService:
         self.model = WhisperModel(model_path, device=device, compute_type=compute_type)
 
     def __call__(
-        self,
-        filepath: str,
-        source_lang: str,
-        beam_size: Optional[int] = 5,
-        word_timestamps: Optional[bool] = True,
+        self, audio: Union[str, np.ndarray], source_lang: str, **kwargs: Optional[dict]
     ) -> List[dict]:
         """
         Run inference with the transcribe model.
 
         Args:
-            filepath (str): Path to the audio file to transcribe.
+            audio (Union[str, np.ndarray]): Path to the audio file or audio data.
             source_lang (str): Language of the audio file.
-            beam_size (Optional[int], optional): Beam size to use for inference. Defaults to 5.
-            word_timestamps (Optional[bool], optional): Whether to return word timestamps. Defaults to True.
+            kwargs (Any): Additional arguments to pass to TranscribeService.
 
         Returns:
             List[dict]: List of segments with the following keys: "start", "end", "text", "confidence".
         """
-        segments, _ = self.model.transcribe(
-            filepath,
-            language=source_lang,
-            beam_size=beam_size,
-            word_timestamps=word_timestamps,
-        )
+        segments, _ = self.model.transcribe(audio, language=source_lang, **kwargs)
 
         results = [segment._asdict() for segment in segments]
 
