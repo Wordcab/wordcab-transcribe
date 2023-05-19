@@ -349,6 +349,12 @@ def format_punct(text: str):
     text = text.replace(" :", ":")
     text = text.replace(" ;", ";")
     text = re.sub("/s+", " ", text)
+
+    if text[0].islower():
+        text = text[0].upper() + text[1:]
+    if text[-1] not in [".", "?", "!"]:
+        text += "."
+
     return text.strip()
 
 

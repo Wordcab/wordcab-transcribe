@@ -68,8 +68,7 @@ class PostProcessingService:
             List[dict]: List of sentences with speaker mapping.
         """
         utterances = self.merge_segments(left_segments, right_segments)
-
-        # utterances = self.utterances_speaker_mapping_dual_channel(utterances)
+        utterances = self.utterances_speaker_mapping_dual_channel(utterances)
 
         return utterances
 
@@ -216,7 +215,7 @@ class PostProcessingService:
             else:
                 current_sentence["end"] = end_t
 
-            current_sentence["text"] += text_segment + " "
+            current_sentence["text"] += text_segment.strip() + " "
             previous_speaker = speaker
 
         sentences.append(current_sentence)
