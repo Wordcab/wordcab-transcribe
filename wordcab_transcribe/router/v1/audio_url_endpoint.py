@@ -20,7 +20,7 @@ from fastapi import APIRouter, BackgroundTasks
 from fastapi import status as http_status
 
 from wordcab_transcribe.dependencies import asr
-from wordcab_transcribe.models import ASRResponse, DataRequest
+from wordcab_transcribe.models import AudioRequest, AudioResponse
 from wordcab_transcribe.utils import (
     convert_timestamp,
     delete_file,
@@ -34,16 +34,16 @@ from wordcab_transcribe.utils import (
 router = APIRouter()
 
 
-@router.post("", response_model=ASRResponse, status_code=http_status.HTTP_200_OK)
+@router.post("", response_model=AudioResponse, status_code=http_status.HTTP_200_OK)
 async def inference_with_audio_url(
     background_tasks: BackgroundTasks,
     url: str,
-    data: Optional[DataRequest] = None,
-) -> ASRResponse:
+    data: Optional[AudioRequest] = None,
+) -> AudioResponse:
     """Inference endpoint with audio url."""
     filename = f"audio_url_{shortuuid.ShortUUID().random(length=32)}"
 
-    data = DataRequest() if data is None else DataRequest(**data.dict())
+    data = AudioRequest() if data is None else AudioRequest(**data.dict())
 
     if (
         data.dual_channel
@@ -66,32 +66,24 @@ async def inference_with_audio_url(
     )
 
     timestamps_format = data.timestamps
-    if not data.dual_channel:
-        utterances = [
-            {
-                "text": format_punct(utterance["text"]),
-                "start": convert_timestamp(utterance["start"], timestamps_format),
-                "end": convert_timestamp(utterance["end"], timestamps_format),
-                "speaker": int(utterance["speaker"]),
-            }
-            for utterance in raw_utterances
-            if not is_empty_string(utterance["text"])
-        ]
-    else:
-        utterances = [
-            {
-                "text": format_punct(utterance["text"]),
-                "start": utterance["start"],
-                "end": utterance["end"],
-                "speaker": int(utterance["speaker"]),
-            }
-            for utterance in raw_utterances
-            if not is_empty_string(utterance["text"])
-        ]
+    utterances = [
+        {
+            "text": format_punct(utterance["text"]),
+            "start": convert_timestamp(
+                utterance["start"], timestamps_format, data.dual_channel
+            ),
+            "end": convert_timestamp(
+                utterance["end"], timestamps_format, data.dual_channel
+            ),
+            "speaker": int(utterance["speaker"]),
+        }
+        for utterance in raw_utterances
+        if not is_empty_string(utterance["text"])
+    ]
 
     background_tasks.add_task(delete_file, filepath=filepath)
 
-    return ASRResponse(
+    return AudioResponse(
         utterances=utterances,
         alignment=data.alignment,
         dual_channel=data.dual_channel,

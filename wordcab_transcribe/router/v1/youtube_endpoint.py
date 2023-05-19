@@ -20,7 +20,7 @@ from fastapi import APIRouter, BackgroundTasks
 from fastapi import status as http_status
 
 from wordcab_transcribe.dependencies import asr
-from wordcab_transcribe.models import ASRResponse, DataRequest
+from wordcab_transcribe.models import BaseRequest, YouTubeResponse
 from wordcab_transcribe.utils import (
     convert_timestamp,
     delete_file,
@@ -33,56 +33,47 @@ from wordcab_transcribe.utils import (
 router = APIRouter()
 
 
-# TODO: Are YT videos stereo at all? If not, then we can remove dual_channel here?
-@router.post("", response_model=ASRResponse, status_code=http_status.HTTP_200_OK)
+@router.post("", response_model=YouTubeResponse, status_code=http_status.HTTP_200_OK)
 async def inference_with_youtube(
     background_tasks: BackgroundTasks,
     url: str,
-    data: Optional[DataRequest] = None,
-) -> ASRResponse:
+    data: Optional[BaseRequest] = None,
+) -> YouTubeResponse:
     """Inference endpoint with YouTube url."""
     filename = f"yt_{shortuuid.ShortUUID().random(length=32)}"
     filepath = await download_file_from_youtube(url, filename)
 
-    data = DataRequest() if data is None else DataRequest(**data.dict())
+    data = BaseRequest() if data is None else BaseRequest(**data.dict())
 
     raw_utterances = await asr.process_input(
         filepath,
         alignment=data.alignment,
-        dual_channel=data.dual_channel,
+        dual_channel=False,
         source_lang=data.source_lang,
     )
 
     timestamps_format = data.timestamps
-    if not data.dual_channel:
-        utterances = [
-            {
-                "text": format_punct(utterance["text"]),
-                "start": convert_timestamp(utterance["start"], timestamps_format),
-                "end": convert_timestamp(utterance["end"], timestamps_format),
-                "speaker": int(utterance["speaker"]),
-            }
-            for utterance in raw_utterances
-            if not is_empty_string(utterance["text"])
-        ]
-    else:
-        utterances = [
-            {
-                "text": format_punct(utterance["text"]),
-                "start": utterance["start"],
-                "end": utterance["end"],
-                "speaker": int(utterance["speaker"]),
-            }
-            for utterance in raw_utterances
-            if not is_empty_string(utterance["text"])
-        ]
+    utterances = [
+        {
+            "text": format_punct(utterance["text"]),
+            "start": convert_timestamp(
+                utterance["start"], timestamps_format, data.dual_channel
+            ),
+            "end": convert_timestamp(
+                utterance["end"], timestamps_format, data.dual_channel
+            ),
+            "speaker": int(utterance["speaker"]),
+        }
+        for utterance in raw_utterances
+        if not is_empty_string(utterance["text"])
+    ]
 
     background_tasks.add_task(delete_file, filepath=filepath)
 
-    return ASRResponse(
+    return YouTubeResponse(
         utterances=utterances,
         alignment=data.alignment,
-        dual_channel=data.dual_channel,
         source_lang=data.source_lang,
         timestamps=data.timestamps,
+        video_url=url,
     )

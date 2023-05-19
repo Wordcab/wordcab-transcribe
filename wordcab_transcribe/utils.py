@@ -97,13 +97,17 @@ def run_subprocess(command: List[str]) -> tuple:
     return process.returncode, stdout, stderr
 
 
-def convert_timestamp(timestamp: float, target: str) -> Union[str, float]:
+def convert_timestamp(
+    timestamp: float, target: str, dual_channel: bool
+) -> Union[str, float]:
     """
     Use the right function to convert the timestamp.
 
     Args:
         timestamp (float): Timestamp to convert.
         target (str): Timestamp to convert.
+        dual_channel (bool): Whether the audio is dual channel or not. If True, the
+            timestamp is already in seconds. If False, the timestamp is in milliseconds.
 
     Returns:
         Union[str, float]: Converted timestamp.
@@ -111,16 +115,28 @@ def convert_timestamp(timestamp: float, target: str) -> Union[str, float]:
     Raises:
         ValueError: If the target is invalid. Valid targets are: ms, hms, s.
     """
-    if target == "ms":
-        return timestamp
-    elif target == "hms":
-        return _convert_ms_to_hms(timestamp)
-    elif target == "s":
-        return _convert_ms_to_s(timestamp)
+    if dual_channel:
+        if target == "ms":
+            return _convert_s_to_ms(timestamp)
+        elif target == "hms":
+            return _convert_s_to_hms(timestamp)
+        elif target == "s":
+            return timestamp
+        else:
+            raise ValueError(
+                f"Invalid conversion target: {target}. Valid targets are: ms, hms, s."
+            )
     else:
-        raise ValueError(
-            f"Invalid conversion target: {target}. Valid targets are: ms, hms, s."
-        )
+        if target == "ms":
+            return timestamp
+        elif target == "hms":
+            return _convert_ms_to_hms(timestamp)
+        elif target == "s":
+            return _convert_ms_to_s(timestamp)
+        else:
+            raise ValueError(
+                f"Invalid conversion target: {target}. Valid targets are: ms, hms, s."
+            )
 
 
 def _convert_ms_to_hms(timestamp: float) -> str:
@@ -153,6 +169,37 @@ def _convert_ms_to_s(timestamp: float) -> float:
         float: Seconds.
     """
     return timestamp / 1000
+
+
+def _convert_s_to_ms(timestamp: float) -> float:
+    """
+    Convert a timestamp from seconds to milliseconds.
+
+    Args:
+        timestamp (float): Timestamp in seconds to convert.
+
+    Returns:
+        float: Milliseconds.
+    """
+    return timestamp * 1000
+
+
+def _convert_s_to_hms(timestamp: float) -> str:
+    """
+    Convert a timestamp from seconds to hours, minutes and seconds.
+
+    Args:
+        timestamp (float): Timestamp in seconds to convert.
+
+    Returns:
+        str: Hours, minutes and seconds.
+    """
+    hours, remainder = divmod(timestamp, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    output = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+
+    return output
 
 
 async def convert_file_to_wav(filepath: str) -> str:
@@ -236,6 +283,8 @@ async def download_audio_file(
         url (str): URL of the audio file.
         filename (str): Filename to save the file as.
         url_headers (Optional[Dict[str, str]]): Headers to send with the request. Defaults to None.
+        guess_extension (Optional[bool]): Whether to guess the file extension based on the
+            Content-Type header. Defaults to True.
 
     Raises:
         Exception: If the file failed to download.

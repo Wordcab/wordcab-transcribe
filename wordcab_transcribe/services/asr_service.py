@@ -156,6 +156,15 @@ class ASRAsyncService(ASRService):
         """Initialize the ASRAsyncService class."""
         super().__init__()
 
+        self.dual_channel_transcribe_options = {
+            "beam_size": 5,
+            "patience": 1,
+            "length_penalty": 1,
+            "suppress_blank": False,
+            "word_timestamps": True,
+            "temperature": 0.0,
+        }
+
         self.align_model = AlignService(self.device)
         self.transcribe_model = TranscribeService(
             model_path=settings.whisper_model,
@@ -197,8 +206,6 @@ class ASRAsyncService(ASRService):
         Transcribe multiple segments of audio in the dual channel mode.
 
         Args:
-            grouped_segments (List[List[dict]]): List of grouped segments.
-            audio (torch.Tensor): Audio tensor.
             source_lang (str): Source language of the audio file.
             filepath (str): Path to the audio file.
             speaker_label (int): Speaker label.
@@ -217,15 +224,6 @@ class ASRAsyncService(ASRService):
 
         final_transcript = []
         silence_padding = torch.from_numpy(np.zeros(int(3 * self.sample_rate))).float()
-
-        transcribe_options = {
-            "beam_size": 5,
-            "patience": 1,
-            "length_penalty": 1,
-            "suppress_blank": False,
-            "word_timestamps": True,
-            "temperature": 0.0,
-        }
 
         for ix, group in enumerate(grouped_segments):
             try:
@@ -246,7 +244,7 @@ class ASRAsyncService(ASRService):
                 segments, _ = self.transcribe_model.model.transcribe(
                     audio=temp_filepath,
                     language=source_lang,
-                    **transcribe_options,
+                    **self.dual_channel_transcribe_options,
                 )
                 segments = list(segments)
 
@@ -292,6 +290,7 @@ class ASRAsyncService(ASRService):
             except Exception as e:
                 print(f"Error: {e}")
                 pass
+
         return final_transcript
 
     def align(

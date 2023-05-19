@@ -21,7 +21,7 @@ from fastapi import APIRouter, BackgroundTasks, File, Form, UploadFile
 from fastapi import status as http_status
 
 from wordcab_transcribe.dependencies import asr
-from wordcab_transcribe.models import ASRResponse, DataRequest
+from wordcab_transcribe.models import AudioRequest, AudioResponse
 from wordcab_transcribe.utils import (
     convert_file_to_wav,
     convert_timestamp,
@@ -35,7 +35,7 @@ from wordcab_transcribe.utils import (
 router = APIRouter()
 
 
-@router.post("", response_model=ASRResponse, status_code=http_status.HTTP_200_OK)
+@router.post("", response_model=AudioResponse, status_code=http_status.HTTP_200_OK)
 async def inference_with_audio(
     background_tasks: BackgroundTasks,
     alignment: Optional[bool] = Form(False),  # noqa: B008
@@ -43,7 +43,7 @@ async def inference_with_audio(
     source_lang: Optional[str] = Form("en"),  # noqa: B008
     timestamps: Optional[str] = Form("s"),  # noqa: B008
     file: UploadFile = File(...),  # noqa: B008
-) -> ASRResponse:
+) -> AudioResponse:
     """Inference endpoint with audio file."""
     extension = file.filename.split(".")[-1]
     filename = f"audio_{shortuuid.ShortUUID().random(length=32)}.{extension}"
@@ -52,7 +52,7 @@ async def inference_with_audio(
         audio_bytes = await file.read()
         await f.write(audio_bytes)
 
-    data = DataRequest(
+    data = AudioRequest(
         alignment=alignment,
         dual_channel=dual_channel,
         source_lang=source_lang,
@@ -60,11 +60,7 @@ async def inference_with_audio(
     )
 
     if data.dual_channel:
-        # enhanced_audio_filepath = await asyncio.get_event_loop().run_in_executor(
-        #     None, enhance_audio, filename, True, False
-        # )
         filepath = await split_dual_channel_file(filename)
-        # background_tasks.add_task(delete_file, filepath=enhanced_audio_filepath)
     else:
         filepath = await convert_file_to_wav(filename)
         background_tasks.add_task(delete_file, filepath=filename)
@@ -77,32 +73,24 @@ async def inference_with_audio(
     )
 
     timestamps_format = data.timestamps
-    if not dual_channel:
-        utterances = [
-            {
-                "text": format_punct(utterance["text"]),
-                "start": convert_timestamp(utterance["start"], timestamps_format),
-                "end": convert_timestamp(utterance["end"], timestamps_format),
-                "speaker": int(utterance["speaker"]),
-            }
-            for utterance in raw_utterances
-            if not is_empty_string(utterance["text"])
-        ]
-    else:
-        utterances = [
-            {
-                "text": format_punct(utterance["text"]),
-                "start": utterance["start"],
-                "end": utterance["end"],
-                "speaker": int(utterance["speaker"]),
-            }
-            for utterance in raw_utterances
-            if not is_empty_string(utterance["text"])
-        ]
+    utterances = [
+        {
+            "text": format_punct(utterance["text"]),
+            "start": convert_timestamp(
+                utterance["start"], timestamps_format, data.dual_channel
+            ),
+            "end": convert_timestamp(
+                utterance["end"], timestamps_format, data.dual_channel
+            ),
+            "speaker": int(utterance["speaker"]),
+        }
+        for utterance in raw_utterances
+        if not is_empty_string(utterance["text"])
+    ]
 
     background_tasks.add_task(delete_file, filepath=filepath)
 
-    return ASRResponse(
+    return AudioResponse(
         utterances=utterances,
         alignment=data.alignment,
         dual_channel=data.dual_channel,
