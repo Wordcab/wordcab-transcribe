@@ -23,7 +23,6 @@ import pandas as pd
 import torch
 import torchaudio
 from loguru import logger
-from num2words import num2words
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 
 from wordcab_transcribe.utils import interpolate_nans
@@ -275,22 +274,18 @@ class AlignService:
         Raises:
             NotImplementedError: If the model type is not implemented.
         """
-        audio, sample_rate = torchaudio.load(
-            audio_path,
-            normalize=True,
-            num_frames=-1,
-            channels_first=False,
-        )
-        max_duration = float(audio.shape[0]) / sample_rate
-
-        if sample_rate != self.sample_rate:
-            audio = torchaudio.transforms.Resample(
-                orig_freq=sample_rate, new_freq=self.sample_rate
-            )(audio)
-        audio = audio.flatten().float()
+        audio, sample_rate = torchaudio.load(audio_path, normalize=True)
 
         if len(audio.shape) == 1:
             audio = audio.unsqueeze(0)
+
+        if sample_rate != self.sample_rate:
+            resampler = torchaudio.transforms.Resample(
+                orig_freq=sample_rate, new_freq=self.sample_rate
+            )
+            audio = resampler(audio)
+
+        max_duration = float(audio.shape[1]) / sample_rate
 
         model_dictionary = align_model_metadata["dictionary"]
         model_lang = align_model_metadata["language"]

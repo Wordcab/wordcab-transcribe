@@ -20,50 +20,61 @@ from fastapi import APIRouter, BackgroundTasks
 from fastapi import status as http_status
 
 from wordcab_transcribe.dependencies import asr
-from wordcab_transcribe.models import ASRResponse, DataRequest
+from wordcab_transcribe.models import AudioRequest, AudioResponse
 from wordcab_transcribe.utils import (
-    convert_file_to_wav,
     convert_timestamp,
     delete_file,
     download_audio_file,
     format_punct,
     is_empty_string,
+    split_dual_channel_file,
 )
 
 
 router = APIRouter()
 
 
-@router.post("", response_model=ASRResponse, status_code=http_status.HTTP_200_OK)
+@router.post("", response_model=AudioResponse, status_code=http_status.HTTP_200_OK)
 async def inference_with_audio_url(
     background_tasks: BackgroundTasks,
     url: str,
-    data: Optional[DataRequest] = None,
-) -> ASRResponse:
+    data: Optional[AudioRequest] = None,
+) -> AudioResponse:
     """Inference endpoint with audio url."""
     filename = f"audio_url_{shortuuid.ShortUUID().random(length=32)}"
-    filepath = await download_audio_file(url, filename)
-    extension = filepath.split(".")[-1]
 
-    if extension != "wav":
-        filepath = await convert_file_to_wav(filepath)
-        background_tasks.add_task(delete_file, filepath=f"{filename}.{extension}")
+    data = AudioRequest() if data is None else AudioRequest(**data.dict())
+
+    if (
+        data.dual_channel
+    ):  # TODO: In AWS URLs extension seems to be in URL, also generally find extension from any file
+        filepath = await download_audio_file(url, filename, guess_extension=False)
+        filepath = await split_dual_channel_file(filepath)
+        background_tasks.add_task(delete_file, filepath=f"{filename}.wav")
     else:
-        filepath = filename
+        filepath = await download_audio_file(url, filename, guess_extension=False)
+        # extension = filepath.split(".")[-1]
+        # filepath = await convert_file_to_wav(filepath)
+        # TODO: As only Wordcab would really use this, and we convert to wav, commenting this out
+        background_tasks.add_task(delete_file, filepath=f"{filename}.wav")
 
-    if data is None:
-        data = DataRequest()
-    else:
-        data = DataRequest(**data.dict())
-
-    raw_utterances = await asr.process_input(filepath, data.source_lang, data.alignment)
+    raw_utterances = await asr.process_input(
+        filepath,
+        alignment=data.alignment,
+        dual_channel=data.dual_channel,
+        source_lang=data.source_lang,
+    )
 
     timestamps_format = data.timestamps
     utterances = [
         {
             "text": format_punct(utterance["text"]),
-            "start": convert_timestamp(utterance["start"], timestamps_format),
-            "end": convert_timestamp(utterance["end"], timestamps_format),
+            "start": convert_timestamp(
+                utterance["start"], timestamps_format, data.dual_channel
+            ),
+            "end": convert_timestamp(
+                utterance["end"], timestamps_format, data.dual_channel
+            ),
             "speaker": int(utterance["speaker"]),
         }
         for utterance in raw_utterances
@@ -72,9 +83,10 @@ async def inference_with_audio_url(
 
     background_tasks.add_task(delete_file, filepath=filepath)
 
-    return ASRResponse(
+    return AudioResponse(
         utterances=utterances,
         alignment=data.alignment,
+        dual_channel=data.dual_channel,
         source_lang=data.source_lang,
         timestamps=data.timestamps,
     )

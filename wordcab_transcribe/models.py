@@ -18,13 +18,19 @@ from typing import Optional
 from pydantic import BaseModel, validator
 
 
-class ASRResponse(BaseModel):
-    """Response model for the ASR API."""
+class BaseResponse(BaseModel):
+    """Base response model, not meant to be used directly."""
 
     utterances: list
     alignment: bool
     source_lang: str
     timestamps: str
+
+
+class AudioResponse(BaseResponse):
+    """Response model for the ASR audio file and url endpoint."""
+
+    dual_channel: bool
 
     class Config:
         """Pydantic config class."""
@@ -46,8 +52,41 @@ class ASRResponse(BaseModel):
                     },
                 ],
                 "alignment": False,
+                "dual_channel": False,
                 "source_lang": "en",
                 "timestamps": "s",
+            }
+        }
+
+
+class YouTubeResponse(BaseResponse):
+    """Response model for the ASR YouTube endpoint."""
+
+    video_url: str
+
+    class Config:
+        """Pydantic config class."""
+
+        schema_extra = {
+            "example": {
+                "utterances": [
+                    {
+                        "speaker": 0,
+                        "start": 0.0,
+                        "end": 1.0,
+                        "text": "Never gonna give you up!",
+                    },
+                    {
+                        "speaker": 0,
+                        "start": 1.0,
+                        "end": 2.0,
+                        "text": "Never gonna let you down!",
+                    },
+                ],
+                "alignment": False,
+                "source_lang": "en",
+                "timestamps": "s",
+                "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             }
         }
 
@@ -74,6 +113,7 @@ class CortexPayload(BaseModel):
     url: str = None
     api_key: str = None
     alignment: Optional[bool] = False
+    dual_channel: Optional[bool] = False
     source_lang: Optional[str] = "en"
     timestamps: Optional[str] = "s"
     job_name: Optional[str] = None
@@ -100,6 +140,9 @@ class CortexPayload(BaseModel):
             "example": {
                 "url_type": "youtube",
                 "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                "api_key": "1234567890",
+                "alignment": False,
+                "dual_channel": False,
                 "source_lang": "en",
                 "timestamps": "s",
                 "job_name": "job_abc123",
@@ -108,8 +151,8 @@ class CortexPayload(BaseModel):
         }
 
 
-class CortexResponse(ASRResponse):
-    """Response model for the Cortex API."""
+class CortexUrlResponse(AudioResponse):
+    """Response model for the audio_url type of the Cortex endpoint."""
 
     job_name: str
     request_id: Optional[str] = None
@@ -134,6 +177,7 @@ class CortexResponse(ASRResponse):
                     },
                 ],
                 "alignment": False,
+                "dual_channel": False,
                 "source_lang": "en",
                 "timestamps": "s",
                 "job_name": "job_name",
@@ -142,8 +186,43 @@ class CortexResponse(ASRResponse):
         }
 
 
-class DataRequest(BaseModel):
-    """Request object for the audio file endpoint."""
+class CortexYoutubeResponse(YouTubeResponse):
+    """Response model for the youtube type of the Cortex endpoint."""
+
+    job_name: str
+    request_id: Optional[str] = None
+
+    class Config:
+        """Pydantic config class."""
+
+        schema_extra = {
+            "example": {
+                "utterances": [
+                    {
+                        "speaker": 0,
+                        "start": 0.0,
+                        "end": 1.0,
+                        "text": "Never gonna give you up!",
+                    },
+                    {
+                        "speaker": 0,
+                        "start": 1.0,
+                        "end": 2.0,
+                        "text": "Never gonna let you down!",
+                    },
+                ],
+                "alignment": False,
+                "source_lang": "en",
+                "timestamps": "s",
+                "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                "job_name": "job_name",
+                "request_id": "request_id",
+            }
+        }
+
+
+class BaseRequest(BaseModel):
+    """Base request model for the API."""
 
     alignment: Optional[bool] = False
     source_lang: Optional[str] = "en"
@@ -162,6 +241,24 @@ class DataRequest(BaseModel):
         schema_extra = {
             "example": {
                 "alignment": False,
+                "source_lang": "en",
+                "timestamps": "s",
+            }
+        }
+
+
+class AudioRequest(BaseRequest):
+    """Request model for the ASR audio file and url endpoint."""
+
+    dual_channel: Optional[bool] = False
+
+    class Config:
+        """Pydantic config class."""
+
+        schema_extra = {
+            "example": {
+                "alignment": False,
+                "dual_channel": False,
                 "source_lang": "en",
                 "timestamps": "s",
             }

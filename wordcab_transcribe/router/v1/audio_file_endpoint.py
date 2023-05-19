@@ -21,27 +21,29 @@ from fastapi import APIRouter, BackgroundTasks, File, Form, UploadFile
 from fastapi import status as http_status
 
 from wordcab_transcribe.dependencies import asr
-from wordcab_transcribe.models import ASRResponse, DataRequest
+from wordcab_transcribe.models import AudioRequest, AudioResponse
 from wordcab_transcribe.utils import (
     convert_file_to_wav,
     convert_timestamp,
     delete_file,
     format_punct,
     is_empty_string,
+    split_dual_channel_file,
 )
 
 
 router = APIRouter()
 
 
-@router.post("", response_model=ASRResponse, status_code=http_status.HTTP_200_OK)
+@router.post("", response_model=AudioResponse, status_code=http_status.HTTP_200_OK)
 async def inference_with_audio(
     background_tasks: BackgroundTasks,
     alignment: Optional[bool] = Form(False),  # noqa: B008
+    dual_channel: Optional[bool] = Form(False),  # noqa: B008
     source_lang: Optional[str] = Form("en"),  # noqa: B008
     timestamps: Optional[str] = Form("s"),  # noqa: B008
     file: UploadFile = File(...),  # noqa: B008
-) -> ASRResponse:
+) -> AudioResponse:
     """Inference endpoint with audio file."""
     extension = file.filename.split(".")[-1]
     filename = f"audio_{shortuuid.ShortUUID().random(length=32)}.{extension}"
@@ -50,24 +52,36 @@ async def inference_with_audio(
         audio_bytes = await file.read()
         await f.write(audio_bytes)
 
-    if extension != "wav":
-        filepath = await convert_file_to_wav(filename)
-        background_tasks.add_task(delete_file, filepath=filename)
-    else:
-        filepath = filename
-
-    data = DataRequest(
-        alignment=alignment, source_lang=source_lang, timestamps=timestamps
+    data = AudioRequest(
+        alignment=alignment,
+        dual_channel=dual_channel,
+        source_lang=source_lang,
+        timestamps=timestamps,
     )
 
-    raw_utterances = await asr.process_input(filepath, data.source_lang, data.alignment)
+    if data.dual_channel:
+        filepath = await split_dual_channel_file(filename)
+    else:
+        filepath = await convert_file_to_wav(filename)
+        background_tasks.add_task(delete_file, filepath=filename)
+
+    raw_utterances = await asr.process_input(
+        filepath,
+        alignment=data.alignment,
+        dual_channel=data.dual_channel,
+        source_lang=data.source_lang,
+    )
 
     timestamps_format = data.timestamps
     utterances = [
         {
             "text": format_punct(utterance["text"]),
-            "start": convert_timestamp(utterance["start"], timestamps_format),
-            "end": convert_timestamp(utterance["end"], timestamps_format),
+            "start": convert_timestamp(
+                utterance["start"], timestamps_format, data.dual_channel
+            ),
+            "end": convert_timestamp(
+                utterance["end"], timestamps_format, data.dual_channel
+            ),
             "speaker": int(utterance["speaker"]),
         }
         for utterance in raw_utterances
@@ -76,9 +90,10 @@ async def inference_with_audio(
 
     background_tasks.add_task(delete_file, filepath=filepath)
 
-    return ASRResponse(
+    return AudioResponse(
         utterances=utterances,
         alignment=data.alignment,
+        dual_channel=data.dual_channel,
         source_lang=data.source_lang,
         timestamps=data.timestamps,
     )

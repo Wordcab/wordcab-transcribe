@@ -15,21 +15,96 @@
 
 import pytest
 
-from wordcab_transcribe.models import ASRResponse, DataRequest
+from wordcab_transcribe.models import (
+    AudioRequest,
+    AudioResponse,
+    BaseRequest,
+    BaseResponse,
+    CortexError,
+    CortexPayload,
+    CortexUrlResponse,
+    CortexYoutubeResponse,
+    YouTubeResponse,
+)
 
 
-def test_asr_response() -> None:
-    """Test the ASRResponse model."""
-    response = ASRResponse(
-        utterances=[], alignment=False, source_lang="en", timestamps="s"
+def test_audio_request() -> None:
+    """Test the AudioRequest model."""
+    request = AudioRequest(
+        alignment=True,
+        dual_channel=True,
+        source_lang="en",
+        timestamps="s",
+    )
+    assert request.alignment is True
+    assert request.dual_channel is True
+    assert request.source_lang == "en"
+    assert request.timestamps == "s"
+
+
+def test_audio_response() -> None:
+    """Test the AudioResponse model."""
+    response = AudioResponse(
+        utterances=[],
+        alignment=False,
+        dual_channel=False,
+        source_lang="en",
+        timestamps="s",
     )
     assert response.utterances == []
     assert response.alignment is False
+    assert response.dual_channel is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
 
-    response = ASRResponse(
-        utterances=["Hello", "world"], alignment=True, source_lang="en", timestamps="s"
+    response = AudioResponse(
+        utterances=["Hello", "world"],
+        alignment=True,
+        dual_channel=True,
+        source_lang="en",
+        timestamps="s",
+    )
+    assert response.utterances == ["Hello", "world"]
+    assert response.alignment is True
+    assert response.dual_channel is True
+    assert response.source_lang == "en"
+    assert response.timestamps == "s"
+
+
+def test_base_request_valid() -> None:
+    """Test the BaseRequest model with valid data."""
+    data = {
+        "alignment": True,
+        "source_lang": "fr",
+        "timestamps": "hms",
+    }
+    req = BaseRequest(**data)
+    assert req.alignment is True
+    assert req.source_lang == "fr"
+    assert req.timestamps == "hms"
+
+
+def test_base_request_default() -> None:
+    """Test the BaseRequest model with default values."""
+    req = BaseRequest()
+    assert req.alignment is False
+    assert req.source_lang == "en"
+    assert req.timestamps == "s"
+
+
+def test_base_request_invalid() -> None:
+    """Test the BaseRequest model with invalid data."""
+    with pytest.raises(ValueError, match="timestamps must be one of 'hms', 'ms', 's'."):
+        BaseRequest(timestamps="invalid")
+
+
+def test_base_response() -> None:
+    """Test the BaseResponse model."""
+    response = BaseResponse(
+        utterances=["Hello", "world"],
+        alignment=True,
+        source_lang="en",
+        timestamps="s",
     )
     assert response.utterances == ["Hello", "world"]
     assert response.alignment is True
@@ -37,25 +112,95 @@ def test_asr_response() -> None:
     assert response.timestamps == "s"
 
 
-def test_data_request_valid() -> None:
-    """Test the DataRequest model with valid data."""
-    data = {
-        "source_lang": "fr",
-        "timestamps": "hms",
-    }
-    req = DataRequest(**data)
-    assert req.source_lang == "fr"
-    assert req.timestamps == "hms"
+def test_cortex_error() -> None:
+    """Test the CortexError model."""
+    error = CortexError(
+        detail="This is a test error",
+    )
+    assert error.detail == "This is a test error"
 
 
-def test_data_request_default() -> None:
-    """Test the DataRequest model with default values."""
-    req = DataRequest()
-    assert req.source_lang == "en"
-    assert req.timestamps == "s"
+def test_corxet_payload() -> None:
+    """Test the CortexPayload model."""
+    payload = CortexPayload(
+        url_type="youtube",
+        url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        api_key="test_api_key",
+        alignment=True,
+        dual_channel=False,
+        source_lang="en",
+        timestamps="s",
+        job_name="test_job",
+        ping=False,
+    )
+    assert payload.url_type == "youtube"
+    assert payload.url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    assert payload.api_key == "test_api_key"
+    assert payload.alignment is True
+    assert payload.dual_channel is False
+    assert payload.source_lang == "en"
+    assert payload.timestamps == "s"
+    assert payload.job_name == "test_job"
+    assert payload.ping is False
 
 
-def test_data_request_invalid() -> None:
-    """Test the DataRequest model with invalid data."""
-    with pytest.raises(ValueError, match="timestamps must be one of 'hms', 'ms', 's'."):
-        DataRequest(timestamps="invalid")
+def test_cortex_url_response() -> None:
+    """Test the CortexUrlResponse model."""
+    response = CortexUrlResponse(
+        utterances=["Hello", "world"],
+        alignment=True,
+        source_lang="en",
+        timestamps="s",
+        dual_channel=False,
+        job_name="test_job",
+        request_id="test_request_id",
+    )
+    assert response.utterances == ["Hello", "world"]
+    assert response.alignment is True
+    assert response.source_lang == "en"
+    assert response.timestamps == "s"
+    assert response.dual_channel is False
+    assert response.job_name == "test_job"
+    assert response.request_id == "test_request_id"
+
+
+def test_cortex_youtube_response() -> None:
+    """Test the CortexYoutubeResponse model."""
+    response = CortexYoutubeResponse(
+        utterances=["Never gonna give you up", "Never gonna let you down"],
+        alignment=True,
+        source_lang="en",
+        timestamps="s",
+        video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        job_name="test_job",
+        request_id="test_request_id",
+    )
+    assert response.utterances == [
+        "Never gonna give you up",
+        "Never gonna let you down",
+    ]
+    assert response.alignment is True
+    assert response.source_lang == "en"
+    assert response.timestamps == "s"
+    assert response.video_url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    assert response.job_name == "test_job"
+    assert response.request_id == "test_request_id"
+
+
+def test_youtube_response() -> None:
+    """Test the YouTubeResponse model."""
+    response = YouTubeResponse(
+        utterances=["Never gonna give you up", "Never gonna let you down"],
+        alignment=True,
+        source_lang="en",
+        timestamps="s",
+        video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    )
+    assert response.utterances == [
+        "Never gonna give you up",
+        "Never gonna let you down",
+    ]
+    assert response.alignment is True
+    assert response.source_lang == "en"
+    assert response.timestamps == "s"
+    assert response.video_url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"

@@ -57,6 +57,14 @@ docker run -d --name wordcab-transcribe \
     wordcab-transcribe:latest
 ```
 
+You can simply enter the container using the following command:
+
+```bash
+docker exec -it wordcab-transcribe /bin/bash
+```
+
+This is useful to check everything is working as expected.
+
 ## Test the API
 
 Once the container is running, you can test the API.
