@@ -41,9 +41,9 @@ class TranscribeService:
         beam_size: Optional[int] = 5,
         length_penalty: Optional[int] = 1,
         patience: Optional[int] = 1,
-        suppress_blank: Optional[bool] = False,
+        suppress_blank: Optional[bool] = True,
         temperature: Optional[List[float]] = [0, 0.2, 0.4, 0.6, 0.8, 1],  # noqa: B006
-        vad_filter: Optional[bool] = True,
+        vad_filter: Optional[bool] = False,
         word_timestamps: Optional[bool] = False,
     ) -> List[dict]:
         """
@@ -57,7 +57,7 @@ class TranscribeService:
             patience (Optional[int], optional): Patience to use for inference. Defaults to 1.
             suppress_blank (Optional[bool], optional): Whether to suppress blank tokens. Defaults to False.
             temperature (Optional[List[float]], optional): Temperature to use for inference. Defaults to [0, 0.2, 0.4, 0.6, 0.8, 1].  # noqa: B950
-            vad_filter (Optional[bool], optional): Whether to apply VAD filtering. Defaults to True.
+            vad_filter (Optional[bool], optional): Whether to apply VAD filtering. Defaults to False.
             word_timestamps (Optional[bool], optional): Whether to return word timestamps. Defaults to False.
 
         Returns:

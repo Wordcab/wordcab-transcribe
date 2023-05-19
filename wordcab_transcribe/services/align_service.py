@@ -157,6 +157,8 @@ class AlignService:
         result_aligned = self.align(
             transcript_segments, model, metadata, filepath, self.device
         )
+        logger.debug(f"{result_aligned['segments'][0]}")
+        logger.debug(f"{result_aligned['word_segments'][0]}")
         word_timestamps = result_aligned["word_segments"]
 
         del model

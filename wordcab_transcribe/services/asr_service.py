@@ -71,8 +71,10 @@ class ASRService:
         self,
         filepath: Union[str, Tuple[str]],
         alignment: bool,
+        diarization: bool,
         dual_channel: bool,
         source_lang: str,
+        word_timestamps: bool,
     ) -> List[dict]:
         """
         Process the input request and return the result.
@@ -80,8 +82,10 @@ class ASRService:
         Args:
             filepath (Union[str, Tuple[str]]): Path to the audio file.
             alignment (bool): Whether to do alignment or not.
+            diarization (bool): Whether to do diarization or not.
             dual_channel (bool): Whether to do dual channel or not.
             source_lang (str): Source language of the audio file.
+            word_timestamps (bool): Whether to return word timestamps or not.
 
         Returns:
             List[dict]: List of speaker segments.
@@ -89,8 +93,10 @@ class ASRService:
         task = {
             "input": filepath,
             "alignment": alignment,
+            "diarization": diarization,
             "dual_channel": dual_channel,
             "source_lang": source_lang,
+            "word_timestamps": word_timestamps,
             "done_event": asyncio.Event(),
             "time": asyncio.get_event_loop().time(),
         }
@@ -338,17 +344,19 @@ class ASRAsyncService(ASRService):
         results: List[dict] = []
         for task in file_batch:
             filepath: Union[str, Tuple[str]] = task["input"]
-            alignment: bool = task["alignment"]
+            alignment: bool = task["alignment"]  # ignored if diarization is True
+            diarization: bool = task["diarization"]  # ignored if dual_channel is True
             dual_channel: bool = task["dual_channel"]
             source_lang: str = task["source_lang"]
+            word_timestamps: bool = task["word_timestamps"]
 
             if dual_channel:
                 utterances = self._process_dual_channel(
-                    filepath, alignment, source_lang
+                    filepath, source_lang, word_timestamps
                 )
             else:
                 utterances = self._process_single_channel(
-                    filepath, alignment, source_lang
+                    filepath, alignment, diarization, source_lang, word_timestamps
                 )
 
             results.append(utterances)
@@ -356,7 +364,12 @@ class ASRAsyncService(ASRService):
         return results
 
     def _process_single_channel(
-        self, filepath: str, alignment: bool, source_lang: str
+        self,
+        filepath: str,
+        alignment: bool,
+        diarization: bool,
+        source_lang: str,
+        word_timestamps: bool,
     ) -> List[dict]:
         """
         Process a single channel audio file.
@@ -364,37 +377,42 @@ class ASRAsyncService(ASRService):
         Args:
             filepath (str): Path to the audio file.
             alignment (bool): Whether to align the segments.
+            diarization (bool): Whether to diarize the audio file.
             source_lang (str): Source language of the audio file.
+            word_timestamps (bool): Whether to include word timestamps.
 
         Returns:
             List[dict]: List of speaker segments.
         """
-        segments = self.transcribe(filepath, source_lang)
+        segments = self.transcribe(filepath, source_lang, word_timestamps=word_timestamps)
 
         if alignment:
             formatted_segments = self.align(filepath, segments, source_lang)
         else:
-            formatted_segments = format_segments(segments)
+            formatted_segments = format_segments(segments, word_timestamps=word_timestamps)
 
-        speaker_timestamps = self.diarize(filepath)
-
-        utterances = self.post_processing_service.single_channel_postprocessing(
-            transcript_segments=formatted_segments,
-            speaker_timestamps=speaker_timestamps,
-        )
+        if diarization:
+            speaker_timestamps = self.diarize(filepath)
+            utterances = self.post_processing_service.single_channel_postprocessing(
+                transcript_segments=formatted_segments,
+                speaker_timestamps=speaker_timestamps,
+                word_timestamps=word_timestamps,
+            )
+        else:
+            utterances = formatted_segments
 
         return utterances
 
     def _process_dual_channel(
-        self, filepath: Tuple[str], alignment: bool, source_lang: str
+        self, filepath: Tuple[str], source_lang: str, word_timestamps: bool
     ) -> List[dict]:
         """
         Process a dual channel audio file.
 
         Args:
             filepath (Tuple[str]): Tuple of paths to the split audio files.
-            alignment (bool): Whether to align the segments.
             source_lang (str): Source language of the audio file.
+            word_timestamps (bool): Whether to include word timestamps.
 
         Returns:
             List[dict]: List of speaker segments.
