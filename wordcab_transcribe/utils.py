@@ -224,7 +224,10 @@ async def download_file_from_youtube(url: str, filename: str) -> str:
 
 # pragma: no cover
 async def download_audio_file(
-    url: str, filename: str, url_headers: Optional[Dict[str, str]] = None
+    url: str,
+    filename: str,
+    url_headers: Optional[Dict[str, str]] = None,
+    guess_extension: Optional[bool] = True,
 ) -> str:
     """
     Download an audio file from a URL.
@@ -246,8 +249,11 @@ async def download_audio_file(
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=url_headers) as response:
             if response.status == 200:
-                content_type = response.headers.get("Content-Type")
-                extension = mimetypes.guess_extension(content_type)
+                if guess_extension:
+                    content_type = response.headers.get("Content-Type")
+                    extension = mimetypes.guess_extension(content_type)
+                else:
+                    extension = ".wav"
 
                 filename = f"{filename}{extension}"
 

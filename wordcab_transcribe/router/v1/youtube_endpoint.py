@@ -33,6 +33,7 @@ from wordcab_transcribe.utils import (
 router = APIRouter()
 
 
+# TODO: Are YT videos stereo at all? If not, then we can remove dual_channel here?
 @router.post("", response_model=ASRResponse, status_code=http_status.HTTP_200_OK)
 async def inference_with_youtube(
     background_tasks: BackgroundTasks,
