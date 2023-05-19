@@ -60,7 +60,7 @@ class VadService:
         return speech_timestamps_list, audio
 
     def group_timestamps(
-        self, timestamps: List[dict], threshold: float = 3.0
+        self, timestamps: List[dict], threshold: Optional[float] = 3.0
     ) -> List[List[dict]]:
         """
         Group timestamps based on a threshold.

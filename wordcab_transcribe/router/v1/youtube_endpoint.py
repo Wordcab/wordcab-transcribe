@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Youtube endpoint for the Wordcab Transcribe API."""
+"""YouTube endpoint for the Wordcab Transcribe API."""
 
 from typing import Optional
 
@@ -53,16 +53,28 @@ async def inference_with_youtube(
     )
 
     timestamps_format = data.timestamps
-    utterances = [
-        {
-            "text": format_punct(utterance["text"]),
-            "start": convert_timestamp(utterance["start"], timestamps_format),
-            "end": convert_timestamp(utterance["end"], timestamps_format),
-            "speaker": int(utterance["speaker"]),
-        }
-        for utterance in raw_utterances
-        if not is_empty_string(utterance["text"])
-    ]
+    if not data.dual_channel:
+        utterances = [
+            {
+                "text": format_punct(utterance["text"]),
+                "start": convert_timestamp(utterance["start"], timestamps_format),
+                "end": convert_timestamp(utterance["end"], timestamps_format),
+                "speaker": int(utterance["speaker"]),
+            }
+            for utterance in raw_utterances
+            if not is_empty_string(utterance["text"])
+        ]
+    else:
+        utterances = [
+            {
+                "text": format_punct(utterance["text"]),
+                "start": utterance["start"],
+                "end": utterance["end"],
+                "speaker": int(utterance["speaker"]),
+            }
+            for utterance in raw_utterances
+            if not is_empty_string(utterance["text"])
+        ]
 
     background_tasks.add_task(delete_file, filepath=filepath)
 

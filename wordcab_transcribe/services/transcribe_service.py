@@ -42,7 +42,7 @@ class TranscribeService:
         length_penalty: Optional[int] = 1,
         patience: Optional[int] = 1,
         suppress_blank: Optional[bool] = False,
-        temperature: Optional[List[float]] = [0, 0.2, 0.4, 0.6, 0.8, 1],
+        temperature: Optional[List[float]] = [0, 0.2, 0.4, 0.6, 0.8, 1],  # noqa: B006
         vad_filter: Optional[bool] = True,
         word_timestamps: Optional[bool] = False,
     ) -> List[dict]:
@@ -56,7 +56,7 @@ class TranscribeService:
             length_penalty (Optional[int], optional): Length penalty to use for inference. Defaults to 1.
             patience (Optional[int], optional): Patience to use for inference. Defaults to 1.
             suppress_blank (Optional[bool], optional): Whether to suppress blank tokens. Defaults to False.
-            temperature (Optional[List[float]], optional): Temperature to use for inference. Defaults to [0, 0.2, 0.4, 0.6, 0.8, 1].
+            temperature (Optional[List[float]], optional): Temperature to use for inference. Defaults to [0, 0.2, 0.4, 0.6, 0.8, 1].  # noqa: B950
             vad_filter (Optional[bool], optional): Whether to apply VAD filtering. Defaults to True.
             word_timestamps (Optional[bool], optional): Whether to return word timestamps. Defaults to False.
 

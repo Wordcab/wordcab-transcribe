@@ -216,7 +216,7 @@ class ASRAsyncService(ASRService):
         delete_file(enhanced_filepath)
 
         final_transcript = []
-        silence_padding = torch.from_numpy(np.zeros(int(4 * self.sample_rate))).float()
+        silence_padding = torch.from_numpy(np.zeros(int(3 * self.sample_rate))).float()
 
         transcribe_options = {
             "beam_size": 5,
@@ -229,7 +229,7 @@ class ASRAsyncService(ASRService):
 
         for ix, group in enumerate(grouped_segments):
             try:
-                audio_segments = [silence_padding]
+                audio_segments = []
                 for segment in group:
                     segment_start = segment["start"]
                     segment_end = segment["end"]
@@ -237,7 +237,6 @@ class ASRAsyncService(ASRService):
                     audio_segments.append(audio_segment)
                     audio_segments.append(silence_padding)
 
-                # torchaudio.save("temp.wav", tensors.unsqueeze(0), self.sample_rate, bits_per_sample=16)
                 tensors = torch.cat(audio_segments)
                 temp_filepath = f"{filepath}_{speaker_label}_{ix}.wav"
                 self.vad_service.save_audio(
