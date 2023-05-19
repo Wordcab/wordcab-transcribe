@@ -89,9 +89,9 @@ def run_subprocess(command: List[str]) -> tuple:
     Returns:
         tuple: Tuple with the return code, stdout and stderr.
     """
-    process = subprocess.Popen(
+    process = subprocess.Popen(  # noqa: S603,S607
         command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )  # noqa: S603,S607
+    )
     stdout, stderr = process.communicate()
 
     return process.returncode, stdout, stderr
@@ -282,33 +282,36 @@ def delete_file(filepath: Union[str, Tuple[str]]) -> None:
 
 def enhance_audio(
     filepath: str,
+    speaker_label: Optional[int] = 0,
     apply_agc: Optional[bool] = True,
     apply_bandpass: Optional[bool] = False,
 ) -> str:
-        """
-        Enhance the audio by applying automatic gain control and bandpass filter.
+    """
+    Enhance the audio by applying automatic gain control and bandpass filter.
 
-        Args:
-            file_path (str): Path to the audio file.
-            apply_agc (Optional[bool], optional): Whether to apply automatic gain control. Defaults to True.
-            apply_bandpass (Optional[bool], optional): Whether to apply bandpass filter. Defaults to True.
+    Args:
+        filepath (str): Path to the audio file.
+        speaker_label (Optional[str], optional): Speaker label. Defaults to "".
+        apply_agc (Optional[bool], optional): Whether to apply automatic gain control. Defaults to True.
+        apply_bandpass (Optional[bool], optional): Whether to apply bandpass filter. Defaults to False.
 
-        Returns:
-            str: Path to the enhanced audio file.
-        """
-        audio = AudioSegment.from_file(filepath)
+    Returns:
+        str: Path to the enhanced audio file.
+    """
+    audio = AudioSegment.from_file(filepath)
+    audio = audio.set_frame_rate(16000)
 
-        if apply_agc:
-            audio = normalize(audio)
+    if apply_agc:
+        audio = normalize(audio)
 
-        if apply_bandpass:
-            audio = high_pass_filter(audio, 300)
-            audio = low_pass_filter(audio, 3400)
+    if apply_bandpass:
+        audio = high_pass_filter(audio, 300)
+        audio = low_pass_filter(audio, 3400)
 
-        enhanced_filepath = filepath.replace(".wav", "_enhanced.wav")
-        audio.export(enhanced_filepath, format="wav")
+    enhanced_filepath = filepath.replace(".wav", f"_enhanced_{speaker_label}.wav")
+    audio.export(enhanced_filepath, format="wav")
 
-        return enhanced_filepath
+    return enhanced_filepath
 
 
 def is_empty_string(text: str):

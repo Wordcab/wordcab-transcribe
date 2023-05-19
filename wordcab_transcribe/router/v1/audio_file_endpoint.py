@@ -16,7 +16,6 @@
 from typing import Optional
 
 import aiofiles
-import asyncio
 import shortuuid
 from fastapi import APIRouter, BackgroundTasks, File, Form, UploadFile
 from fastapi import status as http_status
@@ -27,7 +26,6 @@ from wordcab_transcribe.utils import (
     convert_file_to_wav,
     convert_timestamp,
     delete_file,
-    enhance_audio,
     format_punct,
     is_empty_string,
     split_dual_channel_file,
@@ -62,11 +60,11 @@ async def inference_with_audio(
     )
 
     if data.dual_channel:
-        enhanced_audio_filepath = await asyncio.get_event_loop().run_in_executor(
-            None, enhance_audio, filename, True, False
-        )
-        filepath = await split_dual_channel_file(enhanced_audio_filepath)
-        background_tasks.add_task(delete_file, filepath=enhanced_audio_filepath)
+        # enhanced_audio_filepath = await asyncio.get_event_loop().run_in_executor(
+        #     None, enhance_audio, filename, True, False
+        # )
+        filepath = await split_dual_channel_file(filename)
+        # background_tasks.add_task(delete_file, filepath=enhanced_audio_filepath)
     else:
         filepath = await convert_file_to_wav(filename)
         background_tasks.add_task(delete_file, filepath=filename)
@@ -79,16 +77,28 @@ async def inference_with_audio(
     )
 
     timestamps_format = data.timestamps
-    utterances = [
-        {
-            "text": format_punct(utterance["text"]),
-            "start": convert_timestamp(utterance["start"], timestamps_format),
-            "end": convert_timestamp(utterance["end"], timestamps_format),
-            "speaker": int(utterance["speaker"]),
-        }
-        for utterance in raw_utterances
-        if not is_empty_string(utterance["text"])
-    ]
+    if not dual_channel:
+        utterances = [
+            {
+                "text": format_punct(utterance["text"]),
+                "start": convert_timestamp(utterance["start"], timestamps_format),
+                "end": convert_timestamp(utterance["end"], timestamps_format),
+                "speaker": int(utterance["speaker"]),
+            }
+            for utterance in raw_utterances
+            if not is_empty_string(utterance["text"])
+        ]
+    else:
+        utterances = [
+            {
+                "text": format_punct(utterance["text"]),
+                "start": utterance["start"],
+                "end": utterance["end"],
+                "speaker": int(utterance["speaker"]),
+            }
+            for utterance in raw_utterances
+            if not is_empty_string(utterance["text"])
+        ]
 
     background_tasks.add_task(delete_file, filepath=filepath)
 

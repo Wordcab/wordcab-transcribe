@@ -277,15 +277,23 @@ class PostProcessingService:
                     word_start_adjusted = (group_start / self.sample_rate) + word.start
                     word_end_adjusted = (group_start / self.sample_rate) + word.end
 
-                    segment_dict["words"].append({
-                        "start": word_start_adjusted,
-                        "end": word_end_adjusted,
-                        "text": word.word,
-                    })
+                    segment_dict["words"].append(
+                        {
+                            "start": word_start_adjusted,
+                            "end": word_end_adjusted,
+                            "text": word.word,
+                        }
+                    )
 
-                    if segment_dict["start"] is None or word_start_adjusted < segment_dict["start"]:
+                    if (
+                        segment_dict["start"] is None
+                        or word_start_adjusted < segment_dict["start"]
+                    ):
                         segment_dict["start"] = word_start_adjusted
-                    if segment_dict["end"] is None or word_end_adjusted > segment_dict["end"]:
+                    if (
+                        segment_dict["end"] is None
+                        or word_end_adjusted > segment_dict["end"]
+                    ):
                         segment_dict["end"] = word_end_adjusted
 
                 final_speaker_segments.append(segment_dict)

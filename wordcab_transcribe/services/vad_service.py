@@ -16,7 +16,6 @@
 from typing import List, Optional, Tuple, Union
 
 import torch
-import torchaudio
 
 
 class VadService:
@@ -26,12 +25,12 @@ class VadService:
         """Initialize the VAD Service."""
         self.sample_rate = 16000
         self.model, utils = torch.hub.load(
-            repo_or_dir='snakers4/silero-vad',
-            model='silero_vad',
+            repo_or_dir="snakers4/silero-vad",
+            model="silero_vad",
             force_reload=True,
-            onnx=False
+            onnx=False,
         )
-        self.get_speech_timestamps, _, self.read_audio, _, _ = utils
+        self.get_speech_timestamps, self.save_audio, self.read_audio, _, _ = utils
 
     def __call__(
         self, filepath: str, group_timestamps: Optional[bool] = True
@@ -47,11 +46,12 @@ class VadService:
             Tuple[Union[List[dict], List[List[dict]]], torch.Tensor]: Speech timestamps and audio tensor.
         """
         audio = self.read_audio(filepath, sampling_rate=self.sample_rate)
-        speech_timestamps = self.get_speech_timestamps(audio, self.model, sampling_rate=self.sample_rate)
+        speech_timestamps = self.get_speech_timestamps(
+            audio, self.model, sampling_rate=self.sample_rate
+        )
 
         speech_timestamps_list = [
-            {"start": ts["start"], "end": ts["end"]}
-            for ts in speech_timestamps
+            {"start": ts["start"], "end": ts["end"]} for ts in speech_timestamps
         ]
 
         if group_timestamps:
@@ -59,7 +59,9 @@ class VadService:
 
         return speech_timestamps_list, audio
 
-    def group_timestamps(self, timestamps: List[dict], threshold: float = 3.0) -> List[List[dict]]:
+    def group_timestamps(
+        self, timestamps: List[dict], threshold: float = 3.0
+    ) -> List[List[dict]]:
         """
         Group timestamps based on a threshold.
 
@@ -73,7 +75,10 @@ class VadService:
         grouped_segments = [[]]
 
         for i in range(len(timestamps)):
-            if i > 0 and (timestamps[i]['start'] - timestamps[i - 1]['end']) > threshold:
+            if (
+                i > 0
+                and (timestamps[i]["start"] - timestamps[i - 1]["end"]) > threshold
+            ):
                 grouped_segments.append([])
 
             grouped_segments[-1].append(timestamps[i])

@@ -14,13 +14,12 @@
 """ASR Service module that handle all AI interactions."""
 
 import asyncio
-import numpy as np
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, List, Tuple, Union
 
+import numpy as np
 import torch
-import torchaudio
 from loguru import logger
 
 from wordcab_transcribe.config import settings
@@ -29,7 +28,7 @@ from wordcab_transcribe.services.diarize_service import DiarizeService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
 from wordcab_transcribe.services.vad_service import VadService
-from wordcab_transcribe.utils import format_segments
+from wordcab_transcribe.utils import delete_file, enhance_audio, format_segments
 
 
 class ASRService:
@@ -172,16 +171,14 @@ class ASRAsyncService(ASRService):
         self.post_processing_service = PostProcessingService()
         self.vad_service = VadService()
 
-    def transcribe(
-        self, filepath: str, source_lang: str, **kwargs: Any
-    ) -> List[dict]:
+    def transcribe(self, filepath: str, source_lang: str, **kwargs: Any) -> List[dict]:
         """
         Transcribe the audio file using the TranscribeService class.
 
         Args:
             filepath (str): Path to the audio file.
             source_lang (str): Source language of the audio file.
-            **kwargs (Any): Additional arguments to pass to the transcribe method.
+            kwargs (Any): Additional arguments to pass to the transcribe method.
 
         Returns:
             List[dict]: List of speaker segments.
@@ -191,7 +188,10 @@ class ASRAsyncService(ASRService):
         return segments
 
     def transcribe_dual_channel(
-        self, grouped_segments: List[List[dict]], audio: torch.Tensor, source_lang: str, speaker_label: int
+        self,
+        source_lang: str,
+        filepath: str,
+        speaker_label: int,
     ) -> List[List[dict]]:
         """
         Transcribe multiple segments of audio in the dual channel mode.
@@ -200,37 +200,52 @@ class ASRAsyncService(ASRService):
             grouped_segments (List[List[dict]]): List of grouped segments.
             audio (torch.Tensor): Audio tensor.
             source_lang (str): Source language of the audio file.
+            filepath (str): Path to the audio file.
+            speaker_label (int): Speaker label.
 
         Returns:
             List[List[dict]]: List of grouped transcribed segments.
         """
+        enhanced_filepath = enhance_audio(
+            filepath,
+            speaker_label=speaker_label,
+            apply_agc=True,
+            apply_bandpass=False,
+        )
+        grouped_segments, audio = self.vad_service(enhanced_filepath)
+        delete_file(enhanced_filepath)
+
         final_transcript = []
-        silence_padding = torch.from_numpy(np.zeros(int(3 * self.sample_rate))).float()
+        silence_padding = torch.from_numpy(np.zeros(int(4 * self.sample_rate))).float()
 
         transcribe_options = {
             "beam_size": 5,
-            "patience": 1, 
-            "length_penalty": 1, 
-            "suppress_blank": False, 
+            "patience": 1,
+            "length_penalty": 1,
+            "suppress_blank": False,
             "word_timestamps": True,
-            "temperature": 0.0
+            "temperature": 0.0,
         }
 
-        for group in grouped_segments:
+        for ix, group in enumerate(grouped_segments):
             try:
-                audio_segments = []
+                audio_segments = [silence_padding]
                 for segment in group:
-                    segment_start = segment['start']
-                    segment_end = segment['end']
+                    segment_start = segment["start"]
+                    segment_end = segment["end"]
                     audio_segment = audio[segment_start:segment_end]
                     audio_segments.append(audio_segment)
                     audio_segments.append(silence_padding)
 
+                # torchaudio.save("temp.wav", tensors.unsqueeze(0), self.sample_rate, bits_per_sample=16)
                 tensors = torch.cat(audio_segments)
-                torchaudio.save("temp.wav", tensors.unsqueeze(0), self.sample_rate, bits_per_sample=16)
+                temp_filepath = f"{filepath}_{speaker_label}_{ix}.wav"
+                self.vad_service.save_audio(
+                    temp_filepath, tensors, sampling_rate=self.sample_rate
+                )
 
                 segments, _ = self.transcribe_model.model.transcribe(
-                    audio="temp.wav",
+                    audio=temp_filepath,
                     language=source_lang,
                     **transcribe_options,
                 )
@@ -248,26 +263,36 @@ class ASRAsyncService(ASRService):
                     }
 
                     for word in segment.words:
-                        word_start_adjusted = (group_start / self.sample_rate) + word.start
+                        word_start_adjusted = (
+                            group_start / self.sample_rate
+                        ) + word.start
                         word_end_adjusted = (group_start / self.sample_rate) + word.end
+                        segment_dict["words"].append(
+                            {
+                                "start": word_start_adjusted,
+                                "end": word_end_adjusted,
+                                "text": word.word,
+                            }
+                        )
 
-                        segment_dict["words"].append({
-                            "start": word_start_adjusted,
-                            "end": word_end_adjusted,
-                            "text": word.word,
-                        })
-
-                        if segment_dict["start"] is None or word_start_adjusted < segment_dict["start"]:
+                        if (
+                            segment_dict["start"] is None
+                            or word_start_adjusted < segment_dict["start"]
+                        ):
                             segment_dict["start"] = word_start_adjusted
-                        if segment_dict["end"] is None or word_end_adjusted > segment_dict["end"]:
+                        if (
+                            segment_dict["end"] is None
+                            or word_end_adjusted > segment_dict["end"]
+                        ):
                             segment_dict["end"] = word_end_adjusted
 
                     final_transcript.append(segment_dict)
 
+                delete_file(temp_filepath)
+
             except Exception as e:
                 print(f"Error: {e}")
                 pass
-
         return final_transcript
 
     def align(
@@ -369,7 +394,7 @@ class ASRAsyncService(ASRService):
         Process a dual channel audio file.
 
         Args:
-            filepath (Tuple[str]): Tuple of paths to the splitted audio files.
+            filepath (Tuple[str]): Tuple of paths to the split audio files.
             alignment (bool): Whether to align the segments.
             source_lang (str): Source language of the audio file.
 
@@ -378,14 +403,15 @@ class ASRAsyncService(ASRService):
         """
         left_channel, right_channel = filepath
 
-        left_grouped_timestamps, left_audio = self.vad_service(left_channel)
-        right_grouped_timestamps, right_audio = self.vad_service(right_channel)
-
         left_transcribed_segments = self.transcribe_dual_channel(
-            left_grouped_timestamps, left_audio, source_lang, 0
+            source_lang,
+            filepath=left_channel,
+            speaker_label=0,
         )
         right_transcribed_segments = self.transcribe_dual_channel(
-            right_grouped_timestamps, right_audio, source_lang, 1
+            source_lang,
+            filepath=right_channel,
+            speaker_label=1,
         )
 
         utterances = self.post_processing_service.dual_channel_postprocessing(
