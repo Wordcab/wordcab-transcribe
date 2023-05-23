@@ -15,7 +15,7 @@
 
 from typing import Any, Dict, List
 
-from wordcab_transcribe.utils import get_segment_timestamp_anchor
+from wordcab_transcribe.utils import get_segment_timestamp_anchor, _convert_ms_to_s
 
 
 class PostProcessingService:
@@ -93,6 +93,11 @@ class PostProcessingService:
         Returns:
             List[dict]: List of transcript segments with speaker mapping.
         """
+        speaker_timestamps = [
+            [_convert_ms_to_s(speaker_ts[0]), _convert_ms_to_s(speaker_ts[1]), speaker_ts[2]]
+            for speaker_ts in speaker_timestamps
+        ]
+        
         _, end, speaker = speaker_timestamps[0]
         segment_position, turn_idx = 0, 0
         segment_speaker_mapping = []
@@ -104,7 +109,7 @@ class PostProcessingService:
                 else:
                     segment["start"] = transcript_segments[idx - 1]["end"]
             if "end" not in segment:
-                segment["end"] = segment["start"] + 1
+                segment["end"] = segment["start"] + 0.5
 
             segment_position = get_segment_timestamp_anchor(
                 segment["start"], segment["end"], anchor_option
@@ -161,26 +166,27 @@ class PostProcessingService:
             current_sentence["words"] = []
 
         for segment in transcript_segments:
-            text_segment, speaker = segment["text"], segment["speaker"]
-            start_t, end_t = segment["start"], segment["end"]
+            speaker = segment["speaker"]
 
             if speaker != previous_speaker:
                 sentences.append(current_sentence)
                 current_sentence = {
                     "speaker": speaker,
-                    "start": start_t,
-                    "end": end_t,
+                    "start": segment["start"],
+                    "end": segment["end"],
                     "text": "",
                 }
                 if word_timestamps:
                     current_sentence["words"] = []
             else:
-                current_sentence["end"] = end_t
+                current_sentence["end"] = segment["end"]
 
-            current_sentence["text"] += text_segment + " "
-            current_sentence["words"].extend(segment["words"])
+            current_sentence["text"] += segment["text"] + " "
             previous_speaker = speaker
+            if word_timestamps:
+                current_sentence["words"].extend(segment["words"])
 
+        # Catch the last sentence
         sentences.append(current_sentence)
 
         return sentences

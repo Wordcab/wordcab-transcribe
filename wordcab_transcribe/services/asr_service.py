@@ -283,20 +283,6 @@ class ASRAsyncService(ASRService):
 
         return final_transcript
 
-    def diarize(self, filepath: str) -> List[dict]:
-        """
-        Diarize the audio file using the DiarizeService class.
-
-        Args:
-            filepath (str): Path to the audio file.
-
-        Returns:
-            List[dict]: List of speaker timestamps.
-        """
-        speaker_timestamps = self.diarize_model(filepath)
-
-        return speaker_timestamps
-
     def process_batch(self, file_batch: List[dict]) -> List[dict]:
         """
         Process a batch of requests.
@@ -362,7 +348,9 @@ class ASRAsyncService(ASRService):
         formatted_segments = format_segments(segments, alignment=alignment, word_timestamps=word_timestamps)
 
         if diarization:
-            speaker_timestamps = self.diarize(filepath)
+            speaker_timestamps = self.diarize_model(filepath)
+            for ts in speaker_timestamps:
+                logger.debug(f"Speaker timestamps: {ts}")
             utterances = self.post_processing_service.single_channel_postprocessing(
                 transcript_segments=formatted_segments,
                 speaker_timestamps=speaker_timestamps,
