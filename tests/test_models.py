@@ -67,18 +67,22 @@ def test_audio_response() -> None:
             {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
         ],
         alignment=True,
+        diarization=True,
         dual_channel=True,
         source_lang="en",
         timestamps="s",
+        word_timestamps=True,
     )
     assert response.utterances == [
         {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
         {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
     ]
     assert response.alignment is True
+    assert response.diarization is True
     assert response.dual_channel is True
     assert response.source_lang == "en"
     assert response.timestamps == "s"
+    assert response.word_timestamps is True
 
 
 def test_base_request_valid() -> None:

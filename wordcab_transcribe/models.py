@@ -41,16 +41,16 @@ class AudioResponse(BaseResponse):
             "example": {
                 "utterances": [
                     {
-                        "speaker": 0,
-                        "start": 0.0,
-                        "end": 1.0,
                         "text": "Hello World!",
+                        "start": 0.345,
+                        "end": 1.234,
+                        "speaker": 0,
                     },
                     {
-                        "speaker": 0,
-                        "start": 1.0,
-                        "end": 2.0,
                         "text": "Wordcab is awesome",
+                        "start": 1.234,
+                        "end": 2.678,
+                        "speaker": 1,
                     },
                 ],
                 "alignment": False,
