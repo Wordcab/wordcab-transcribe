@@ -358,8 +358,8 @@ class ASRAsyncService(ASRService):
             segments = self.transcribe_model(filepath, source_lang, word_timestamps=word_timestamps)
 
         # Format the segments: the main purpose is to remove extra spaces and
-        # filter out word_timestamps if they are not requested
-        formatted_segments = format_segments(segments, word_timestamps=word_timestamps)
+        # to format word_timestamps like the alignment model does
+        formatted_segments = format_segments(segments, alignment=alignment, word_timestamps=word_timestamps)
 
         if diarization:
             speaker_timestamps = self.diarize(filepath)

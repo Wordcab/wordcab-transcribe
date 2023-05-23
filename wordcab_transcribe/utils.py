@@ -424,12 +424,13 @@ def format_punct(text: str):
     return text.strip()
 
 
-def format_segments(segments: list, word_timestamps: bool) -> List[dict]:
+def format_segments(segments: list, alignment: bool, word_timestamps: bool) -> List[dict]:
     """
     Format the segments to a list of dicts with start, end and text keys. Optionally include word timestamps.
 
     Args:
         segments (list): List of segments.
+        alignment (bool): Whether the segments have been aligned. Used to format the word timestamps correctly.
         word_timestamps (bool): Whether to include word timestamps.
 
     Returns:
@@ -444,7 +445,19 @@ def format_segments(segments: list, word_timestamps: bool) -> List[dict]:
         segment_dict["end"] = segment["end"]
         segment_dict["text"] = segment["text"].strip()
         if word_timestamps:
-            segment_dict["words"] = segment["words"]
+            if alignment:
+                segment_dict["words"] = segment["words"]
+            else:
+                _words = [
+                    {
+                        "word": word.word.strip(),
+                        "start": word.start,
+                        "end": word.end,
+                        "score": round(word.probability, 3),
+                    }
+                    for word in segment["words"]
+                ]
+                segment_dict["words"] = _words
 
         formatted_segments.append(segment_dict)
 
