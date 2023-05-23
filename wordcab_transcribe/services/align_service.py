@@ -126,13 +126,6 @@ class TranscriptionResult(TypedDict):
     language: str
 
 
-class AlignedTranscriptionResult(TypedDict):
-    """A list of segments and word segments of a speech."""
-
-    segments: List[SingleAlignedSegment]
-    word_segments: List[SingleWordSegment]
-
-
 class AlignService:
     """Alignment Service for transcribed audio files."""
 
@@ -146,8 +139,18 @@ class AlignService:
 
     def __call__(
         self, filepath: str, transcript_segments: List[dict], source_lang: str
-    ) -> None:
-        """Run the alignment service on the given transcript segments and source language."""
+    ) -> List[SingleAlignedSegment]:
+        """
+        Run the alignment service on the given transcript segments and source language.
+
+        Args:
+            filepath (str): The path to the audio file.
+            transcript_segments (List[dict]): The transcript segments to align.
+            source_lang (str): The source language of the transcript segments.
+
+        Returns:
+            List[SingleAlignedSegment]: The aligned transcript segments.
+        """
         if source_lang not in self.available_lang:
             return transcript_segments
 
@@ -157,14 +160,11 @@ class AlignService:
         result_aligned = self.align(
             transcript_segments, model, metadata, filepath, self.device
         )
-        logger.debug(f"{result_aligned['segments'][0]}")
-        logger.debug(f"{result_aligned['word_segments'][0]}")
-        word_timestamps = result_aligned["word_segments"]
 
         del model
         torch.cuda.empty_cache()
 
-        return word_timestamps
+        return result_aligned
 
     def load_model(
         self, language: str
@@ -256,7 +256,7 @@ class AlignService:
         device: str,
         interpolate_method: Optional[str] = "nearest",
         return_char_alignments: Optional[bool] = False,
-    ) -> AlignedTranscriptionResult:
+    ) -> List[SingleAlignedSegment]:
         """Align the given transcript to the given audio.
 
         Taken from https://github.com/m-bain/whisperX/blob/main/whisperx/alignment.py.
@@ -515,12 +515,7 @@ class AlignService:
             aligned_subsegments = aligned_subsegments.to_dict("records")
             aligned_segments += aligned_subsegments
 
-        # create word_segments list
-        word_segments: List[SingleWordSegment] = []
-        for segment in aligned_segments:
-            word_segments += segment["words"]
-
-        return {"segments": aligned_segments, "word_segments": word_segments}
+        return aligned_segments
 
     def get_trellis(self, emission, tokens, blank_id=0):
         """Get trellis for Viterbi decoding."""
