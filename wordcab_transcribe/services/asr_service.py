@@ -186,22 +186,6 @@ class ASRAsyncService(ASRService):
         self.post_processing_service = PostProcessingService()
         self.vad_service = VadService()
 
-    def transcribe(self, filepath: str, source_lang: str, **kwargs: Any) -> List[dict]:
-        """
-        Transcribe the audio file using the TranscribeService class.
-
-        Args:
-            filepath (str): Path to the audio file.
-            source_lang (str): Source language of the audio file.
-            kwargs (Any): Additional arguments to pass to the transcribe method.
-
-        Returns:
-            List[dict]: List of speaker segments.
-        """
-        segments = self.transcribe_model(filepath, source_lang, **kwargs)
-
-        return segments
-
     def transcribe_dual_channel(
         self,
         source_lang: str,
@@ -299,24 +283,6 @@ class ASRAsyncService(ASRService):
 
         return final_transcript
 
-    def align(
-        self, filepath: str, segments: List[dict], source_lang: str
-    ) -> List[dict]:
-        """
-        Align the segments using the AlignmentService class.
-
-        Args:
-            filepath (str): Path to the audio file.
-            segments (List[dict]): List of speaker segments.
-            source_lang (str): Source language of the audio file.
-
-        Returns:
-            List[dict]: List of aligned speaker segments.
-        """
-        aligned_segments = self.align_model(filepath, segments, source_lang)
-
-        return aligned_segments
-
     def diarize(self, filepath: str) -> List[dict]:
         """
         Diarize the audio file using the DiarizeService class.
@@ -384,12 +350,16 @@ class ASRAsyncService(ASRService):
         Returns:
             List[dict]: List of speaker segments.
         """
-        segments = self.transcribe(filepath, source_lang, word_timestamps=word_timestamps)
-
         if alignment:
-            formatted_segments = self.align(filepath, segments, source_lang)
+            # Alignment works best with word timestamps, so we force it for transcription
+            _segments = self.transcribe_model(filepath, source_lang, word_timestamps=True)
+            segments = self.align_model(filepath, _segments, source_lang)
         else:
-            formatted_segments = format_segments(segments, word_timestamps=word_timestamps)
+            segments = self.transcribe_model(filepath, source_lang, word_timestamps=word_timestamps)
+
+        # Format the segments: the main purpose is to remove extra spaces and
+        # filter out word_timestamps if they are not requested
+        formatted_segments = format_segments(segments, word_timestamps=word_timestamps)
 
         if diarization:
             speaker_timestamps = self.diarize(filepath)
