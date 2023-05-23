@@ -47,24 +47,34 @@ def test_audio_response() -> None:
     response = AudioResponse(
         utterances=[],
         alignment=False,
+        diarization=False,
         dual_channel=False,
         source_lang="en",
         timestamps="s",
+        word_timestamps=False,
     )
     assert response.utterances == []
     assert response.alignment is False
+    assert response.diarization is False
     assert response.dual_channel is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
+    assert response.word_timestamps is False
 
     response = AudioResponse(
-        utterances=["Hello", "world"],
+        utterances=[
+            {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
+            {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+        ],
         alignment=True,
         dual_channel=True,
         source_lang="en",
         timestamps="s",
     )
-    assert response.utterances == ["Hello", "world"]
+    assert response.utterances == [
+        {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
+        {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+    ]
     assert response.alignment is True
     assert response.dual_channel is True
     assert response.source_lang == "en"
@@ -101,15 +111,25 @@ def test_base_request_invalid() -> None:
 def test_base_response() -> None:
     """Test the BaseResponse model."""
     response = BaseResponse(
-        utterances=["Hello", "world"],
+        utterances=[
+            {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
+            {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+        ],
         alignment=True,
+        diarization=False,
         source_lang="en",
         timestamps="s",
+        word_timestamps=False,
     )
-    assert response.utterances == ["Hello", "world"]
+    assert response.utterances == [
+        {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
+        {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+    ]
     assert response.alignment is True
+    assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
+    assert response.word_timestamps is False
 
 
 def test_cortex_error() -> None:
@@ -127,9 +147,11 @@ def test_corxet_payload() -> None:
         url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         api_key="test_api_key",
         alignment=True,
+        diarization=False,
         dual_channel=False,
         source_lang="en",
         timestamps="s",
+        word_timestamps=False,
         job_name="test_job",
         ping=False,
     )
@@ -137,9 +159,11 @@ def test_corxet_payload() -> None:
     assert payload.url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     assert payload.api_key == "test_api_key"
     assert payload.alignment is True
+    assert payload.diarization is False
     assert payload.dual_channel is False
     assert payload.source_lang == "en"
     assert payload.timestamps == "s"
+    assert payload.word_timestamps is False
     assert payload.job_name == "test_job"
     assert payload.ping is False
 
@@ -147,18 +171,28 @@ def test_corxet_payload() -> None:
 def test_cortex_url_response() -> None:
     """Test the CortexUrlResponse model."""
     response = CortexUrlResponse(
-        utterances=["Hello", "world"],
+        utterances=[
+            {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
+            {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+        ],
         alignment=True,
+        diarization=False,
         source_lang="en",
         timestamps="s",
+        word_timestamps=False,
         dual_channel=False,
         job_name="test_job",
         request_id="test_request_id",
     )
-    assert response.utterances == ["Hello", "world"]
+    assert response.utterances == [
+        {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
+        {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+    ]
     assert response.alignment is True
+    assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
+    assert response.word_timestamps is False
     assert response.dual_channel is False
     assert response.job_name == "test_job"
     assert response.request_id == "test_request_id"
@@ -167,21 +201,28 @@ def test_cortex_url_response() -> None:
 def test_cortex_youtube_response() -> None:
     """Test the CortexYoutubeResponse model."""
     response = CortexYoutubeResponse(
-        utterances=["Never gonna give you up", "Never gonna let you down"],
+        utterances=[
+            {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
+            {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+        ],
         alignment=True,
+        diarization=False,
         source_lang="en",
         timestamps="s",
+        word_timestamps=False,
         video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         job_name="test_job",
         request_id="test_request_id",
     )
     assert response.utterances == [
-        "Never gonna give you up",
-        "Never gonna let you down",
+        {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
+        {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
     ]
     assert response.alignment is True
+    assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
+    assert response.word_timestamps is False
     assert response.video_url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     assert response.job_name == "test_job"
     assert response.request_id == "test_request_id"
@@ -190,17 +231,24 @@ def test_cortex_youtube_response() -> None:
 def test_youtube_response() -> None:
     """Test the YouTubeResponse model."""
     response = YouTubeResponse(
-        utterances=["Never gonna give you up", "Never gonna let you down"],
+        utterances=[
+            {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
+            {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+        ],
         alignment=True,
+        diarization=False,
         source_lang="en",
         timestamps="s",
+        word_timestamps=False,
         video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     )
     assert response.utterances == [
-        "Never gonna give you up",
-        "Never gonna let you down",
+        {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
+        {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
     ]
     assert response.alignment is True
+    assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
+    assert response.word_timestamps is False
     assert response.video_url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
