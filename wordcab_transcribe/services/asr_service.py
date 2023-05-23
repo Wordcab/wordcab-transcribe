@@ -278,7 +278,7 @@ class ASRAsyncService(ASRService):
                 delete_file(temp_filepath)
 
             except Exception as e:
-                print(f"Error: {e}")
+                logger.error(f"Dual channel trasncription error: {e}")
                 pass
 
         return final_transcript
@@ -296,7 +296,7 @@ class ASRAsyncService(ASRService):
         results: List[dict] = []
         for task in file_batch:
             filepath: Union[str, Tuple[str]] = task["input"]
-            alignment: bool = task["alignment"]  # ignored if diarization is True
+            alignment: bool = task["alignment"]  # ignored if dual_channel is True
             diarization: bool = task["diarization"]  # ignored if dual_channel is True
             dual_channel: bool = task["dual_channel"]
             source_lang: str = task["source_lang"]
@@ -395,6 +395,7 @@ class ASRAsyncService(ASRService):
         utterances = self.post_processing_service.dual_channel_postprocessing(
             left_segments=left_transcribed_segments,
             right_segments=right_transcribed_segments,
+            word_timestamps=word_timestamps,
         )
 
         return utterances
