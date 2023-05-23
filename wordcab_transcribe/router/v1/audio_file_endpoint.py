@@ -82,12 +82,8 @@ async def inference_with_audio(
     utterances = [
         {
             "text": format_punct(utterance["text"]),
-            "start": convert_timestamp(
-                utterance["start"], timestamps_format, data.diarization
-            ),
-            "end": convert_timestamp(
-                utterance["end"], timestamps_format, data.diarization
-            ),
+            "start": convert_timestamp(utterance["start"], timestamps_format),
+            "end": convert_timestamp(utterance["end"], timestamps_format),
             "speaker": int(utterance["speaker"]) if data.diarization else None,
             "words": utterance["words"] if data.word_timestamps else [],
         }

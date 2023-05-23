@@ -106,14 +106,8 @@ class PostProcessingService:
             if "end" not in segment:
                 segment["end"] = segment["start"] + 1
 
-            segment_start, segment_end, segment_text = (
-                int(segment["start"] * 1000),
-                int(segment["end"] * 1000),
-                segment["word"],
-            )
-
             segment_position = get_segment_timestamp_anchor(
-                segment_start, segment_end, anchor_option
+                segment["start"], segment["end"], anchor_option
             )
 
             while segment_position > float(end):
@@ -122,14 +116,14 @@ class PostProcessingService:
                 _, end, speaker = speaker_timestamps[turn_idx]
                 if turn_idx == len(speaker_timestamps) - 1:
                     end = get_segment_timestamp_anchor(
-                        segment_start, segment_end, option="end"
+                        segment["start"], segment["end"], option="end"
                     )
                     break
 
             _segment = {
-                "start": segment_start,
-                "end": segment_end,
-                "text": segment_text,
+                "start": segment["start"],
+                "end": segment["end"],
+                "text": segment["text"],
                 "speaker": speaker,
             }
             if word_timestamps:

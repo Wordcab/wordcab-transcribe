@@ -99,7 +99,7 @@ def run_subprocess(command: List[str]) -> tuple:
 
 
 def convert_timestamp(
-    timestamp: float, target: str, diarization: bool, round_digits: int = 3
+    timestamp: float, target: str, round_digits: int = 3
 ) -> Union[str, float]:
     """
     Use the right function to convert the timestamp.
@@ -107,8 +107,6 @@ def convert_timestamp(
     Args:
         timestamp (float): Timestamp to convert.
         target (str): Timestamp to convert.
-        diarization (bool): Whether the audio is diarized or not. If False, the
-            timestamp is already in seconds. If True, the timestamp is in milliseconds.
         round_digits (int, optional): Number of digits to round the timestamp. Defaults to 3.
 
     Returns:
@@ -117,28 +115,16 @@ def convert_timestamp(
     Raises:
         ValueError: If the target is invalid. Valid targets are: ms, hms, s.
     """
-    if diarization:
-        if target == "ms":
-            return round(timestamp, round_digits)
-        elif target == "hms":
-            return _convert_ms_to_hms(timestamp)
-        elif target == "s":
-            return round(_convert_ms_to_s(timestamp), round_digits)
-        else:
-            raise ValueError(
-                f"Invalid conversion target: {target}. Valid targets are: ms, hms, s."
-            )
+    if target == "ms":
+        return round(_convert_s_to_ms(timestamp), round_digits)
+    elif target == "hms":
+        return _convert_s_to_hms(timestamp)
+    elif target == "s":
+        return round(timestamp, round_digits)
     else:
-        if target == "ms":
-            return round(_convert_s_to_ms(timestamp), round_digits)
-        elif target == "hms":
-            return _convert_s_to_hms(timestamp)
-        elif target == "s":
-            return round(timestamp, round_digits)
-        else:
-            raise ValueError(
-                f"Invalid conversion target: {target}. Valid targets are: ms, hms, s."
-            )
+        raise ValueError(
+            f"Invalid conversion target: {target}. Valid targets are: ms, hms, s."
+        )
 
 
 def _convert_ms_to_hms(timestamp: float) -> str:
