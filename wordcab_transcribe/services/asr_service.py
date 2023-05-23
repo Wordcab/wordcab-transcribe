@@ -338,7 +338,6 @@ class ASRAsyncService(ASRService):
         """
         alignment = False  # TODO: remove this line when alignment is fixed
         if alignment:
-            # Alignment works best with word timestamps, so we force it for transcription
             _segments = self.transcribe_model(
                 filepath, source_lang, word_timestamps=True
             )
@@ -354,13 +353,8 @@ class ASRAsyncService(ASRService):
             segments, alignment=alignment, word_timestamps=word_timestamps
         )
 
-        for segment in formatted_segments:
-            logger.debug(f"Original segment: {segment}")
-
         if diarization:
             speaker_timestamps = self.diarize_model(filepath)
-            for idx, ts in enumerate(speaker_timestamps):
-                logger.debug(f"{idx} Speaker timestamp: {ts}")
             utterances = self.post_processing_service.single_channel_postprocessing(
                 transcript_segments=formatted_segments,
                 speaker_timestamps=speaker_timestamps,
