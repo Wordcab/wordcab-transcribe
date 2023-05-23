@@ -154,16 +154,16 @@ class TranscribeService:
     def _log_mel_spectrogram(
         self,
         audio: torch.Tensor,
-        n_fft: int = 400,
-        hop_length: int = 160,
-        padding: int = 0,
+        n_fft: Optional[int] = 400,
+        hop_length: Optional[int] = 160,
+        padding: Optional[int] = 0,
     ) -> torch.Tensor:
         """
         Compute the log-Mel spectrogram of a given audio tensor.
 
         Args:
             audio (torch.Tensor): Audio tensor of shape (n_samples,).
-            n_fft (int, optional): Length of the FFT window. Defaults to 400.
+            n_fft (int, optional): Number of FFT points. Defaults to 400.
             hop_length (int, optional): Hop length for the STFT. Defaults to 160.
             padding (int, optional): Padding to apply to the audio. Defaults to 0.
 
