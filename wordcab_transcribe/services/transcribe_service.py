@@ -177,7 +177,7 @@ class TranscribeService:
         stft = torch.stft(audio, n_fft, hop_length, window=window, return_complex=True)
         
         magnitudes = stft[..., :-1].abs() ** 2
-        mel_spec = self.mel_filters @ magnitudes
+        mel_spec = torch.matmul(self.mel_filters, magnitudes)
 
         log_spec = torch.clamp(mel_spec, min=1e-10).log10()
         log_spec = torch.maximum(log_spec, log_spec.max() - 8.0)
