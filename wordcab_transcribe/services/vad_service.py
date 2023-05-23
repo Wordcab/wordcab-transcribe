@@ -36,7 +36,7 @@ class VadService:
         self, filepath: str, group_timestamps: Optional[bool] = True
     ) -> Tuple[Union[List[dict], List[List[dict]]], torch.Tensor]:
         """
-        Use the VAD model to get the speech timestamps.
+        Use the VAD model to get the speech timestamps. Dual channel pipeline.
 
         Args:
             filepath (str): Path to the audio file.
