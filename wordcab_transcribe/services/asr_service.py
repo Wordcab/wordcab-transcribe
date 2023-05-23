@@ -340,12 +340,12 @@ class ASRAsyncService(ASRService):
         if alignment:
             # Alignment works best with word timestamps, so we force it for transcription
             _segments = self.transcribe_model(
-                filepath, source_lang, word_timestamps=word_timestamps
+                filepath, source_lang, word_timestamps=True
             )
             segments = self.align_model(filepath, _segments, source_lang)
         else:
             segments = self.transcribe_model(
-                filepath, source_lang, word_timestamps=word_timestamps
+                filepath, source_lang, word_timestamps=True
             )
 
         # Format the segments: the main purpose is to remove extra spaces and
