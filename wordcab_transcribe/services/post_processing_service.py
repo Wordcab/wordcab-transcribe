@@ -13,9 +13,9 @@
 # limitations under the License.
 """Post-Processing Service for audio files."""
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from wordcab_transcribe.utils import get_segment_timestamp_anchor
+from wordcab_transcribe.utils import _convert_s_to_ms, get_segment_timestamp_anchor
 
 
 class PostProcessingService:
@@ -26,7 +26,10 @@ class PostProcessingService:
         self.sample_rate = 16000
 
     def single_channel_postprocessing(
-        self, transcript_segments: List[dict], speaker_timestamps: List[dict]
+        self,
+        transcript_segments: List[dict],
+        speaker_timestamps: List[dict],
+        word_timestamps: bool,
     ) -> List[dict]:
         """Run the post-processing functions on the inputs.
 
@@ -37,22 +40,28 @@ class PostProcessingService:
         Args:
             transcript_segments (List[dict]): List of transcript segments.
             speaker_timestamps (List[dict]): List of speaker timestamps.
+            word_timestamps (bool): Whether to include word timestamps.
 
         Returns:
             List[dict]: List of sentences with speaker mapping.
         """
         segments_with_speaker_mapping = self.segments_speaker_mapping(
-            transcript_segments, speaker_timestamps
+            transcript_segments, speaker_timestamps, word_timestamps
         )
 
         utterances = self.utterances_speaker_mapping(
-            segments_with_speaker_mapping, speaker_timestamps
+            segments_with_speaker_mapping,
+            word_timestamps,
+            speaker_timestamps,
         )
 
         return utterances
 
     def dual_channel_postprocessing(
-        self, left_segments: List[dict], right_segments: List[dict]
+        self,
+        left_segments: List[dict],
+        right_segments: List[dict],
+        word_timestamps: bool,
     ) -> List[dict]:
         """Run the dual channel post-processing functions on the inputs.
 
@@ -63,12 +72,13 @@ class PostProcessingService:
         Args:
             left_segments (List[dict]): List of left channel segments.
             right_segments (List[dict]): List of right channel segments.
+            word_timestamps (bool): Whether to include word timestamps.
 
         Returns:
             List[dict]: List of sentences with speaker mapping.
         """
         utterances = self.merge_segments(left_segments, right_segments)
-        utterances = self.utterances_speaker_mapping_dual_channel(utterances)
+        utterances = self.utterances_speaker_mapping(utterances, word_timestamps)
 
         return utterances
 
@@ -76,6 +86,7 @@ class PostProcessingService:
         self,
         transcript_segments: List[dict],
         speaker_timestamps: List[str],
+        word_timestamps: bool,
         anchor_option: str = "start",
     ) -> List[dict]:
         """
@@ -85,6 +96,7 @@ class PostProcessingService:
             transcript_segments (List[dict]): List of transcript segments.
             speaker_timestamps (List[str]): List of speaker timestamps.
             anchor_option (str): Anchor option to use.
+            word_timestamps (bool): Whether to include word timestamps.
 
         Returns:
             List[dict]: List of transcript segments with speaker mapping.
@@ -102,10 +114,11 @@ class PostProcessingService:
             if "end" not in segment:
                 segment["end"] = segment["start"] + 1
 
+            # Convert segment timestamps to milliseconds to match speaker timestamps.
             segment_start, segment_end, segment_text = (
-                int(segment["start"] * 1000),
-                int(segment["end"] * 1000),
-                segment["word"],
+                int(_convert_s_to_ms(segment["start"])),
+                int(_convert_s_to_ms(segment["end"])),
+                segment["text"],
             )
 
             segment_position = get_segment_timestamp_anchor(
@@ -122,82 +135,54 @@ class PostProcessingService:
                     )
                     break
 
-            segment_speaker_mapping.append(
-                {
-                    "start": segment_start,
-                    "end": segment_end,
-                    "text": segment_text,
-                    "speaker": speaker,
-                }
-            )
+            _segment = {
+                "start": segment_start / 1000,
+                "end": segment_end / 1000,
+                "text": segment_text,
+                "speaker": speaker,
+            }
+            if word_timestamps:
+                _segment["words"] = segment["words"]
+
+            segment_speaker_mapping.append(_segment)
 
         return segment_speaker_mapping
 
     def utterances_speaker_mapping(
-        self, transcript_segments: List[dict], speaker_timestamps: List[dict]
-    ) -> List[dict]:
-        """
-        Map utterances of the same speaker together.
-
-        Args:
-            transcript_segments (List[dict]): List of transcript segments.
-            speaker_timestamps (List[dict]): List of speaker timestamps.
-
-        Returns:
-            List[dict]: List of sentences with speaker mapping.
-        """
-        start_t0, end_t0, speaker_t0 = speaker_timestamps[0]
-        previous_speaker = speaker_t0
-
-        sentences = []
-        current_sentence = {
-            "speaker": speaker_t0,
-            "start": start_t0,
-            "end": end_t0,
-            "text": "",
-        }
-
-        for segment in transcript_segments:
-            text_segment, speaker = segment["text"], segment["speaker"]
-            start_t, end_t = segment["start"], segment["end"]
-
-            if speaker != previous_speaker:
-                sentences.append(current_sentence)
-                current_sentence = {
-                    "speaker": speaker,
-                    "start": start_t,
-                    "end": end_t,
-                    "text": "",
-                }
-            else:
-                current_sentence["end"] = end_t
-
-            current_sentence["text"] += text_segment + " "
-            previous_speaker = speaker
-
-        sentences.append(current_sentence)
-
-        return sentences
-
-    def utterances_speaker_mapping_dual_channel(
-        self, transcript_segments: List[dict]
+        self,
+        transcript_segments: List[dict],
+        word_timestamps: bool,
+        speaker_timestamps: Optional[List[str]] = None,
     ) -> List[dict]:
         """
         Map utterances of the same speaker together for dual channel use case.
 
         Args:
             transcript_segments (List[dict]): List of transcript segments.
+            word_timestamps (bool): Whether to include word timestamps.
+            speaker_timestamps (Optional[List[str]]): List of speaker timestamps.
 
         Returns:
             List[dict]: List of sentences with speaker mapping.
         """
+        if speaker_timestamps:
+            start_t0, end_t0, speaker_t0 = speaker_timestamps[0]
+        else:
+            start_t0, end_t0, speaker_t0 = (
+                transcript_segments[0]["start"],
+                transcript_segments[0]["end"],
+                transcript_segments[0]["speaker"],
+            )
+
+        previous_speaker = speaker_t0
         current_sentence = {
-            "speaker": transcript_segments[0]["speaker"],
-            "start": transcript_segments[0]["start"],
-            "end": transcript_segments[0]["end"],
+            "speaker": speaker_t0,
+            "start": start_t0,
+            "end": end_t0,
             "text": "",
         }
-        previous_speaker = transcript_segments[0]["speaker"]
+        if word_timestamps:
+            current_sentence["words"] = []
 
         sentences = []
         for segment in transcript_segments:
@@ -212,12 +197,17 @@ class PostProcessingService:
                     "end": end_t,
                     "text": "",
                 }
+                if word_timestamps:
+                    current_sentence["words"] = []
             else:
                 current_sentence["end"] = end_t
 
-            current_sentence["text"] += text_segment.strip() + " "
+            current_sentence["text"] += text_segment + " "
             previous_speaker = speaker
+            if word_timestamps:
+                current_sentence["words"].extend(segment["words"])
 
+        # Catch the last sentence
         sentences.append(current_sentence)
 
         return sentences
@@ -241,60 +231,3 @@ class PostProcessingService:
         merged_segments.sort(key=lambda seg: seg["start"])
 
         return merged_segments
-
-    def reconstruct_segments(
-        self,
-        grouped_list_of_segments: List[List[dict]],
-        speaker_label: int,
-    ) -> List[Dict[str, Any]]:
-        """
-        Reconstruct segments based on the words timestamps.
-
-        Args:
-            grouped_list_of_segments (List[List[dict]]): List of grouped segments.
-            speaker_label (int): Speaker label.
-
-        Returns:
-            List[Dict[str, Any]]: List of reconstructed segments.
-        """
-        final_speaker_segments = []
-        for grouped_segments in grouped_list_of_segments:
-            if not grouped_segments:  # Skip empty segments
-                continue
-
-            group_start = grouped_segments[0]["start"]
-            for segment in grouped_segments:
-                segment_dict = {
-                    "start": None,
-                    "end": None,
-                    "text": segment["text"],
-                    "words": [],
-                    "speaker": speaker_label,
-                }
-
-                for word in segment["words"]:
-                    word_start_adjusted = (group_start / self.sample_rate) + word.start
-                    word_end_adjusted = (group_start / self.sample_rate) + word.end
-
-                    segment_dict["words"].append(
-                        {
-                            "start": word_start_adjusted,
-                            "end": word_end_adjusted,
-                            "text": word.word,
-                        }
-                    )
-
-                    if (
-                        segment_dict["start"] is None
-                        or word_start_adjusted < segment_dict["start"]
-                    ):
-                        segment_dict["start"] = word_start_adjusted
-                    if (
-                        segment_dict["end"] is None
-                        or word_end_adjusted > segment_dict["end"]
-                    ):
-                        segment_dict["end"] = word_end_adjusted
-
-                final_speaker_segments.append(segment_dict)
-
-        return final_speaker_segments

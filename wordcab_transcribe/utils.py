@@ -99,7 +99,7 @@ def run_subprocess(command: List[str]) -> tuple:
 
 
 def convert_timestamp(
-    timestamp: float, target: str, dual_channel: bool
+    timestamp: float, target: str, round_digits: Optional[int] = 3
 ) -> Union[str, float]:
     """
     Use the right function to convert the timestamp.
@@ -107,8 +107,7 @@ def convert_timestamp(
     Args:
         timestamp (float): Timestamp to convert.
         target (str): Timestamp to convert.
-        dual_channel (bool): Whether the audio is dual channel or not. If True, the
-            timestamp is already in seconds. If False, the timestamp is in milliseconds.
+        round_digits (int, optional): Number of digits to round the timestamp. Defaults to 3.
 
     Returns:
         Union[str, float]: Converted timestamp.
@@ -116,28 +115,16 @@ def convert_timestamp(
     Raises:
         ValueError: If the target is invalid. Valid targets are: ms, hms, s.
     """
-    if dual_channel:
-        if target == "ms":
-            return _convert_s_to_ms(timestamp)
-        elif target == "hms":
-            return _convert_s_to_hms(timestamp)
-        elif target == "s":
-            return timestamp
-        else:
-            raise ValueError(
-                f"Invalid conversion target: {target}. Valid targets are: ms, hms, s."
-            )
+    if target == "ms":
+        return round(_convert_s_to_ms(timestamp), round_digits)
+    elif target == "hms":
+        return _convert_s_to_hms(timestamp)
+    elif target == "s":
+        return round(timestamp, round_digits)
     else:
-        if target == "ms":
-            return timestamp
-        elif target == "hms":
-            return _convert_ms_to_hms(timestamp)
-        elif target == "s":
-            return _convert_ms_to_s(timestamp)
-        else:
-            raise ValueError(
-                f"Invalid conversion target: {target}. Valid targets are: ms, hms, s."
-            )
+        raise ValueError(
+            f"Invalid conversion target: {target}. Valid targets are: ms, hms, s."
+        )
 
 
 def _convert_ms_to_hms(timestamp: float) -> str:
@@ -423,12 +410,16 @@ def format_punct(text: str):
     return text.strip()
 
 
-def format_segments(segments: list) -> List[dict]:
+def format_segments(
+    segments: list, alignment: bool, word_timestamps: bool
+) -> List[dict]:
     """
-    Format the segments to a list of dicts with start, end and text keys.
+    Format the segments to a list of dicts with start, end and text keys. Optionally include word timestamps.
 
     Args:
         segments (list): List of segments.
+        alignment (bool): Whether the segments have been aligned. Used to format the word timestamps correctly.
+        word_timestamps (bool): Whether to include word timestamps.
 
     Returns:
         list: List of dicts with start, end and word keys.
@@ -440,7 +431,21 @@ def format_segments(segments: list) -> List[dict]:
 
         segment_dict["start"] = segment["start"]
         segment_dict["end"] = segment["end"]
-        segment_dict["word"] = segment["text"].strip()
+        segment_dict["text"] = segment["text"].strip()
+        if word_timestamps:
+            if alignment:
+                segment_dict["words"] = segment["words"]
+            else:
+                _words = [
+                    {
+                        "word": word.word.strip(),
+                        "start": word.start,
+                        "end": word.end,
+                        "score": round(word.probability, 3),
+                    }
+                    for word in segment["words"]
+                ]
+                segment_dict["words"] = _words
 
         formatted_segments.append(segment_dict)
 

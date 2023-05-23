@@ -65,9 +65,11 @@ async def run_cortex(
         if payload.url_type == "audio_url":
             data = AudioRequest(
                 alignment=payload.alignment,
+                diarization=payload.diarization,
                 dual_channel=payload.dual_channel,
                 source_lang=payload.source_lang,
                 timestamps=payload.timestamps,
+                word_timestamps=payload.word_timestamps,
             )
             utterances: AudioResponse = await inference_with_audio_url(
                 background_tasks=BackgroundTasks(),

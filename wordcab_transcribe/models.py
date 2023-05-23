@@ -13,7 +13,7 @@
 # limitations under the License.
 """Models module of the Wordcab Transcribe."""
 
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, validator
 
@@ -21,10 +21,12 @@ from pydantic import BaseModel, validator
 class BaseResponse(BaseModel):
     """Base response model, not meant to be used directly."""
 
-    utterances: list
+    utterances: List[dict]
     alignment: bool
+    diarization: bool
     source_lang: str
     timestamps: str
+    word_timestamps: bool
 
 
 class AudioResponse(BaseResponse):
@@ -39,22 +41,24 @@ class AudioResponse(BaseResponse):
             "example": {
                 "utterances": [
                     {
-                        "speaker": 0,
-                        "start": 0.0,
-                        "end": 1.0,
                         "text": "Hello World!",
+                        "start": 0.345,
+                        "end": 1.234,
+                        "speaker": 0,
                     },
                     {
-                        "speaker": 0,
-                        "start": 1.0,
-                        "end": 2.0,
                         "text": "Wordcab is awesome",
+                        "start": 1.234,
+                        "end": 2.678,
+                        "speaker": 1,
                     },
                 ],
                 "alignment": False,
-                "dual_channel": False,
+                "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
+                "word_timestamps": False,
+                "dual_channel": False,
             }
         }
 
@@ -84,8 +88,10 @@ class YouTubeResponse(BaseResponse):
                     },
                 ],
                 "alignment": False,
+                "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
+                "word_timestamps": False,
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             }
         }
@@ -113,9 +119,11 @@ class CortexPayload(BaseModel):
     url: str = None
     api_key: str = None
     alignment: Optional[bool] = False
+    diarization: Optional[bool] = False
     dual_channel: Optional[bool] = False
     source_lang: Optional[str] = "en"
     timestamps: Optional[str] = "s"
+    word_timestamps: Optional[bool] = False
     job_name: Optional[str] = None
     ping: Optional[bool] = False
 
@@ -142,9 +150,11 @@ class CortexPayload(BaseModel):
                 "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 "api_key": "1234567890",
                 "alignment": False,
+                "diarization": False,
                 "dual_channel": False,
                 "source_lang": "en",
                 "timestamps": "s",
+                "word_timestamps": False,
                 "job_name": "job_abc123",
                 "ping": False,
             }
@@ -177,9 +187,11 @@ class CortexUrlResponse(AudioResponse):
                     },
                 ],
                 "alignment": False,
-                "dual_channel": False,
+                "diariation": False,
                 "source_lang": "en",
                 "timestamps": "s",
+                "word_timestamps": False,
+                "dual_channel": False,
                 "job_name": "job_name",
                 "request_id": "request_id",
             }
@@ -212,8 +224,10 @@ class CortexYoutubeResponse(YouTubeResponse):
                     },
                 ],
                 "alignment": False,
+                "diariation": False,
                 "source_lang": "en",
                 "timestamps": "s",
+                "word_timestamps": False,
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 "job_name": "job_name",
                 "request_id": "request_id",
@@ -225,8 +239,10 @@ class BaseRequest(BaseModel):
     """Base request model for the API."""
 
     alignment: Optional[bool] = False
+    diarization: Optional[bool] = False
     source_lang: Optional[str] = "en"
     timestamps: Optional[str] = "s"
+    word_timestamps: Optional[bool] = False
 
     @validator("timestamps")
     def validate_timestamps_values(cls, value: str) -> str:  # noqa: B902, N805
@@ -241,8 +257,10 @@ class BaseRequest(BaseModel):
         schema_extra = {
             "example": {
                 "alignment": False,
+                "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
+                "word_timestamps": False,
             }
         }
 
@@ -258,9 +276,11 @@ class AudioRequest(BaseRequest):
         schema_extra = {
             "example": {
                 "alignment": False,
-                "dual_channel": False,
+                "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
+                "word_timestamps": False,
+                "dual_channel": False,
             }
         }
 

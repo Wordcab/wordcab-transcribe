@@ -28,23 +28,6 @@ from wordcab_transcribe.utils import (
 @pytest.mark.parametrize(
     "timestamp, target, expected",
     [
-        (1000, "ms", 1000),
-        (1000, "s", 1),
-        (1000, "hms", "00:00:01.000"),
-        (3600000, "hms", "01:00:00.000"),
-        (3661000, "hms", "01:01:01.000"),
-    ],
-)
-def test_convert_timestamp_dual_channel_false(
-    timestamp: float, target: str, expected: Union[str, float]
-) -> None:
-    """Test the convert_timestamp function."""
-    assert convert_timestamp(timestamp, target, False) == expected
-
-
-@pytest.mark.parametrize(
-    "timestamp, target, expected",
-    [
         (1, "ms", 1000),
         (1, "s", 1),
         (1, "hms", "00:00:01.000"),
@@ -52,11 +35,11 @@ def test_convert_timestamp_dual_channel_false(
         (3661, "hms", "01:01:01.000"),
     ],
 )
-def test_convert_timestamp_dual_channel_true(
+def test_convert_timestamp(
     timestamp: float, target: str, expected: Union[str, float]
 ) -> None:
     """Test the convert_timestamp function."""
-    assert convert_timestamp(timestamp, target, True) == expected
+    assert convert_timestamp(timestamp, target) == expected
 
 
 def test_convert_timestamp_raises_error() -> None:
