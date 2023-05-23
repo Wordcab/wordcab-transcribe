@@ -99,7 +99,7 @@ def run_subprocess(command: List[str]) -> tuple:
 
 
 def convert_timestamp(
-    timestamp: float, target: str, round_digits: int = 3
+    timestamp: float, target: str, round_digits: Optional[int] = 3
 ) -> Union[str, float]:
     """
     Use the right function to convert the timestamp.
@@ -410,7 +410,9 @@ def format_punct(text: str):
     return text.strip()
 
 
-def format_segments(segments: list, alignment: bool, word_timestamps: bool) -> List[dict]:
+def format_segments(
+    segments: list, alignment: bool, word_timestamps: bool
+) -> List[dict]:
     """
     Format the segments to a list of dicts with start, end and text keys. Optionally include word timestamps.
 

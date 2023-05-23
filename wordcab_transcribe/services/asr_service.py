@@ -16,7 +16,7 @@
 import asyncio
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, List, Tuple, Union
+from typing import List, Tuple, Union
 
 import numpy as np
 import torch
@@ -338,19 +338,23 @@ class ASRAsyncService(ASRService):
         """
         if alignment:
             # Alignment works best with word timestamps, so we force it for transcription
-            _segments = self.transcribe_model(filepath, source_lang, word_timestamps=True)
+            _segments = self.transcribe_model(
+                filepath, source_lang, word_timestamps=True
+            )
             segments = self.align_model(filepath, _segments, source_lang)
         else:
-            segments = self.transcribe_model(filepath, source_lang, word_timestamps=word_timestamps)
+            segments = self.transcribe_model(
+                filepath, source_lang, word_timestamps=word_timestamps
+            )
 
         # Format the segments: the main purpose is to remove extra spaces and
         # to format word_timestamps like the alignment model does
-        formatted_segments = format_segments(segments, alignment=alignment, word_timestamps=word_timestamps)
+        formatted_segments = format_segments(
+            segments, alignment=alignment, word_timestamps=word_timestamps
+        )
 
         if diarization:
             speaker_timestamps = self.diarize_model(filepath)
-            for ts in speaker_timestamps:
-                logger.debug(f"Speaker timestamps: {ts}")
             utterances = self.post_processing_service.single_channel_postprocessing(
                 transcript_segments=formatted_segments,
                 speaker_timestamps=speaker_timestamps,

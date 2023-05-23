@@ -15,7 +15,7 @@
 
 from typing import Any, Dict, List
 
-from wordcab_transcribe.utils import get_segment_timestamp_anchor, _convert_ms_to_s
+from wordcab_transcribe.utils import _convert_ms_to_s, get_segment_timestamp_anchor
 
 
 class PostProcessingService:
@@ -26,7 +26,10 @@ class PostProcessingService:
         self.sample_rate = 16000
 
     def single_channel_postprocessing(
-        self, transcript_segments: List[dict], speaker_timestamps: List[dict], word_timestamps: bool
+        self,
+        transcript_segments: List[dict],
+        speaker_timestamps: List[dict],
+        word_timestamps: bool,
     ) -> List[dict]:
         """Run the post-processing functions on the inputs.
 
@@ -53,7 +56,10 @@ class PostProcessingService:
         return utterances
 
     def dual_channel_postprocessing(
-        self, left_segments: List[dict], right_segments: List[dict], word_timestamps: bool
+        self,
+        left_segments: List[dict],
+        right_segments: List[dict],
+        word_timestamps: bool,
     ) -> List[dict]:
         """Run the dual channel post-processing functions on the inputs.
 
@@ -70,7 +76,9 @@ class PostProcessingService:
             List[dict]: List of sentences with speaker mapping.
         """
         utterances = self.merge_segments(left_segments, right_segments)
-        utterances = self.utterances_speaker_mapping_dual_channel(utterances, word_timestamps)
+        utterances = self.utterances_speaker_mapping_dual_channel(
+            utterances, word_timestamps
+        )
 
         return utterances
 
@@ -94,10 +102,14 @@ class PostProcessingService:
             List[dict]: List of transcript segments with speaker mapping.
         """
         speaker_timestamps = [
-            [_convert_ms_to_s(speaker_ts[0]), _convert_ms_to_s(speaker_ts[1]), speaker_ts[2]]
+            [
+                _convert_ms_to_s(speaker_ts[0]),
+                _convert_ms_to_s(speaker_ts[1]),
+                speaker_ts[2],
+            ]
             for speaker_ts in speaker_timestamps
         ]
-        
+
         _, end, speaker = speaker_timestamps[0]
         segment_position, turn_idx = 0, 0
         segment_speaker_mapping = []
@@ -139,7 +151,10 @@ class PostProcessingService:
         return segment_speaker_mapping
 
     def utterances_speaker_mapping(
-        self, transcript_segments: List[dict], speaker_timestamps: List[dict], word_timestamps: bool
+        self,
+        transcript_segments: List[dict],
+        speaker_timestamps: List[dict],
+        word_timestamps: bool,
     ) -> List[dict]:
         """
         Map utterances of the same speaker together.
