@@ -99,7 +99,7 @@ def run_subprocess(command: List[str]) -> tuple:
 
 
 def convert_timestamp(
-    timestamp: float, target: str, dual_channel: bool
+    timestamp: float, target: str, diarization: bool, round_digits: int = 3
 ) -> Union[str, float]:
     """
     Use the right function to convert the timestamp.
@@ -107,8 +107,9 @@ def convert_timestamp(
     Args:
         timestamp (float): Timestamp to convert.
         target (str): Timestamp to convert.
-        dual_channel (bool): Whether the audio is dual channel or not. If True, the
-            timestamp is already in seconds. If False, the timestamp is in milliseconds.
+        diarization (bool): Whether the audio is diarized or not. If False, the
+            timestamp is already in seconds. If True, the timestamp is in milliseconds.
+        round_digits (int, optional): Number of digits to round the timestamp. Defaults to 3.
 
     Returns:
         Union[str, float]: Converted timestamp.
@@ -116,24 +117,24 @@ def convert_timestamp(
     Raises:
         ValueError: If the target is invalid. Valid targets are: ms, hms, s.
     """
-    if dual_channel:
+    if diarization:
         if target == "ms":
-            return _convert_s_to_ms(timestamp)
+            return round(timestamp, round_digits)
         elif target == "hms":
-            return _convert_s_to_hms(timestamp)
+            return _convert_ms_to_hms(timestamp)
         elif target == "s":
-            return timestamp
+            return round(_convert_ms_to_s(timestamp), round_digits)
         else:
             raise ValueError(
                 f"Invalid conversion target: {target}. Valid targets are: ms, hms, s."
             )
     else:
         if target == "ms":
-            return timestamp
+            return round(_convert_s_to_ms(timestamp), round_digits)
         elif target == "hms":
-            return _convert_ms_to_hms(timestamp)
+            return _convert_s_to_hms(timestamp)
         elif target == "s":
-            return _convert_ms_to_s(timestamp)
+            return round(timestamp, round_digits)
         else:
             raise ValueError(
                 f"Invalid conversion target: {target}. Valid targets are: ms, hms, s."
@@ -441,7 +442,7 @@ def format_segments(segments: list, word_timestamps: bool) -> List[dict]:
 
         segment_dict["start"] = segment["start"]
         segment_dict["end"] = segment["end"]
-        segment_dict["word"] = segment["text"].strip()
+        segment_dict["text"] = segment["text"].strip()
         if word_timestamps:
             segment_dict["words"] = segment["words"]
 

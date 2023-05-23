@@ -58,9 +58,9 @@ async def inference_with_youtube(
     utterances = [
         {
             "text": format_punct(utterance["text"]),
-            "start": convert_timestamp(utterance["start"], timestamps_format, False),
-            "end": convert_timestamp(utterance["end"], timestamps_format, False),
-            "speaker": int(utterance["speaker"]),
+            "start": convert_timestamp(utterance["start"], timestamps_format, data.diarization),
+            "end": convert_timestamp(utterance["end"], timestamps_format, data.diarization),
+            "speaker": int(utterance["speaker"]) if data.diarization else None,
             "words": utterance["words"] if data.word_timestamps else [],
         }
         for utterance in raw_utterances
