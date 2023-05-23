@@ -336,10 +336,11 @@ class ASRAsyncService(ASRService):
         Returns:
             List[dict]: List of speaker segments.
         """
+        alignment = False  # TODO: remove this line when alignment is fixed
         if alignment:
             # Alignment works best with word timestamps, so we force it for transcription
             _segments = self.transcribe_model(
-                filepath, source_lang, word_timestamps=True
+                filepath, source_lang, word_timestamps=word_timestamps
             )
             segments = self.align_model(filepath, _segments, source_lang)
         else:
@@ -348,13 +349,18 @@ class ASRAsyncService(ASRService):
             )
 
         # Format the segments: the main purpose is to remove extra spaces and
-        # to format word_timestamps like the alignment model does
+        # to format word_timestamps like the alignment model does if alignment is False
         formatted_segments = format_segments(
             segments, alignment=alignment, word_timestamps=word_timestamps
         )
 
+        for segment in formatted_segments:
+            logger.debug(f"Original segment: {segment}")
+
         if diarization:
             speaker_timestamps = self.diarize_model(filepath)
+            for idx, ts in enumerate(speaker_timestamps):
+                logger.debug(f"{idx} Speaker timestamp: {ts}")
             utterances = self.post_processing_service.single_channel_postprocessing(
                 transcript_segments=formatted_segments,
                 speaker_timestamps=speaker_timestamps,

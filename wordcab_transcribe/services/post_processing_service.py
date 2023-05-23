@@ -15,7 +15,7 @@
 
 from typing import Any, Dict, List, Optional
 
-from wordcab_transcribe.utils import _convert_ms_to_s, get_segment_timestamp_anchor
+from wordcab_transcribe.utils import _convert_s_to_ms, get_segment_timestamp_anchor
 
 
 class PostProcessingService:
@@ -50,7 +50,9 @@ class PostProcessingService:
         )
 
         utterances = self.utterances_speaker_mapping(
-            segments_with_speaker_mapping, word_timestamps, speaker_timestamps,
+            segments_with_speaker_mapping,
+            word_timestamps,
+            speaker_timestamps,
         )
 
         return utterances
@@ -99,15 +101,6 @@ class PostProcessingService:
         Returns:
             List[dict]: List of transcript segments with speaker mapping.
         """
-        speaker_timestamps = [
-            [
-                _convert_ms_to_s(speaker_ts[0]),
-                _convert_ms_to_s(speaker_ts[1]),
-                speaker_ts[2],
-            ]
-            for speaker_ts in speaker_timestamps
-        ]
-
         _, end, speaker = speaker_timestamps[0]
         segment_position, turn_idx = 0, 0
         segment_speaker_mapping = []
@@ -119,10 +112,17 @@ class PostProcessingService:
                 else:
                     segment["start"] = transcript_segments[idx - 1]["end"]
             if "end" not in segment:
-                segment["end"] = segment["start"] + 0.5
+                segment["end"] = segment["start"] + 1
+
+            # Convert segment timestamps to milliseconds to match speaker timestamps.
+            segment_start, segment_end, segment_text = (
+                int(_convert_s_to_ms(segment["start"])),
+                int(_convert_s_to_ms(segment["end"])),
+                segment["text"],
+            )
 
             segment_position = get_segment_timestamp_anchor(
-                segment["start"], segment["end"], anchor_option
+                segment_start, segment_end, anchor_option
             )
 
             while segment_position > float(end):
@@ -131,14 +131,14 @@ class PostProcessingService:
                 _, end, speaker = speaker_timestamps[turn_idx]
                 if turn_idx == len(speaker_timestamps) - 1:
                     end = get_segment_timestamp_anchor(
-                        segment["start"], segment["end"], option="end"
+                        segment_start, segment_end, option="end"
                     )
                     break
 
             _segment = {
-                "start": segment["start"],
-                "end": segment["end"],
-                "text": segment["text"],
+                "start": segment_start / 1000,
+                "end": segment_end / 1000,
+                "text": segment_text,
                 "speaker": speaker,
             }
             if word_timestamps:
@@ -186,22 +186,23 @@ class PostProcessingService:
 
         sentences = []
         for segment in transcript_segments:
-            speaker = segment["speaker"]
+            text_segment, speaker = segment["text"], segment["speaker"]
+            start_t, end_t = segment["start"], segment["end"]
 
             if speaker != previous_speaker:
                 sentences.append(current_sentence)
                 current_sentence = {
                     "speaker": speaker,
-                    "start": segment["start"],
-                    "end": segment["end"],
+                    "start": start_t,
+                    "end": end_t,
                     "text": "",
                 }
                 if word_timestamps:
                     current_sentence["words"] = []
             else:
-                current_sentence["end"] = segment["end"]
+                current_sentence["end"] = end_t
 
-            current_sentence["text"] += segment["text"].strip() + " "
+            current_sentence["text"] += text_segment + " "
             previous_speaker = speaker
             if word_timestamps:
                 current_sentence["words"].extend(segment["words"])
