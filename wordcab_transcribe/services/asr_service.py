@@ -339,12 +339,12 @@ class ASRAsyncService(ASRService):
         alignment = False  # TODO: remove this line when alignment is fixed
         if alignment:
             _segments = self.transcribe_model(
-                filepath, source_lang, word_timestamps=True
+                filepath, source_lang, self.vad_service, word_timestamps=True
             )
             segments = self.align_model(filepath, _segments, source_lang)
         else:
             segments = self.transcribe_model(
-                filepath, source_lang, word_timestamps=True
+                filepath, source_lang, self.vad_service, word_timestamps=True
             )
 
         # Format the segments: the main purpose is to remove extra spaces and
