@@ -64,6 +64,7 @@ async def startup_event():
         )
 
     asyncio.create_task(asr.runner())
+    # asyncio.create_task(asr.warmup())
 
 
 @app.get("/", tags=["status"])

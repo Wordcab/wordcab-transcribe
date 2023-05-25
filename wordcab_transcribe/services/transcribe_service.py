@@ -122,16 +122,13 @@ class TranscribeService:
             device (str): Device to use for inference. Can be "cpu" or "cuda".
             batch_size (Optional[int], optional): Batch size to use for inference. Defaults to 32.
         """
-        self.model = WhisperModel(model_path, device=device, compute_type=compute_type)
+        self.model = WhisperModel(model_path, device=device, compute_type=compute_type, num_workers=8)
         self.tokenizer = Tokenizer(
             self.model.hf_tokenizer,
             self.model.model.is_multilingual,
             task="transcribe",
             language="en",  # Default language, to gain some speed
         )
-
-        _num_cores = multiprocessing.cpu_count()
-        self.num_workers = _num_cores - 1 if _num_cores > 1 else 1
 
         self._batch_size = batch_size
         self.sample_rate = 16000
@@ -184,20 +181,24 @@ class TranscribeService:
             List[dict]: List of segments with the following keys: "start", "end", "text", "confidence".
         """
         if kwargs.pop("old_process", False):
+            old_start = time()
+            old_transcription_start = time()
             segments, _ = self.model.transcribe(audio, language=source_lang, **kwargs)
+            old_transcription_end = time()
+            logger.info(f"Old transcription took {old_transcription_end - old_transcription_start} seconds")
 
             results = [segment._asdict() for segment in segments]
+            old_end = time()
+            logger.info(f"Old process took {old_end - old_start} seconds")
 
             return results
         else:
-
+            full_start = time()
             if self.sample_rate != vad_service.sample_rate:
                 self.sample_rate = vad_service.sample_rate
 
             vad_timestamps, audio = vad_service(audio, group_timestamps=False)
-            logger.debug(f"VAD segments length: {len(vad_timestamps)}")
             vad_timestamps = self._merge_segments(vad_timestamps, self._chunk_size, self.sample_rate)
-            logger.debug(f"VAD segments length after merging: {len(vad_timestamps)}")
 
             if self.tokenizer.language_code != source_lang:
                 self.tokenizer = Tokenizer(
@@ -211,10 +212,12 @@ class TranscribeService:
             for segment in vad_timestamps:
                 audio_chunks.append(audio[segment["start"] : segment["end"]])
 
+            pipeline_start = time()
             outputs = self.pipeline(audio_chunks, batch_size=self._batch_size)
+            pipeline_end = time()
+            logger.debug(f"Pipeline took {pipeline_end - pipeline_start} seconds.")
 
             segments: List[dict] = []
-            start = time()
             for idx, output in enumerate(outputs):
                 segments.append(
                     {
@@ -223,8 +226,8 @@ class TranscribeService:
                         "end": vad_timestamps[idx]["end"],
                     }
                 )
-            end = time()
-            logger.debug(f"Format outputs took {end - start} seconds.")
+            full_end = time()
+            logger.debug(f"Full transcription took {full_end - full_start} seconds.")
 
             return segments
 
@@ -241,10 +244,7 @@ class TranscribeService:
         """
         dataset = AudioDataset(audio_chunks, self._n_samples, self.mel_filters)
         dataloader = DataLoader(
-            dataset,
-            batch_size=batch_size,
-            collate_fn=self._collate_fn,
-            num_workers=self.num_workers
+            dataset, batch_size=batch_size, collate_fn=self._collate_fn,
         )
 
         start_inference = time()
@@ -309,9 +309,10 @@ class TranscribeService:
             beam_size=5,
             patience=1,
             length_penalty=1,
-            return_scores=True,
-            return_no_speech_prob=True,
+            return_scores=False,
+            return_no_speech_prob=False,
             suppress_blank=False,
+            asynchronous=True,
         )
 
         decoded_outputs = self._decode_batch(result)
@@ -352,7 +353,7 @@ class TranscribeService:
             List[str]: List of decoded texts.
         """
         tokens_to_decode = [
-            [token for token in result.sequences_ids[0] if token < self.tokenizer.eot]
+            [token for token in result.result().sequences_ids[0] if token < self.tokenizer.eot]
             for result in whisper_results
         ]
         # TODO: We call the inherited tokenizer here, because faster_whisper tokenizer
