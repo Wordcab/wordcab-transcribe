@@ -36,4 +36,3 @@ hardware_num_cores = multiprocessing.cpu_count()
 io_executor = ThreadPoolExecutor(max_workers=hardware_num_cores)
 
 # TODO: Define the number of workers for the CPU bound tasks: Transcription, Alignment, Diarization
-

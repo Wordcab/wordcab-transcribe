@@ -52,7 +52,7 @@ async def inference_with_audio_url(
         filepath = await split_dual_channel_file(filepath)
     else:
         filepath = await convert_file_to_wav(filepath)
-    
+
     background_tasks.add_task(delete_file, filepath=f"{filename}.{extension}")
 
     raw_utterances = await asr.process_input(
