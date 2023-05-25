@@ -13,7 +13,10 @@
 # limitations under the License.
 """Transcribe Service for audio files."""
 
+import multiprocessing
+import os
 from pathlib import Path
+from time import time
 from typing import List, Optional, Union
 
 import numpy as np
@@ -28,6 +31,7 @@ from faster_whisper.transcribe import (
     get_ctranslate2_storage,
     get_suppressed_tokens,
 )
+from loguru import logger
 from torch.utils.data import DataLoader, IterableDataset
 
 from wordcab_transcribe.services.vad_service import VadService
@@ -38,7 +42,7 @@ class AudioDataset(IterableDataset):
 
     def __init__(
         self,
-        audio_chunks: List[torch.tensor],
+        audio_chunks: torch.tensor,
         n_samples: int,
         mel_filters: torch.Tensor,
     ) -> None:
@@ -46,21 +50,22 @@ class AudioDataset(IterableDataset):
         Initialize the Audio Dataset for transcribing audio files in batches.
 
         Args:
-            audio_chunks (List[torch.tensor]): List of audio chunks.
+            audio_chunks (torch.tensor): Audio chunks tensor containing the audio chunks.
             n_samples (int): Number of samples.
             mel_filters (torch.Tensor): Mel filters tensor.
         """
-        self.audio_chunks = audio_chunks
         self.n_samples = n_samples
         self.mel_filters = mel_filters
 
+        self.features = []
+        for chunk in audio_chunks:
+            _padding = self.n_samples - chunk.shape[0]
+            self.features.append(self._log_mel_spectrogram(chunk, padding=_padding))
+
     def __iter__(self) -> iter:
         """Iterate over the audio chunks and yield the features."""
-        for audio_chunk in self.audio_chunks:
-            _padding = self.n_samples - audio_chunk.shape[0]
-            features = self._log_mel_spectrogram(audio_chunk, padding=_padding)
-
-            yield features
+        for feature in self.features:
+            yield feature
 
     def _log_mel_spectrogram(
         self,
@@ -115,7 +120,7 @@ class TranscribeService:
             model_path (str): Path to the model checkpoint. This can be a local path or a URL.
             compute_type (str): Compute type to use for inference. Can be "int8", "int8_float16", "int16" or "float_16".
             device (str): Device to use for inference. Can be "cpu" or "cuda".
-            batch_size (Optional[int], optional): Batch size to use for inference. Defaults to 1.
+            batch_size (Optional[int], optional): Batch size to use for inference. Defaults to 32.
         """
         self.model = WhisperModel(model_path, device=device, compute_type=compute_type)
         self.tokenizer = Tokenizer(
@@ -124,6 +129,9 @@ class TranscribeService:
             task="transcribe",
             language="en",  # Default language, to gain some speed
         )
+
+        _num_cores = multiprocessing.cpu_count()
+        self.num_workers = _num_cores - 1 if _num_cores > 1 else 1
 
         self._batch_size = batch_size
         self.sample_rate = 16000
@@ -175,44 +183,50 @@ class TranscribeService:
         Returns:
             List[dict]: List of segments with the following keys: "start", "end", "text", "confidence".
         """
-        # Old one batch
-        # segments, _ = self.model.transcribe(audio, language=source_lang, **kwargs)
+        if kwargs.pop("old_process", False):
+            segments, _ = self.model.transcribe(audio, language=source_lang, **kwargs)
 
-        # results = [segment._asdict() for segment in segments]
+            results = [segment._asdict() for segment in segments]
 
-        # return results
+            return results
+        else:
 
-        if self.sample_rate != vad_service.sample_rate:
-            self.sample_rate = vad_service.sample_rate
+            if self.sample_rate != vad_service.sample_rate:
+                self.sample_rate = vad_service.sample_rate
 
-        vad_timestamps, audio = vad_service(audio, group_timestamps=False)
-        # vad_timestamps = merge_chunks(vad_timestamps, self._chunk_size)
+            vad_timestamps, audio = vad_service(audio, group_timestamps=False)
+            logger.debug(f"VAD segments length: {len(vad_timestamps)}")
+            vad_timestamps = self._merge_segments(vad_timestamps, self._chunk_size, self.sample_rate)
+            logger.debug(f"VAD segments length after merging: {len(vad_timestamps)}")
 
-        if self.tokenizer.language_code != source_lang:
-            self.tokenizer = Tokenizer(
-                self.model.hf_tokenizer,
-                self.model.model.is_multilingual,
-                task="transcribe",
-                language=source_lang,
-            )
+            if self.tokenizer.language_code != source_lang:
+                self.tokenizer = Tokenizer(
+                    self.model.hf_tokenizer,
+                    self.model.model.is_multilingual,
+                    task="transcribe",
+                    language=source_lang,
+                )
 
-        audio_chunks = []
-        for chunk in vad_timestamps:
-            audio_chunks.append(audio[chunk["start"] : chunk["end"]])
+            audio_chunks: List[torch.Tensor] = []
+            for segment in vad_timestamps:
+                audio_chunks.append(audio[segment["start"] : segment["end"]])
 
-        segments: List[dict] = []
-        for idx, output in enumerate(
-            self.pipeline(audio_chunks, batch_size=self._batch_size)
-        ):
-            segments.append(
-                {
-                    "text": output,
-                    "start": vad_timestamps[idx]["start"] / self.sample_rate,
-                    "end": vad_timestamps[idx]["end"] / self.sample_rate,
-                }
-            )
+            outputs = self.pipeline(audio_chunks, batch_size=self._batch_size)
 
-        return segments
+            segments: List[dict] = []
+            start = time()
+            for idx, output in enumerate(outputs):
+                segments.append(
+                    {
+                        "text": output,
+                        "start": vad_timestamps[idx]["start"],
+                        "end": vad_timestamps[idx]["end"],
+                    }
+                )
+            end = time()
+            logger.debug(f"Format outputs took {end - start} seconds.")
+
+            return segments
 
     def pipeline(self, audio_chunks: torch.tensor, batch_size: int) -> List[dict]:
         """
@@ -223,18 +237,29 @@ class TranscribeService:
             batch_size (int): Batch size to use for inference.
 
         Returns:
-            List[dict]: List of segments with the following keys: "start", "end", "text", "confidence".
+            List[dict]: List of segments with the following keys: "start", "end", "text".
         """
         dataset = AudioDataset(audio_chunks, self._n_samples, self.mel_filters)
-        dataloader = DataLoader(dataset, batch_size=batch_size)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=batch_size,
+            collate_fn=self._collate_fn,
+            num_workers=self.num_workers
+        )
 
+        start_inference = time()
         outputs = []
-
         for batch in dataloader:
+            logger.debug(f"Batch size: {batch.size(0)}")
+            start_batch = time()
             batch_outputs = self._generate_segment_batched(
                 batch, self.tokenizer, self.options
             )
+            end_batch = time()
+            logger.debug(f"Batch inference took {end_batch - start_batch} seconds.")
             outputs.extend(batch_outputs)
+        end_inference = time()
+        logger.debug(f"Inference took {end_inference - start_inference} seconds.")
 
         return outputs
 
@@ -253,6 +278,8 @@ class TranscribeService:
             List[dict]: List of segments with the following keys: "start", "end", "text", "confidence".
         """
         batch_size = batch.size(0)
+        if "TOKENIZERS_PARALLELISM" not in os.environ:
+            os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
         all_tokens = []
         prompt_reset_since = 0
@@ -331,3 +358,61 @@ class TranscribeService:
         # TODO: We call the inherited tokenizer here, because faster_whisper tokenizer
         # doesn't have the decode_batch method. We should fix this in the future.
         return self.tokenizer.tokenizer.decode_batch(tokens_to_decode)
+
+    def _merge_segments(self, vad_timestamps: list, chunk_size: int, sample_rate: int) -> list:
+        """Merge identified segments that are too small to be transcribed into bigger segments.
+
+        This is done to avoid transcribing small segments and to optimize the transcription process.
+
+        Args:
+            vad_timestamps (list): List of timestamps for the identified segments.
+            chunk_size (int): Minimum size of the segments to transcribe.
+            sample_rate (int): Sample rate of the audio. Required to compute the duration of the segments.
+
+        Returns:
+            list: List of merged segments.
+        """
+        if len(vad_timestamps) == 0:
+            raise ValueError("No active speech found in audio")
+
+        _chunk_size = int(chunk_size * sample_rate)
+
+        end_t = 0
+        start_t = vad_timestamps[0]["start"]
+
+        merged_segments = []
+        segment_indexs = []
+
+        for segment in vad_timestamps:
+            if segment["end"] - start_t > _chunk_size and end_t - start_t > 0:
+                merged_segments.append({
+                    "start": start_t,
+                    "end": end_t,
+                    "segments": segment_indexs,
+                })
+                start_t = segment["start"]
+                segment_indexs = []
+
+            end_t = segment["end"]
+            segment_indexs.append((segment["start"], segment["end"]))
+        
+        # Catch the last segment
+        merged_segments.append({ 
+            "start": start_t,
+            "end": end_t,
+            "segments": segment_indexs,
+        })
+        
+        return merged_segments
+
+    def _collate_fn(self, items: torch.tensor) -> torch.tensor:
+        """
+        Collator function for the dataloader.
+
+        Args:
+            items (torch.tensor): Items to collate.
+
+        Returns:
+            torch.tensor: Collated items.
+        """
+        return torch.stack([item for item in items])
