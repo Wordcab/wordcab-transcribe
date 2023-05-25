@@ -13,4 +13,5 @@ __pycache__/
 /src/*.egg-info/
 test.ipynb
 test.py
+async_bench.py
 whisper_model

@@ -336,7 +336,6 @@ class ASRAsyncService(ASRService):
         Returns:
             List[dict]: List of speaker segments.
         """
-        alignment = False  # TODO: remove this line when alignment is fixed
         if alignment:
             _segments = self.transcribe_model(
                 filepath, source_lang, word_timestamps=True
