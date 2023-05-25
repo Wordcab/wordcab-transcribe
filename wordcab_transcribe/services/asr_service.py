@@ -336,30 +336,49 @@ class ASRAsyncService(ASRService):
         Returns:
             List[dict]: List of speaker segments.
         """
-        alignment = False  # TODO: remove this line when alignment is fixed
+        # alignment = False  # TODO: remove this line when alignment is fixed
+        from time import time
         if alignment:
-            _segments = self.transcribe_model(
-                filepath, source_lang, self.vad_service, word_timestamps=True
-            )
-            segments = self.align_model(filepath, _segments, source_lang)
-        else:
+            # _segments = self.transcribe_model(
+            #     filepath, source_lang, self.vad_service, word_timestamps=True
+            # )
+            # segments = self.align_model(filepath, _segments, source_lang)
+            start = time()
             segments = self.transcribe_model(
-                filepath, source_lang, self.vad_service, word_timestamps=True
+                filepath, source_lang, self.vad_service, old_process=True, word_timestamps=True
             )
+            end = time()
+        else:
+            start = time()
+            segments = self.transcribe_model(
+                filepath, source_lang, self.vad_service, old_process=False
+            )
+            end = time()
+        
+        logger.debug(f"Transcription time: {end - start} seconds")
 
         # Format the segments: the main purpose is to remove extra spaces and
         # to format word_timestamps like the alignment model does if alignment is False
+        start = time()
         formatted_segments = format_segments(
             segments, alignment=alignment, word_timestamps=word_timestamps
         )
+        end = time()
+        logger.debug(f"Formatting time: {end - start} seconds")
 
         if diarization:
+            start = time()
             speaker_timestamps = self.diarize_model(filepath)
+            end = time()
+            logger.debug(f"Diarization time: {end - start} seconds")
+            start = time()
             utterances = self.post_processing_service.single_channel_postprocessing(
                 transcript_segments=formatted_segments,
                 speaker_timestamps=speaker_timestamps,
                 word_timestamps=word_timestamps,
             )
+            end = time()
+            logger.debug(f"Post-processing time: {end - start} seconds")
         else:
             utterances = formatted_segments
 
