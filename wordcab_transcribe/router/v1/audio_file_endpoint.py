@@ -15,7 +15,6 @@
 
 from typing import Optional
 
-import aiofiles
 import shortuuid
 from fastapi import APIRouter, BackgroundTasks, File, Form, UploadFile
 from fastapi import status as http_status
@@ -28,6 +27,7 @@ from wordcab_transcribe.utils import (
     delete_file,
     format_punct,
     is_empty_string,
+    save_file_locally,
     split_dual_channel_file,
 )
 
@@ -50,9 +50,7 @@ async def inference_with_audio(
     extension = file.filename.split(".")[-1]
     filename = f"audio_{shortuuid.ShortUUID().random(length=32)}.{extension}"
 
-    async with aiofiles.open(filename, "wb") as f:
-        audio_bytes = await file.read()
-        await f.write(audio_bytes)
+    await save_file_locally(file, filename)
 
     data = AudioRequest(
         alignment=alignment,

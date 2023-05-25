@@ -26,6 +26,7 @@ import aiofiles
 import aiohttp
 import filetype
 import pandas as pd
+from fastapi import UploadFile
 from loguru import logger
 from num2words import num2words
 from omegaconf import OmegaConf
@@ -234,7 +235,7 @@ async def convert_file_to_wav(filepath: str) -> str:
 
 
 # pragma: no cover
-async def download_file_from_youtube(url: str, filename: str) -> str:
+def download_file_from_youtube(url: str, filename: str) -> str:
     """
     Download a file from YouTube using youtube-dl.
 
@@ -245,36 +246,16 @@ async def download_file_from_youtube(url: str, filename: str) -> str:
     Returns:
         str: Path to the downloaded file.
     """
-    info_dict = await asyncio.get_event_loop().run_in_executor(
-        None, extract_youtube_info, url
-    )
-    video_url = info_dict["url"]
-
-    async with aiohttp.ClientSession() as session:
-        async with session.get(video_url) as resp:
-            if resp.status == 200:
-                f = await aiofiles.open(filename, mode="wb")
-                await f.write(await resp.read())
-                await f.close()
+    with YoutubeDL(
+        {
+            "format": "bestaudio",
+            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "wav"}],
+            "outtmpl": f"{filename}",
+        }
+    ) as ydl:
+        ydl.download([url])
 
     return filename + ".wav"
-
-
-# pragma: no cover
-def extract_youtube_info(url: str) -> Dict[str, Any]:
-    """
-    Extract information from a YouTube video using youtube-dl.
-
-    Args:
-        url (str): URL of the YouTube video.
-
-    Returns:
-        Dict[str, Any]: Information about the YouTube video.
-    """
-    with YoutubeDL({"format": "bestaudio"}) as ydl:
-        info_dict = ydl.extract_info(url, download=False)
-
-    return info_dict
 
 
 # pragma: no cover
@@ -559,6 +540,24 @@ def retrieve_user_platform() -> str:
         str: User's platform. Either 'linux', 'darwin' or 'win32'.
     """
     return sys.platform
+
+
+async def save_file_locally(filename: str, file: UploadFile) -> bool:
+    """
+    Save a file locally from an UploadFile object.
+
+    Args:
+        filename (str): The filename to save the file as.
+        file (UploadFile): The UploadFile object.
+
+    Returns:
+        bool: Whether the file was saved successfully.
+    """
+    async with aiofiles.open(filename, "wb") as f:
+        audio_bytes = await file.read()
+        await f.write(audio_bytes)
+
+    return True
 
 
 # pragma: no cover
