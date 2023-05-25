@@ -133,7 +133,7 @@ async def send_update_with_svix(
     """
     if settings.svix_api_key and settings.svix_app_id:
         svix = SvixAsync(settings.svix_api_key)
-        svix.message.create(
+        await svix.message.create(
             settings.svix_app_id,
             MessageIn(
                 event_type=f"async_job.wordcab_transcribe.{status}",
