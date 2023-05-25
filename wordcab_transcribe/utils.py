@@ -245,16 +245,36 @@ async def download_file_from_youtube(url: str, filename: str) -> str:
     Returns:
         str: Path to the downloaded file.
     """
-    with YoutubeDL(
-        {
-            "format": "bestaudio",
-            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "wav"}],
-            "outtmpl": f"{filename}",
-        }
-    ) as ydl:
-        ydl.download([url])
+    info_dict = await asyncio.get_event_loop().run_in_executor(
+        None, extract_youtube_info, url
+    )
+    video_url = info_dict["url"]
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(video_url) as resp:
+            if resp.status == 200:
+                f = await aiofiles.open(filename, mode="wb")
+                await f.write(await resp.read())
+                await f.close()
 
     return filename + ".wav"
+
+
+# pragma: no cover
+def extract_youtube_info(url: str) -> Dict[str, Any]:
+    """
+    Extract information from a YouTube video using youtube-dl.
+
+    Args:
+        url (str): URL of the YouTube video.
+
+    Returns:
+        Dict[str, Any]: Information about the YouTube video.
+    """
+    with YoutubeDL({"format": "bestaudio"}) as ydl:
+        info_dict = ydl.extract_info(url, download=False)
+
+    return info_dict
 
 
 # pragma: no cover
