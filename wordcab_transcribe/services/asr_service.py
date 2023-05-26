@@ -134,7 +134,7 @@ class ASRAsyncService(ASRService):
         Args:
             task_type (str): The task type to schedule processing for.
         """
-        if len(self.queues[task_type]) >= settings.max_batch_size:
+        if len(self.queues[task_type]) >= settings.batch_size:
             self.needs_processing[task_type].set()
         elif self.queues[task_type]:
             self.needs_processing_timer[task_type] = asyncio.get_event_loop().call_at(
@@ -166,13 +166,16 @@ class ASRAsyncService(ASRService):
             List[dict]: List of speaker segments.
         """
         task = {
-            "input": filepath,
+            "input": filepath,  # TODO: Should be the file tensors to be optimized (loaded via torchaudio)
             "dual_channel": dual_channel,
             "source_lang": source_lang,
             "word_timestamps": word_timestamps,
             "post_processed": False,
+            "transcription_result": None,
             "transcription_done": asyncio.Event(),
+            "diarization_result": None,
             "diarization_done": asyncio.Event(),
+            "alignment_result": None,
             "alignment_done": asyncio.Event(),
             "done_event": asyncio.Event(),
             "time": asyncio.get_event_loop().time(),
@@ -237,28 +240,39 @@ class ASRAsyncService(ASRService):
                 else:
                     longest_wait = None
                 file_batch = self.queues[task_type][: self.batch_size[task_type]]
-                del self.queue[task_type][: len(file_batch)]
+                del self.queues[task_type][: len(file_batch)]
                 self.schedule_processing_if_needed(task_type)
 
             asyncio.create_task(self.process_task(file_batch, task_type))
 
-            # try:
-            #     results = await asyncio.get_event_loop().run_in_executor(
-            #         self.thread_executors[task_type], self.process_task, file_batch, task_type
-            #     )
+    async def process_task(self, file_batch: List[dict], task_type: str) -> None:
+        """
+        Wrapper to run the task_type specific method.
 
-            #     for task, result in zip(file_batch, results):  # noqa B905
-            #         task["result"] = result
-            #         task["done_event"].set()
+        Args:
+            file_batch (List[dict]): List of tasks to process.
+            task_type (str): The task type to process.
 
-            #     del results
-            #     del file_batch
+        Raises:
+            Exception: If there is an exception in the task. The exception is set in the task.
+        """
+        func = getattr(self, f"process_{task_type}")
+        try:
+            results = await asyncio.get_event_loop().run_in_executor(
+                self.thread_executors[task_type], func, file_batch, task_type
+            )
 
-            # except Exception as e:
-            #     logger.error(f"Error processing batch: {e}\n{traceback.format_exc()}")
-            #     for task in file_batch:  # Error handling
-            #         task["result"] = e
-            #         task["done_event"].set()
+            for task, result in zip(file_batch, results):  # noqa B905
+                task[f"{task_type}_result"] = result
+                task[f"{task_type}_done"].set()
+
+            del results
+            del file_batch
+
+        except Exception as e:
+            logger.error(f"[{task_type}] Error processing: {e}\n{traceback.format_exc()}")
+            for task in file_batch:
+                task[f"{task_type}_done"].set_exception(e)
 
     def process_batch(self, file_batch: List[dict], task_type: str) -> List[dict]:
         """
