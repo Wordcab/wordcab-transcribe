@@ -15,6 +15,7 @@
 
 import asyncio
 import traceback
+from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Tuple, Union
 
@@ -31,40 +32,114 @@ from wordcab_transcribe.services.vad_service import VadService
 from wordcab_transcribe.utils import delete_file, enhance_audio, format_segments
 
 
-class ASRService:
+class ASRService(ABC):
     """Base ASR Service module that handle all AI interactions and batch processing."""
 
     def __init__(self) -> None:
         """Initialize the ASR Service.
 
-        This class is not meant to be instantiated.
-        Use the subclasses instead: ASRAsyncService or ASRLiveService.
+        This class is not meant to be instantiated. Use the subclasses instead.
         """
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"  # Do we have a GPU? If so, use it!
+        self.sample_rate = 16000  # The sample rate to use for inference for all audio files (Hz)
 
-        self.thread_executor = ThreadPoolExecutor(max_workers=4)
-        self.sample_rate = 16000
+        self.queues = None  # the queue to store requests
+        self.queue_locks = None  # the lock to access the queue
+        self.needs_processing = None  # the flag to indicate if the queue needs processing
+        self.needs_processing_timer = None  # the timer to schedule processing
 
-        # Multi requests support
-        self.queue = []
-        self.queue_lock = asyncio.Lock()
-        self.needs_processing = None
-        self.needs_processing_timer = None
-
-        self.max_batch_size = (
-            settings.batch_size
-        )  # Max number of requests to process at once
-        self.max_wait = (
-            settings.max_wait
-        )  # Max time to wait for more requests before processing
-
+    @abstractmethod
     def schedule_processing_if_needed(self) -> None:
         """Method to schedule processing if needed."""
-        if len(self.queue) >= self.max_batch_size:
-            self.needs_processing.set()
-        elif self.queue:
-            self.needs_processing_timer = asyncio.get_event_loop().call_at(
-                self.queue[0]["time"] + self.max_wait, self.needs_processing.set
+        raise NotImplementedError("This method should be implemented in subclasses.")
+
+    @abstractmethod
+    async def process_input(self) -> None:
+        """Process the input request and return the result."""
+        raise NotImplementedError("This method should be implemented in subclasses.")
+
+    @abstractmethod
+    async def runner(self) -> None:
+        """Runner method to process the queue."""
+        raise NotImplementedError("This method should be implemented in subclasses.")
+
+    @abstractmethod
+    def process_batch(self) -> None:
+        """Process the batch of requests."""
+        raise NotImplementedError("This method should be implemented in a subclass.")
+
+
+class ASRAsyncService(ASRService):
+    """ASR Service module for async endpoints."""
+
+    def __init__(self) -> None:
+        """Initialize the ASRAsyncService class."""
+        super().__init__()
+
+        self.batch_size = {"transcription": 8, "diarization": 1, "alignment": 1}
+        self.thread_executors = {
+            "transcription": ThreadPoolExecutor(max_workers=self.batch_size["transcription"]),
+            "diarization": ThreadPoolExecutor(max_workers=self.batch_size["diarization"]),
+            "alignment": ThreadPoolExecutor(max_workers=self.batch_size["alignment"]),
+            "post_processing": ThreadPoolExecutor(max_workers=1),
+        }
+        self.services = {
+            "transcription": TranscribeService(
+                model_path=settings.whisper_model,
+                compute_type=settings.compute_type,
+                device=self.device,
+            ),
+            "diarization": DiarizeService(
+                domain_type=settings.nemo_domain_type,
+                storage_path=settings.nemo_storage_path,
+                output_path=settings.nemo_output_path,
+                device=self.device,
+            ),
+            "alignment": AlignService(self.device),
+            "post_processing": PostProcessingService(),
+            "vad": VadService(),
+        }
+        self.queues = {"transcription": [], "diarization": [], "alignment": []}
+        self.queue_locks = {
+            "transcription": asyncio.Lock(),
+            "diarization": asyncio.Lock(),
+            "alignment": asyncio.Lock(),
+            "post_processing": asyncio.Lock(),
+        }
+        self.needs_processing = {
+            "transcription": asyncio.Event(),
+            "diarization": asyncio.Event(),
+            "alignment": asyncio.Event(),
+            "post_processing": asyncio.Event(),
+        }
+        self.needs_processing_timer = {
+            "transcription": None,
+            "diarization": None,
+            "alignment": None,
+            "post_processing": None,
+        }
+        self.dual_channel_transcribe_options = {
+            "beam_size": 5,
+            "patience": 1,
+            "length_penalty": 1,
+            "suppress_blank": False,
+            "word_timestamps": True,
+            "temperature": 0.0,
+        }
+
+    def schedule_processing_if_needed(self, task_type: str) -> None:
+        """
+        Method to schedule processing if needed for a specific task queue.
+
+        Args:
+            task_type (str): The task type to schedule processing for.
+        """
+        if len(self.queues[task_type]) >= settings.max_batch_size:
+            self.needs_processing[task_type].set()
+        elif self.queues[task_type]:
+            self.needs_processing_timer[task_type] = asyncio.get_event_loop().call_at(
+                self.queues[task_type][0]["time"] + settings.max_wait,
+                self.needs_processing[task_type].set,
             )
 
     async def process_input(
@@ -92,99 +167,131 @@ class ASRService:
         """
         task = {
             "input": filepath,
-            "alignment": alignment,
-            "diarization": diarization,
             "dual_channel": dual_channel,
             "source_lang": source_lang,
             "word_timestamps": word_timestamps,
+            "post_processed": False,
+            "transcription_done": asyncio.Event(),
+            "diarization_done": asyncio.Event(),
+            "alignment_done": asyncio.Event(),
             "done_event": asyncio.Event(),
             "time": asyncio.get_event_loop().time(),
         }
 
-        async with self.queue_lock:
-            self.queue.append(task)
-            self.schedule_processing_if_needed()
+        async with self.queue_locks["transcription"]:
+            self.queues["transcription"].append(task)
+            self.schedule_processing_if_needed("transcription")
+
+        if alignment and dual_channel is False:
+            async with self.queue_locks["alignment"]:
+                self.queues["alignment"].append(task)
+                self.schedule_processing_if_needed("alignment")
+        else:
+            task["alignment_done"].set()
+
+        if diarization and dual_channel is False:
+            async with self.queue_locks["diarization"]:
+                self.queues["diarization"].append(task)
+                self.schedule_processing_if_needed("diarization")
+        else:
+            task["diarization_done"].set()
+
+        await asyncio.gather(
+            task["transcription_done"].wait(),
+            task["diarization_done"].wait(),
+            task["alignment_done"].wait(),
+            return_exceptions=True,
+        )
+
+        # Check if there is any exception in the task
+        if task["transcription_done"].exception():
+            raise Exception(task["transcription_done"].exception())
+        elif task["diarization_done"].exception():
+            raise Exception(task["diarization_done"].exception())
+        elif task["alignment_done"].exception():
+            raise Exception(task["alignment_done"].exception())
+        else:
+            self.queues["post_processing"].append(task)
+            self.schedule_processing_if_needed("post_processing")
 
         await task["done_event"].wait()
 
         return task["result"]
 
-    async def runner(self) -> None:
+    async def runner(self, task_type: str) -> None:
         """Runner method to process the queue."""
-        self.needs_processing = asyncio.Event()
         while True:
-            await self.needs_processing.wait()
-            self.needs_processing.clear()
+            await self.needs_processing[task_type].wait()
+            self.needs_processing[task_type].clear()
 
-            if self.needs_processing_timer is not None:
-                self.needs_processing_timer.cancel()
-                self.needs_processing_timer = None
+            if self.needs_processing_timer[task_type] is not None:
+                self.needs_processing_timer[task_type].cancel()
+                self.needs_processing_timer[task_type] = None
 
-            async with self.queue_lock:
-                if self.queue:
+            async with self.queue_locks[task_type]:
+                if self.queues[task_type]:
                     longest_wait = (
-                        asyncio.get_event_loop().time() - self.queue[0]["time"]
+                        asyncio.get_event_loop().time() - self.queues[task_type][0]["time"]
                     )
-                    logger.debug(f"Longest wait: {longest_wait}")
+                    logger.debug(f"[{task_type}] longest wait: {longest_wait}")
                 else:
                     longest_wait = None
-                file_batch = self.queue[: self.max_batch_size]
-                del self.queue[: len(file_batch)]
-                self.schedule_processing_if_needed()
+                file_batch = self.queues[task_type][: self.batch_size[task_type]]
+                del self.queue[task_type][: len(file_batch)]
+                self.schedule_processing_if_needed(task_type)
 
-            try:
-                results = await asyncio.get_event_loop().run_in_executor(
-                    self.thread_executor, self.process_batch, file_batch
+            asyncio.create_task(self.process_task(file_batch, task_type))
+
+            # try:
+            #     results = await asyncio.get_event_loop().run_in_executor(
+            #         self.thread_executors[task_type], self.process_task, file_batch, task_type
+            #     )
+
+            #     for task, result in zip(file_batch, results):  # noqa B905
+            #         task["result"] = result
+            #         task["done_event"].set()
+
+            #     del results
+            #     del file_batch
+
+            # except Exception as e:
+            #     logger.error(f"Error processing batch: {e}\n{traceback.format_exc()}")
+            #     for task in file_batch:  # Error handling
+            #         task["result"] = e
+            #         task["done_event"].set()
+
+    def process_batch(self, file_batch: List[dict], task_type: str) -> List[dict]:
+        """
+        Process a batch of requests.
+
+        Args:
+            file_batch (List[dict]): List of requests to process with their respective parameters.
+            task_type (str): The type of task to process.
+
+        Returns:
+            List[dict]: List of results.
+        """
+        results: List[dict] = []
+        for task in file_batch:
+            filepath: Union[str, Tuple[str]] = task["input"]
+            alignment: bool = task["alignment"]  # ignored if dual_channel is True
+            diarization: bool = task["diarization"]  # ignored if dual_channel is True
+            dual_channel: bool = task["dual_channel"]
+            source_lang: str = task["source_lang"]
+            word_timestamps: bool = task["word_timestamps"]
+
+            if dual_channel:
+                utterances = self._process_dual_channel(
+                    filepath, source_lang, word_timestamps
+                )
+            else:
+                utterances = self._process_single_channel(
+                    filepath, alignment, diarization, source_lang, word_timestamps
                 )
 
-                for task, result in zip(file_batch, results):  # noqa B905
-                    task["result"] = result
-                    task["done_event"].set()
+            results.append(utterances)
 
-                del results
-                del file_batch
-
-            except Exception as e:
-                logger.error(f"Error processing batch: {e}\n{traceback.format_exc()}")
-                for task in file_batch:  # Error handling
-                    task["result"] = e
-                    task["done_event"].set()
-
-    def process_batch(self) -> None:
-        """Process the batch of requests."""
-        raise NotImplementedError("This method should be implemented in a subclass.")
-
-
-class ASRAsyncService(ASRService):
-    """ASR Service module for async endpoints."""
-
-    def __init__(self) -> None:
-        """Initialize the ASRAsyncService class."""
-        super().__init__()
-
-        self.dual_channel_transcribe_options = {
-            "beam_size": 5,
-            "patience": 1,
-            "length_penalty": 1,
-            "suppress_blank": False,
-            "word_timestamps": True,
-            "temperature": 0.0,
-        }
-
-        self.align_model = AlignService(self.device)
-        self.transcribe_model = TranscribeService(
-            model_path=settings.whisper_model,
-            compute_type=settings.compute_type,
-            device=self.device,
-        )
-        self.diarize_model = DiarizeService(
-            domain_type=settings.nemo_domain_type,
-            storage_path=settings.nemo_storage_path,
-            output_path=settings.nemo_output_path,
-            device=self.device,
-        )
-        self.post_processing_service = PostProcessingService()
-        self.vad_service = VadService()
+        return results
 
     def transcribe_dual_channel(
         self,
@@ -283,38 +390,6 @@ class ASRAsyncService(ASRService):
 
         return final_transcript
 
-    def process_batch(self, file_batch: List[dict]) -> List[dict]:
-        """
-        Process a batch of requests.
-
-        Args:
-            file_batch (List[dict]): List of requests to process with their respective parameters.
-
-        Returns:
-            List[dict]: List of results.
-        """
-        results: List[dict] = []
-        for task in file_batch:
-            filepath: Union[str, Tuple[str]] = task["input"]
-            alignment: bool = task["alignment"]  # ignored if dual_channel is True
-            diarization: bool = task["diarization"]  # ignored if dual_channel is True
-            dual_channel: bool = task["dual_channel"]
-            source_lang: str = task["source_lang"]
-            word_timestamps: bool = task["word_timestamps"]
-
-            if dual_channel:
-                utterances = self._process_dual_channel(
-                    filepath, source_lang, word_timestamps
-                )
-            else:
-                utterances = self._process_single_channel(
-                    filepath, alignment, diarization, source_lang, word_timestamps
-                )
-
-            results.append(utterances)
-
-        return results
-
     def _process_single_channel(
         self,
         filepath: str,
@@ -400,7 +475,7 @@ class ASRAsyncService(ASRService):
         return utterances
 
 
-class ASRLiveService(ASRService):
+class ASRLiveService():
     """ASR Service module for live endpoints."""
 
     def __init__(self) -> None:

@@ -63,7 +63,11 @@ async def startup_event():
             "Report any issues with your env specs to: https://github.com/Wordcab/wordcab-transcribe/issues"
         )
 
-    asyncio.create_task(asr.runner())
+    if settings.asr_type == "async":
+        tasks = ["transcription", "diarization", "alignment"]
+        for task in tasks:
+            logger.info(f"Starting {task} task...")
+            asyncio.create_task(asr.runner(task))
 
 
 @app.get("/", tags=["status"])
