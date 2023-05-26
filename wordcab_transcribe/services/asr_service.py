@@ -134,7 +134,7 @@ class ASRAsyncService(ASRService):
         Args:
             task_type (str): The task type to schedule processing for.
         """
-        if len(self.queues[task_type]) >= settings.batch_size:
+        if len(self.queues[task_type]) >= 1:  # We process the queue as soon as we have one request
             self.needs_processing[task_type].set()
         elif self.queues[task_type]:
             self.needs_processing_timer[task_type] = asyncio.get_event_loop().call_at(
@@ -239,11 +239,11 @@ class ASRAsyncService(ASRService):
                     logger.debug(f"[{task_type}] longest wait: {longest_wait}")
                 else:
                     longest_wait = None
-                file_batch = self.queues[task_type][: self.batch_size[task_type]]
-                del self.queues[task_type][: len(file_batch)]
+                task_to_run = self.queues[task_type][0]  # We know there is at least one task
+                del self.queues[task_type][0]
                 self.schedule_processing_if_needed(task_type)
 
-            asyncio.create_task(self.process_task(file_batch, task_type))
+            asyncio.create_task(self.process_task(task_to_run, task_type))
 
     async def process_task(self, file_batch: List[dict], task_type: str) -> None:
         """
@@ -259,7 +259,7 @@ class ASRAsyncService(ASRService):
         func = getattr(self, f"process_{task_type}")
         try:
             results = await asyncio.get_event_loop().run_in_executor(
-                self.thread_executors[task_type], func, file_batch, task_type
+                self.thread_executors[task_type], func, file_batch
             )
 
             for task, result in zip(file_batch, results):  # noqa B905
@@ -273,6 +273,22 @@ class ASRAsyncService(ASRService):
             logger.error(f"[{task_type}] Error processing: {e}\n{traceback.format_exc()}")
             for task in file_batch:
                 task[f"{task_type}_done"].set_exception(e)
+
+    def process_transcription(self, file_batch: List[dict]) -> List[dict]:
+        """Process a batch of transcription requests."""
+        raise NotImplementedError
+
+    def process_diarization(self, file_batch: List[dict]) -> List[dict]:
+        """Process a batch of diarization requests."""
+        raise NotImplementedError
+
+    def process_alignment(self, file_batch: List[dict]) -> List[dict]:
+        """Process a batch of alignment requests."""
+        raise NotImplementedError
+
+    def process_post_processing(self, file_batch: List[dict]) -> List[dict]:
+        """Process a batch of post processing requests."""
+        raise NotImplementedError
 
     def process_batch(self, file_batch: List[dict], task_type: str) -> List[dict]:
         """
