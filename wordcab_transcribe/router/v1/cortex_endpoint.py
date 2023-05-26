@@ -19,7 +19,7 @@ from typing import Optional, Union
 from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi import status as http_status
 from loguru import logger
-from svix.api import MessageIn, Svix
+from svix.api import MessageIn, SvixAsync
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.models import (
@@ -98,7 +98,7 @@ async def run_cortex(
         error_message = f"Error during transcription: {e}"
         logger.error(error_message)
 
-        send_update_with_svix(payload.job_name, "error", {"error": error_message})
+        await send_update_with_svix(payload.job_name, "error", {"error": error_message})
 
         return CortexError(message=error_message)
 
@@ -108,7 +108,7 @@ async def run_cortex(
         "request_id": request_id,
     }
 
-    send_update_with_svix(payload.job_name, "finished", _cortex_response)
+    await send_update_with_svix(payload.job_name, "finished", _cortex_response)
 
     if payload.url_type == "youtube":
         return CortexYoutubeResponse(**_cortex_response)
@@ -116,7 +116,7 @@ async def run_cortex(
         return CortexUrlResponse(**_cortex_response)
 
 
-def send_update_with_svix(
+async def send_update_with_svix(
     job_name: str,
     status: str,
     payload: dict,
@@ -132,8 +132,8 @@ def send_update_with_svix(
         payload_retention_period (Optional[int], optional): The payload retention period. Defaults to 5.
     """
     if settings.svix_api_key and settings.svix_app_id:
-        svix = Svix(settings.svix_api_key)
-        svix.message.create(
+        svix = SvixAsync(settings.svix_api_key)
+        await svix.message.create(
             settings.svix_app_id,
             MessageIn(
                 event_type=f"async_job.wordcab_transcribe.{status}",
@@ -141,6 +141,7 @@ def send_update_with_svix(
                 payload_retention_period=payload_retention_period,
                 payload=payload,
             ),
+            None,
         )
     else:
         logger.warning(

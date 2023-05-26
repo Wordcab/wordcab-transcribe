@@ -26,6 +26,7 @@ import aiofiles
 import aiohttp
 import filetype
 import pandas as pd
+from fastapi import UploadFile
 from loguru import logger
 from num2words import num2words
 from omegaconf import OmegaConf
@@ -234,7 +235,7 @@ async def convert_file_to_wav(filepath: str) -> str:
 
 
 # pragma: no cover
-async def download_file_from_youtube(url: str, filename: str) -> str:
+def download_file_from_youtube(url: str, filename: str) -> str:
     """
     Download a file from YouTube using youtube-dl.
 
@@ -539,6 +540,24 @@ def retrieve_user_platform() -> str:
         str: User's platform. Either 'linux', 'darwin' or 'win32'.
     """
     return sys.platform
+
+
+async def save_file_locally(filename: str, file: UploadFile) -> bool:
+    """
+    Save a file locally from an UploadFile object.
+
+    Args:
+        filename (str): The filename to save the file as.
+        file (UploadFile): The UploadFile object.
+
+    Returns:
+        bool: Whether the file was saved successfully.
+    """
+    async with aiofiles.open(filename, "wb") as f:
+        audio_bytes = await file.read()
+        await f.write(audio_bytes)
+
+    return True
 
 
 # pragma: no cover
