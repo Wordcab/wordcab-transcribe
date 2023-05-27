@@ -76,7 +76,7 @@ class ASRAsyncService(ASRService):
         """Initialize the ASRAsyncService class."""
         super().__init__()
 
-        self.batch_size: dict = {"transcription": 8, "diarization": 1, "alignment": 1}
+        self.batch_size: dict = {"transcription": 4, "diarization": 1, "alignment": 1}
         self.thread_executors: dict = {
             "transcription": ThreadPoolExecutor(max_workers=self.batch_size["transcription"]),
             "diarization": ThreadPoolExecutor(max_workers=self.batch_size["diarization"]),
@@ -88,8 +88,7 @@ class ASRAsyncService(ASRService):
                 model_path=settings.whisper_model,
                 compute_type=settings.compute_type,
                 device=self.device,
-                cpu_threads=self.batch_size["transcription"],
-                num_workers=self.batch_size["transcription"],
+                num_workers=16,
             ),
             "diarization": DiarizeService(
                 domain_type=settings.nemo_domain_type,
@@ -101,7 +100,12 @@ class ASRAsyncService(ASRService):
             "post_processing": PostProcessingService(),
             "vad": VadService(),
         }
-        self.queues: dict = {"transcription": [], "diarization": [], "alignment": []}
+        self.queues: dict = {
+            "transcription": [],
+            "diarization": [],
+            "alignment": [],
+            "post_processing": []
+        }
         self.queue_locks: dict = {
             "transcription": asyncio.Lock(),
             "diarization": asyncio.Lock(),
@@ -177,7 +181,7 @@ class ASRAsyncService(ASRService):
         task = {
             "input": filepath,  # TODO: Should be the file tensors to be optimized (loaded via torchaudio)
             "alignment": alignment,
-            "diariation": diarization,
+            "diarization": diarization,
             "dual_channel": dual_channel,
             "source_lang": source_lang,
             "timestamps_format": timestamps_format,
@@ -212,8 +216,8 @@ class ASRAsyncService(ASRService):
         )
 
         # Check if there is any exception in the transcription
-        if task["transcription_done"].exception():
-            raise Exception(task["transcription_done"].exception())
+        if isinstance(task["transcription_result"], Exception):
+            raise task["transcription_result"]
         else:
             if alignment and dual_channel is False:
                 async with self.queue_locks["alignment"]:
@@ -223,17 +227,20 @@ class ASRAsyncService(ASRService):
                 task["alignment_done"].set()
 
         # Check if there is any exception in the diarization or alignment
-        if task["diarization_done"].exception():
-            raise Exception(task["diarization_done"].exception())
-        elif task["alignment_done"].exception():
-            raise Exception(task["alignment_done"].exception())
+        if isinstance(task["diarization_result"], Exception):
+            raise task["diarization_result"]
+        elif isinstance(task["alignment_result"], Exception):
+            raise task["alignment_result"]
         else:
             self.queues["post_processing"].append(task)
             self.schedule_processing_if_needed("post_processing")
 
         await task["post_processing_done"].wait()
 
-        return task["post_processing_result"]
+        result = task.pop("post_processing_result")
+        del task  # Delete the task to free up memory
+
+        return result
 
     async def runner(self, task_type: str) -> None:
         """
@@ -285,13 +292,15 @@ class ASRAsyncService(ASRService):
             )
 
             task[f"{task_type}_result"] = results
-            task[f"{task_type}_done"].set()
 
             del results
 
         except Exception as e:
             logger.error(f"[{task_type}] Error processing: {e}\n{traceback.format_exc()}")
-            task[f"{task_type}_done"].set(e)
+            task[f"{task_type}_result"] = e
+
+        finally:
+            task[f"{task_type}_done"].set()
 
     def process_transcription(self, task: dict) -> List[dict]:
         """
@@ -376,7 +385,7 @@ class ASRAsyncService(ASRService):
         else:
             utterances = formatted_segments
 
-        final_utterances = self.services["post_processing"].final_postprocessing_before_returning(
+        final_utterances = self.services["post_processing"].final_processing_before_returning(
             utterances=utterances,
             diarization=diarization,
             dual_channel=task["dual_channel"],

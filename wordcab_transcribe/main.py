@@ -64,8 +64,8 @@ async def startup_event():
         )
 
     if settings.asr_type == "async":
-        tasks = ["transcription", "diarization", "alignment"]
-        for task in tasks:
+        task_names = asr.queues.keys()
+        for task in task_names:
             logger.info(f"Starting {task} task...")
             asyncio.create_task(asr.runner(task))
 
