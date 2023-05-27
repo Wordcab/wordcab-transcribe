@@ -23,7 +23,7 @@ class TranscribeService:
     """Transcribe Service for audio files."""
 
     def __init__(
-        self, model_path: str, compute_type: str, device: str, cpu_threads: int, num_workers: int,
+        self, model_path: str, compute_type: str, device: str, num_workers: int,
     ) -> None:
         """Initialize the Transcribe Service.
 
@@ -33,14 +33,12 @@ class TranscribeService:
             model_path (str): Path to the model checkpoint. This can be a local path or a URL.
             compute_type (str): Compute type to use for inference. Can be "int8", "int8_float16", "int16" or "float_16".
             device (str): Device to use for inference. Can be "cpu" or "cuda".
-            cpu_threads (int): Number of CPU threads to use for inference.
             num_workers (int): Number of workers to use for inference.
         """
         self.model = WhisperModel(
             model_path,
             device=device,
             compute_type=compute_type,
-            cpu_threads=cpu_threads,
             num_workers=num_workers,
         )
 
