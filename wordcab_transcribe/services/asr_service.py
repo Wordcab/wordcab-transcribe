@@ -176,6 +176,8 @@ class ASRAsyncService(ASRService):
         """
         task = {
             "input": filepath,  # TODO: Should be the file tensors to be optimized (loaded via torchaudio)
+            "alignment": alignment,
+            "diariation": diarization,
             "dual_channel": dual_channel,
             "source_lang": source_lang,
             "timestamps_format": timestamps_format,
@@ -289,7 +291,7 @@ class ASRAsyncService(ASRService):
 
         except Exception as e:
             logger.error(f"[{task_type}] Error processing: {e}\n{traceback.format_exc()}")
-            task[f"{task_type}_done"].set_exception(e)
+            task[f"{task_type}_done"].set(e)
 
     def process_transcription(self, task: dict) -> List[dict]:
         """
