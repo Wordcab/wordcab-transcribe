@@ -15,7 +15,13 @@
 
 from typing import Any, Dict, List, Optional
 
-from wordcab_transcribe.utils import _convert_s_to_ms, get_segment_timestamp_anchor
+from wordcab_transcribe.utils import (
+    _convert_s_to_ms,
+    convert_timestamp,
+    format_punct,
+    get_segment_timestamp_anchor,
+    is_empty_string,
+)
 
 
 class PostProcessingService:
@@ -231,3 +237,39 @@ class PostProcessingService:
         merged_segments.sort(key=lambda seg: seg["start"])
 
         return merged_segments
+
+    def final_processing_before_returning(
+        self,
+        utterances: List[dict],
+        diarization: bool,
+        dual_channel: bool,
+        timestamps_format: str,
+        word_timestamps: bool
+    ) -> List[dict]:
+        """
+        Do final processing before returning the utterances to the API.
+
+        Args:
+            utterances (List[dict]): List of utterances.
+            diarization (bool): Whether diarization is enabled.
+            dual_channel (bool): Whether dual channel is enabled.
+            timestamps_format (str): Timestamps format used for conversion.
+            word_timestamps (bool): Whether to include word timestamps.
+
+        Returns:
+            List[dict]: List of utterances with final processing.
+        """
+        include_speaker = diarization or dual_channel
+        _utterances = [
+            {
+                "text": format_punct(utterance["text"]),
+                "start": convert_timestamp(utterance["start"], timestamps_format),
+                "end": convert_timestamp(utterance["end"], timestamps_format),
+                "speaker": int(utterance["speaker"]) if include_speaker else None,
+                "words": utterance["words"] if word_timestamps else [],
+            }
+            for utterance in utterances
+            if not is_empty_string(utterance["text"])
+        ]
+
+        return _utterances
