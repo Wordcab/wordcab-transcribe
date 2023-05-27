@@ -29,7 +29,7 @@ import pandas as pd
 from fastapi import UploadFile
 from loguru import logger
 from num2words import num2words
-from omegaconf import OmegaConf
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from pydub import AudioSegment
 from pydub.effects import high_pass_filter, low_pass_filter, normalize
 from yt_dlp import YoutubeDL
@@ -206,16 +206,16 @@ async def convert_file_to_wav(filepath: str) -> str:
         str: Path to the converted file.
     """
     if isinstance(filepath, str):
-        filepath = Path(filepath)
+        _filepath = Path(filepath)
 
-    if not filepath.exists():
+    if not _filepath.exists():
         raise FileNotFoundError(f"File {filepath} does not exist.")
 
-    new_filepath = f"{filepath.stem}_{filepath.stat().st_mtime_ns}.wav"
+    new_filepath = f"{_filepath.stem}_{_filepath.stat().st_mtime_ns}.wav"
     cmd = [
         "ffmpeg",
         "-i",
-        str(filepath),
+        filepath,
         "-vn",
         "-acodec",
         "pcm_s16le",
@@ -224,14 +224,14 @@ async def convert_file_to_wav(filepath: str) -> str:
         "-ac",
         "1",
         "-y",
-        str(new_filepath),
+        new_filepath,
     ]
     result = await async_run_subprocess(cmd)
 
     if result[0] != 0:
         raise Exception(f"Error converting file {filepath} to wav format: {result[2]}")
 
-    return str(new_filepath)
+    return new_filepath
 
 
 # pragma: no cover
@@ -316,7 +316,7 @@ async def download_audio_file(
     return filename, extension
 
 
-def delete_file(filepath: Union[str, Tuple[str]]) -> None:
+def delete_file(filepath: Union[str, Tuple[str, Optional[str]]]) -> None:
     """
     Delete a file or a list of files.
 
@@ -324,10 +324,11 @@ def delete_file(filepath: Union[str, Tuple[str]]) -> None:
         filepath (Union[str, Tuple[str]]): Path to the file to delete.
     """
     if isinstance(filepath, str):
-        filepath = (filepath,)
+        filepath = (filepath, None)
 
     for path in filepath:
-        Path(path).unlink(missing_ok=True)
+        if path:
+            Path(path).unlink(missing_ok=True)
 
 
 def enhance_audio(
@@ -481,7 +482,7 @@ def interpolate_nans(x: pd.Series, method="nearest") -> pd.Series:
 
 def load_nemo_config(
     domain_type: str, storage_path: str, output_path: str
-) -> Dict[str, Any]:
+) -> Union[DictConfig, ListConfig]:
     """
     Load NeMo config file based on a domain type.
 
@@ -491,7 +492,7 @@ def load_nemo_config(
         output_path (str): The path to the NeMo output directory.
 
     Returns:
-        Dict[str, Any]: The config file as a dict.
+        DictConfig: The NeMo config loaded as a DictConfig.
     """
     cfg_path = (
         Path(__file__).parent.parent
@@ -502,9 +503,9 @@ def load_nemo_config(
     with open(cfg_path) as f:
         cfg = OmegaConf.load(f)
 
-    storage_path = Path(__file__).parent.parent / storage_path
-    if not storage_path.exists():
-        storage_path.mkdir(parents=True, exist_ok=True)
+    _storage_path = Path(__file__).parent.parent / storage_path
+    if not _storage_path.exists():
+        _storage_path.mkdir(parents=True, exist_ok=True)
 
     meta = {
         "audio_filepath": "/app/temp_outputs/mono_file.wav",
@@ -516,14 +517,14 @@ def load_nemo_config(
         "uem_filepath": None,
     }
 
-    manifest_path = storage_path / "infer_manifest.json"
+    manifest_path = _storage_path / "infer_manifest.json"
     with open(manifest_path, "w") as fp:
         json.dump(meta, fp)
         fp.write("\n")
 
-    output_path = Path(__file__).parent.parent / output_path
-    if not output_path.exists():
-        output_path.mkdir(parents=True, exist_ok=True)
+    _output_path = Path(__file__).parent.parent / output_path
+    if not _output_path.exists():
+        _output_path.mkdir(parents=True, exist_ok=True)
 
     cfg.num_workers = 0
     cfg.diarizer.manifest_filepath = str(manifest_path)
