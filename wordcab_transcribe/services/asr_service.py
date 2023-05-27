@@ -55,7 +55,7 @@ class ASRService(ABC):
 
     @abstractmethod
     async def process_input(self) -> None:
-        """Process the input request and return the result."""
+        """Process the input request by creating a task and adding it to the appropriate queues."""
         raise NotImplementedError("This method should be implemented in subclasses.")
 
     @abstractmethod
@@ -64,7 +64,7 @@ class ASRService(ABC):
         raise NotImplementedError("This method should be implemented in subclasses.")
 
     @abstractmethod
-    def process_batch(self) -> None:
+    def process_task(self) -> None:
         """Process the batch of requests."""
         raise NotImplementedError("This method should be implemented in a subclass.")
 
@@ -76,18 +76,20 @@ class ASRAsyncService(ASRService):
         """Initialize the ASRAsyncService class."""
         super().__init__()
 
-        self.batch_size = {"transcription": 8, "diarization": 1, "alignment": 1}
-        self.thread_executors = {
+        self.batch_size: dict = {"transcription": 8, "diarization": 1, "alignment": 1}
+        self.thread_executors: dict = {
             "transcription": ThreadPoolExecutor(max_workers=self.batch_size["transcription"]),
             "diarization": ThreadPoolExecutor(max_workers=self.batch_size["diarization"]),
             "alignment": ThreadPoolExecutor(max_workers=self.batch_size["alignment"]),
             "post_processing": ThreadPoolExecutor(max_workers=1),
         }
-        self.services = {
+        self.services: dict = {
             "transcription": TranscribeService(
                 model_path=settings.whisper_model,
                 compute_type=settings.compute_type,
                 device=self.device,
+                cpu_threads=self.batch_size["transcription"],
+                num_workers=self.batch_size["transcription"],
             ),
             "diarization": DiarizeService(
                 domain_type=settings.nemo_domain_type,
@@ -99,26 +101,26 @@ class ASRAsyncService(ASRService):
             "post_processing": PostProcessingService(),
             "vad": VadService(),
         }
-        self.queues = {"transcription": [], "diarization": [], "alignment": []}
-        self.queue_locks = {
+        self.queues: dict = {"transcription": [], "diarization": [], "alignment": []}
+        self.queue_locks: dict = {
             "transcription": asyncio.Lock(),
             "diarization": asyncio.Lock(),
             "alignment": asyncio.Lock(),
             "post_processing": asyncio.Lock(),
         }
-        self.needs_processing = {
+        self.needs_processing: dict = {
             "transcription": asyncio.Event(),
             "diarization": asyncio.Event(),
             "alignment": asyncio.Event(),
             "post_processing": asyncio.Event(),
         }
-        self.needs_processing_timer = {
+        self.needs_processing_timer: dict = {
             "transcription": None,
             "diarization": None,
             "alignment": None,
             "post_processing": None,
         }
-        self.dual_channel_transcribe_options = {
+        self.dual_channel_transcribe_options: dict = {
             "beam_size": 5,
             "patience": 1,
             "length_penalty": 1,
@@ -144,15 +146,21 @@ class ASRAsyncService(ASRService):
 
     async def process_input(
         self,
-        filepath: Union[str, Tuple[str]],
+        filepath: Union[str, Tuple[str, str]],
         alignment: bool,
         diarization: bool,
         dual_channel: bool,
         source_lang: str,
+        timestamps_format: str,
         word_timestamps: bool,
     ) -> List[dict]:
-        """
-        Process the input request and return the result.
+        """Process the input request and return the results.
+
+        This method will create a task and add it to the appropriate queues.
+        All tasks are added to the transcription queue, but will be added to the
+        alignment and diarization queues only if the user requested it.
+        Each step will be processed asynchronously and the results will be returned
+        and stored in separated keys in the task dictionary.
 
         Args:
             filepath (Union[str, Tuple[str]]): Path to the audio file.
@@ -160,6 +168,7 @@ class ASRAsyncService(ASRService):
             diarization (bool): Whether to do diarization or not.
             dual_channel (bool): Whether to do dual channel or not.
             source_lang (str): Source language of the audio file.
+            timestamps_format (str): Timestamps format to use.
             word_timestamps (bool): Whether to return word timestamps or not.
 
         Returns:
@@ -169,6 +178,7 @@ class ASRAsyncService(ASRService):
             "input": filepath,  # TODO: Should be the file tensors to be optimized (loaded via torchaudio)
             "dual_channel": dual_channel,
             "source_lang": source_lang,
+            "timestamps_format": timestamps_format,
             "word_timestamps": word_timestamps,
             "post_processed": False,
             "transcription_result": None,
@@ -177,20 +187,14 @@ class ASRAsyncService(ASRService):
             "diarization_done": asyncio.Event(),
             "alignment_result": None,
             "alignment_done": asyncio.Event(),
-            "done_event": asyncio.Event(),
+            "post_processing_result": None,
+            "post_processing_done": asyncio.Event(),
             "time": asyncio.get_event_loop().time(),
         }
 
         async with self.queue_locks["transcription"]:
             self.queues["transcription"].append(task)
             self.schedule_processing_if_needed("transcription")
-
-        if alignment and dual_channel is False:
-            async with self.queue_locks["alignment"]:
-                self.queues["alignment"].append(task)
-                self.schedule_processing_if_needed("alignment")
-        else:
-            task["alignment_done"].set()
 
         if diarization and dual_channel is False:
             async with self.queue_locks["diarization"]:
@@ -202,14 +206,22 @@ class ASRAsyncService(ASRService):
         await asyncio.gather(
             task["transcription_done"].wait(),
             task["diarization_done"].wait(),
-            task["alignment_done"].wait(),
             return_exceptions=True,
         )
 
-        # Check if there is any exception in the task
+        # Check if there is any exception in the transcription
         if task["transcription_done"].exception():
             raise Exception(task["transcription_done"].exception())
-        elif task["diarization_done"].exception():
+        else:
+            if alignment and dual_channel is False:
+                async with self.queue_locks["alignment"]:
+                    self.queues["alignment"].append(task)
+                    self.schedule_processing_if_needed("alignment")
+            else:
+                task["alignment_done"].set()
+
+        # Check if there is any exception in the diarization or alignment
+        if task["diarization_done"].exception():
             raise Exception(task["diarization_done"].exception())
         elif task["alignment_done"].exception():
             raise Exception(task["alignment_done"].exception())
@@ -217,12 +229,17 @@ class ASRAsyncService(ASRService):
             self.queues["post_processing"].append(task)
             self.schedule_processing_if_needed("post_processing")
 
-        await task["done_event"].wait()
+        await task["post_processing_done"].wait()
 
-        return task["result"]
+        return task["post_processing_result"]
 
     async def runner(self, task_type: str) -> None:
-        """Runner method to process the queue."""
+        """
+        Runner generic method to process the queue for a specific task type.
+
+        Args:
+            task_type (str): The task type used by the runner.
+        """
         while True:
             await self.needs_processing[task_type].wait()
             self.needs_processing[task_type].clear()
@@ -239,270 +256,266 @@ class ASRAsyncService(ASRService):
                     logger.debug(f"[{task_type}] longest wait: {longest_wait}")
                 else:
                     longest_wait = None
-                task_to_run = self.queues[task_type][0]  # We know there is at least one task
+
+                task_to_run = self.queues[task_type][0]  # We create task one by one
                 del self.queues[task_type][0]
+
                 self.schedule_processing_if_needed(task_type)
 
             asyncio.create_task(self.process_task(task_to_run, task_type))
 
-    async def process_task(self, file_batch: List[dict], task_type: str) -> None:
+    async def process_task(self, task: dict, task_type: str) -> None:
         """
         Wrapper to run the task_type specific method.
 
         Args:
-            file_batch (List[dict]): List of tasks to process.
+            task (dict): The task and its parameters.
             task_type (str): The task type to process.
 
         Raises:
             Exception: If there is an exception in the task. The exception is set in the task.
         """
         func = getattr(self, f"process_{task_type}")
+
         try:
             results = await asyncio.get_event_loop().run_in_executor(
-                self.thread_executors[task_type], func, file_batch
+                self.thread_executors[task_type], func, task
             )
 
-            for task, result in zip(file_batch, results):  # noqa B905
-                task[f"{task_type}_result"] = result
-                task[f"{task_type}_done"].set()
+            task[f"{task_type}_result"] = results
+            task[f"{task_type}_done"].set()
 
             del results
-            del file_batch
 
         except Exception as e:
             logger.error(f"[{task_type}] Error processing: {e}\n{traceback.format_exc()}")
-            for task in file_batch:
-                task[f"{task_type}_done"].set_exception(e)
+            task[f"{task_type}_done"].set_exception(e)
 
-    def process_transcription(self, file_batch: List[dict]) -> List[dict]:
-        """Process a batch of transcription requests."""
-        raise NotImplementedError
-
-    def process_diarization(self, file_batch: List[dict]) -> List[dict]:
-        """Process a batch of diarization requests."""
-        raise NotImplementedError
-
-    def process_alignment(self, file_batch: List[dict]) -> List[dict]:
-        """Process a batch of alignment requests."""
-        raise NotImplementedError
-
-    def process_post_processing(self, file_batch: List[dict]) -> List[dict]:
-        """Process a batch of post processing requests."""
-        raise NotImplementedError
-
-    def process_batch(self, file_batch: List[dict], task_type: str) -> List[dict]:
+    def process_transcription(self, task: dict) -> List[dict]:
         """
-        Process a batch of requests.
+        Process a task of transcription.
 
         Args:
-            file_batch (List[dict]): List of requests to process with their respective parameters.
-            task_type (str): The type of task to process.
+            task (dict): The task and its parameters.
 
         Returns:
-            List[dict]: List of results.
+            List[dict]: List of transcribed segments.
         """
-        results: List[dict] = []
-        for task in file_batch:
-            filepath: Union[str, Tuple[str]] = task["input"]
-            alignment: bool = task["alignment"]  # ignored if dual_channel is True
-            diarization: bool = task["diarization"]  # ignored if dual_channel is True
-            dual_channel: bool = task["dual_channel"]
-            source_lang: str = task["source_lang"]
-            word_timestamps: bool = task["word_timestamps"]
-
-            if dual_channel:
-                utterances = self._process_dual_channel(
-                    filepath, source_lang, word_timestamps
-                )
-            else:
-                utterances = self._process_single_channel(
-                    filepath, alignment, diarization, source_lang, word_timestamps
-                )
-
-            results.append(utterances)
-
-        return results
-
-    def transcribe_dual_channel(
-        self,
-        source_lang: str,
-        filepath: str,
-        speaker_label: int,
-    ) -> List[List[dict]]:
-        """
-        Transcribe multiple segments of audio in the dual channel mode.
-
-        Args:
-            source_lang (str): Source language of the audio file.
-            filepath (str): Path to the audio file.
-            speaker_label (int): Speaker label.
-
-        Returns:
-            List[List[dict]]: List of grouped transcribed segments.
-        """
-        enhanced_filepath = enhance_audio(
-            filepath,
-            speaker_label=speaker_label,
-            apply_agc=True,
-            apply_bandpass=False,
+        # We enforce word timestamps if alignment is True
+        word_timestamps = task["word_timestamps"] if task["alignment"] is False else True
+        
+        segments = self.services["transcription"](
+            task["input"],
+            source_lang=task["source_lang"],
+            word_timestamps=word_timestamps,
         )
-        grouped_segments, audio = self.vad_service(enhanced_filepath)
-        delete_file(enhanced_filepath)
 
-        final_transcript = []
-        silence_padding = torch.from_numpy(np.zeros(int(3 * self.sample_rate))).float()
+        return segments
 
-        for ix, group in enumerate(grouped_segments):
-            try:
-                audio_segments = []
-                for segment in group:
-                    segment_start = segment["start"]
-                    segment_end = segment["end"]
-                    audio_segment = audio[segment_start:segment_end]
-                    audio_segments.append(audio_segment)
-                    audio_segments.append(silence_padding)
-
-                tensors = torch.cat(audio_segments)
-                temp_filepath = f"{filepath}_{speaker_label}_{ix}.wav"
-                self.vad_service.save_audio(
-                    temp_filepath, tensors, sampling_rate=self.sample_rate
-                )
-
-                segments, _ = self.transcribe_model.model.transcribe(
-                    audio=temp_filepath,
-                    language=source_lang,
-                    **self.dual_channel_transcribe_options,
-                )
-                segments = list(segments)
-
-                group_start = group[0]["start"]
-
-                for segment in segments:
-                    segment_dict = {
-                        "start": None,
-                        "end": None,
-                        "text": segment.text,
-                        "words": [],
-                        "speaker": speaker_label,
-                    }
-
-                    for word in segment.words:
-                        word_start_adjusted = (
-                            group_start / self.sample_rate
-                        ) + word.start
-                        word_end_adjusted = (group_start / self.sample_rate) + word.end
-                        segment_dict["words"].append(
-                            {
-                                "start": word_start_adjusted,
-                                "end": word_end_adjusted,
-                                "text": word.word,
-                            }
-                        )
-
-                        if (
-                            segment_dict["start"] is None
-                            or word_start_adjusted < segment_dict["start"]
-                        ):
-                            segment_dict["start"] = word_start_adjusted
-                        if (
-                            segment_dict["end"] is None
-                            or word_end_adjusted > segment_dict["end"]
-                        ):
-                            segment_dict["end"] = word_end_adjusted
-
-                    final_transcript.append(segment_dict)
-
-                delete_file(temp_filepath)
-
-            except Exception as e:
-                logger.error(f"Dual channel trasncription error: {e}")
-                pass
-
-        return final_transcript
-
-    def _process_single_channel(
-        self,
-        filepath: str,
-        alignment: bool,
-        diarization: bool,
-        source_lang: str,
-        word_timestamps: bool,
-    ) -> List[dict]:
+    def process_diarization(self, task: dict) -> List[dict]:
         """
-        Process a single channel audio file.
+        Process a task of diarization.
 
         Args:
-            filepath (str): Path to the audio file.
-            alignment (bool): Whether to align the segments.
-            diarization (bool): Whether to diarize the audio file.
-            source_lang (str): Source language of the audio file.
-            word_timestamps (bool): Whether to include word timestamps.
+            task (dict): The task and its parameters.
 
         Returns:
-            List[dict]: List of speaker segments.
+            List[dict]: List of speaker turns.
         """
-        if alignment:
-            _segments = self.transcribe_model(
-                filepath, source_lang, word_timestamps=True
-            )
-            segments = self.align_model(filepath, _segments, source_lang)
-        else:
-            segments = self.transcribe_model(
-                filepath, source_lang, word_timestamps=True
-            )
+        utterances = self.services["diarization"](task["input"])
 
-        # Format the segments: the main purpose is to remove extra spaces and
-        # to format word_timestamps like the alignment model does if alignment is False
+        return utterances
+
+    def process_alignment(self, task: dict) -> List[dict]:
+        """
+        Process a task of alignment.
+
+        Args:
+            task (dict): The task and its parameters.
+
+        Returns:
+            List[dict]: List of aligned segments.
+        """
+        segments = self.services["alignment"](
+            task["input"],
+            transcript_segments=task["transcription_result"],
+            source_lang=task["source_lang"],
+        )
+
+        return segments
+
+    def process_post_processing(self, task: dict) -> List[dict]:
+        """
+        Process a task of post processing.
+
+        Args:
+            task (dict): The task and its parameters.
+
+        Returns:
+            List[dict]: List of post processed segments.
+        """
+        alignment = task["alignment"]
+        diarization = task["diarization"]
+        segments = task["alignment_result"] if alignment else task["transcription_result"]
+        word_timestamps = task["word_timestamps"]
+
         formatted_segments = format_segments(
-            segments, alignment=alignment, word_timestamps=word_timestamps
+            segments=segments,
+            alignment=alignment,
+            word_timestamps=word_timestamps,
         )
 
         if diarization:
-            speaker_timestamps = self.diarize_model(filepath)
-            utterances = self.post_processing_service.single_channel_postprocessing(
+            utterances = self.services["post_processing"].single_channel_postprocessing(
                 transcript_segments=formatted_segments,
-                speaker_timestamps=speaker_timestamps,
+                speaker_timestamps=task["diarization_result"],
                 word_timestamps=word_timestamps,
             )
         else:
             utterances = formatted_segments
 
-        return utterances
-
-    def _process_dual_channel(
-        self, filepath: Tuple[str], source_lang: str, word_timestamps: bool
-    ) -> List[dict]:
-        """
-        Process a dual channel audio file.
-
-        Args:
-            filepath (Tuple[str]): Tuple of paths to the split audio files.
-            source_lang (str): Source language of the audio file.
-            word_timestamps (bool): Whether to include word timestamps.
-
-        Returns:
-            List[dict]: List of speaker segments.
-        """
-        left_channel, right_channel = filepath
-
-        left_transcribed_segments = self.transcribe_dual_channel(
-            source_lang,
-            filepath=left_channel,
-            speaker_label=0,
-        )
-        right_transcribed_segments = self.transcribe_dual_channel(
-            source_lang,
-            filepath=right_channel,
-            speaker_label=1,
-        )
-
-        utterances = self.post_processing_service.dual_channel_postprocessing(
-            left_segments=left_transcribed_segments,
-            right_segments=right_transcribed_segments,
+        final_utterances = self.services["post_processing"].final_postprocessing_before_returning(
+            utterances=utterances,
+            diarization=diarization,
+            dual_channel=task["dual_channel"],
+            timestamps_format=task["timestamps_format"],
             word_timestamps=word_timestamps,
         )
 
-        return utterances
+        return final_utterances
+
+    # def transcribe_dual_channel(
+    #     self,
+    #     source_lang: str,
+    #     filepath: str,
+    #     speaker_label: int,
+    # ) -> List[List[dict]]:
+    #     """
+    #     Transcribe multiple segments of audio in the dual channel mode.
+
+    #     Args:
+    #         source_lang (str): Source language of the audio file.
+    #         filepath (str): Path to the audio file.
+    #         speaker_label (int): Speaker label.
+
+    #     Returns:
+    #         List[List[dict]]: List of grouped transcribed segments.
+    #     """
+    #     enhanced_filepath = enhance_audio(
+    #         filepath,
+    #         speaker_label=speaker_label,
+    #         apply_agc=True,
+    #         apply_bandpass=False,
+    #     )
+    #     grouped_segments, audio = self.vad_service(enhanced_filepath)
+    #     delete_file(enhanced_filepath)
+
+    #     final_transcript = []
+    #     silence_padding = torch.from_numpy(np.zeros(int(3 * self.sample_rate))).float()
+
+    #     for ix, group in enumerate(grouped_segments):
+    #         try:
+    #             audio_segments = []
+    #             for segment in group:
+    #                 segment_start = segment["start"]
+    #                 segment_end = segment["end"]
+    #                 audio_segment = audio[segment_start:segment_end]
+    #                 audio_segments.append(audio_segment)
+    #                 audio_segments.append(silence_padding)
+
+    #             tensors = torch.cat(audio_segments)
+    #             temp_filepath = f"{filepath}_{speaker_label}_{ix}.wav"
+    #             self.vad_service.save_audio(
+    #                 temp_filepath, tensors, sampling_rate=self.sample_rate
+    #             )
+
+    #             segments, _ = self.transcribe_model.model.transcribe(
+    #                 audio=temp_filepath,
+    #                 language=source_lang,
+    #                 **self.dual_channel_transcribe_options,
+    #             )
+    #             segments = list(segments)
+
+    #             group_start = group[0]["start"]
+
+    #             for segment in segments:
+    #                 segment_dict = {
+    #                     "start": None,
+    #                     "end": None,
+    #                     "text": segment.text,
+    #                     "words": [],
+    #                     "speaker": speaker_label,
+    #                 }
+
+    #                 for word in segment.words:
+    #                     word_start_adjusted = (
+    #                         group_start / self.sample_rate
+    #                     ) + word.start
+    #                     word_end_adjusted = (group_start / self.sample_rate) + word.end
+    #                     segment_dict["words"].append(
+    #                         {
+    #                             "start": word_start_adjusted,
+    #                             "end": word_end_adjusted,
+    #                             "text": word.word,
+    #                         }
+    #                     )
+
+    #                     if (
+    #                         segment_dict["start"] is None
+    #                         or word_start_adjusted < segment_dict["start"]
+    #                     ):
+    #                         segment_dict["start"] = word_start_adjusted
+    #                     if (
+    #                         segment_dict["end"] is None
+    #                         or word_end_adjusted > segment_dict["end"]
+    #                     ):
+    #                         segment_dict["end"] = word_end_adjusted
+
+    #                 final_transcript.append(segment_dict)
+
+    #             delete_file(temp_filepath)
+
+    #         except Exception as e:
+    #             logger.error(f"Dual channel trasncription error: {e}")
+    #             pass
+
+    #     return final_transcript
+
+
+    # def _process_dual_channel(
+    #     self, filepath: Tuple[str, str], source_lang: str, word_timestamps: bool
+    # ) -> List[dict]:
+    #     """
+    #     Process a dual channel audio file.
+
+    #     Args:
+    #         filepath (Tuple[str, str]): Tuple of paths to the split audio files.
+    #         source_lang (str): Source language of the audio file.
+    #         word_timestamps (bool): Whether to include word timestamps.
+
+    #     Returns:
+    #         List[dict]: List of speaker segments.
+    #     """
+    #     left_channel, right_channel = filepath
+
+    #     left_transcribed_segments = self.transcribe_dual_channel(
+    #         source_lang,
+    #         filepath=left_channel,
+    #         speaker_label=0,
+    #     )
+    #     right_transcribed_segments = self.transcribe_dual_channel(
+    #         source_lang,
+    #         filepath=right_channel,
+    #         speaker_label=1,
+    #     )
+
+    #     utterances = self.post_processing_service.dual_channel_postprocessing(
+    #         left_segments=left_transcribed_segments,
+    #         right_segments=right_transcribed_segments,
+    #         word_timestamps=word_timestamps,
+    #     )
+
+    #     return utterances
 
 
 class ASRLiveService():
