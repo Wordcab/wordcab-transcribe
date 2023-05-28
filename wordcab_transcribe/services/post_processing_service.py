@@ -31,7 +31,7 @@ class PostProcessingService:
         """Initialize the PostProcessingService."""
         self.sample_rate = 16000
 
-    def single_channel_postprocessing(
+    def single_channel_speaker_mapping(
         self,
         transcript_segments: List[dict],
         speaker_timestamps: List[dict],
@@ -63,7 +63,7 @@ class PostProcessingService:
 
         return utterances
 
-    def dual_channel_postprocessing(
+    def dual_channel_speaker_mapping(
         self,
         left_segments: List[dict],
         right_segments: List[dict],

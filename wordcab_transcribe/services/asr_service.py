@@ -377,7 +377,7 @@ class ASRAsyncService(ASRService):
         )
 
         if diarization:
-            utterances = self.services["post_processing"].single_channel_postprocessing(
+            utterances = self.services["post_processing"].single_channel_speaker_mapping(
                 transcript_segments=formatted_segments,
                 speaker_timestamps=task["diarization_result"],
                 word_timestamps=word_timestamps,
