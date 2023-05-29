@@ -76,7 +76,7 @@ class ASRAsyncService(ASRService):
         """Initialize the ASRAsyncService class."""
         super().__init__()
 
-        self.batch_size: dict = {"transcription": 4, "diarization": 4, "alignment": 1}
+        self.batch_size: dict = {"transcription": 4, "diarization": 1, "alignment": 1}
         self.thread_executors: dict = {
             "transcription": ThreadPoolExecutor(max_workers=self.batch_size["transcription"]),
             "diarization": ThreadPoolExecutor(max_workers=self.batch_size["diarization"]),
