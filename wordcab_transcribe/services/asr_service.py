@@ -76,7 +76,7 @@ class ASRAsyncService(ASRService):
         """Initialize the ASRAsyncService class."""
         super().__init__()
 
-        self.batch_size: dict = {"transcription": 4, "diarization": 1, "alignment": 1}
+        self.batch_size: dict = {"transcription": 4, "diarization": 4, "alignment": 1}
         self.thread_executors: dict = {
             "transcription": ThreadPoolExecutor(max_workers=self.batch_size["transcription"]),
             "diarization": ThreadPoolExecutor(max_workers=self.batch_size["diarization"]),
@@ -88,7 +88,7 @@ class ASRAsyncService(ASRService):
                 model_path=settings.whisper_model,
                 compute_type=settings.compute_type,
                 device=self.device,
-                num_workers=16,
+                num_workers=8,
             ),
             "diarization": DiarizeService(
                 domain_type=settings.nemo_domain_type,
@@ -215,7 +215,9 @@ class ASRAsyncService(ASRService):
             return_exceptions=True,
         )
 
-        # Check if there is any exception in the transcription
+        if isinstance(task["diarization_result"], Exception):
+            raise task["diarization_result"]
+
         if isinstance(task["transcription_result"], Exception):
             raise task["transcription_result"]
         else:
@@ -226,10 +228,12 @@ class ASRAsyncService(ASRService):
             else:
                 task["alignment_done"].set()
 
-        # Check if there is any exception in the diarization or alignment
-        if isinstance(task["diarization_result"], Exception):
-            raise task["diarization_result"]
-        elif isinstance(task["alignment_result"], Exception):
+        await asyncio.gather(
+            task["alignment_done"].wait(),
+            return_exceptions=True,
+        )
+
+        if isinstance(task["alignment_result"], Exception):
             raise task["alignment_result"]
         else:
             self.queues["post_processing"].append(task)

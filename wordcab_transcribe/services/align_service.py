@@ -286,6 +286,7 @@ class AlignService:
                 orig_freq=sample_rate, new_freq=self.sample_rate
             )
             audio = resampler(audio)
+            sample_rate = self.sample_rate
 
         max_duration = float(audio.shape[1]) / sample_rate
 
