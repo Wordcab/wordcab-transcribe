@@ -43,15 +43,19 @@ async def inference_with_youtube(
     data = BaseRequest() if data is None else BaseRequest(**data.dict())
 
     try:
-        utterances = await asr.process_input(
-            filepath=filepath,
-            alignment=data.alignment,
-            diarization=data.diarization,
-            dual_channel=False,
-            source_lang=data.source_lang,
-            timestamps_format=data.timestamps,
-            word_timestamps=data.word_timestamps,
+        task = asyncio.create_task(
+            asr.process_input(
+                filepath=filepath,
+                alignment=data.alignment,
+                diarization=data.diarization,
+                dual_channel=False,
+                source_lang=data.source_lang,
+                timestamps_format=data.timestamps,
+                word_timestamps=data.word_timestamps,
+                
+            )
         )
+        utterances = await task
 
         return YouTubeResponse(
             utterances=utterances,

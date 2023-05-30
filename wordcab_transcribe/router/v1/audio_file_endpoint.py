@@ -13,6 +13,7 @@
 # limitations under the License.
 """Audio file endpoint for the Wordcab Transcribe API."""
 
+import asyncio
 from typing import Union
 
 import shortuuid
@@ -70,15 +71,18 @@ async def inference_with_audio(
     background_tasks.add_task(delete_file, filepath=filename)
 
     try:
-        utterances = await asr.process_input(
-            filepath=filepath,
-            alignment=data.alignment,
-            diarization=data.diarization,
-            dual_channel=data.dual_channel,
-            source_lang=data.source_lang,
-            timestamps_format=data.timestamps,
-            word_timestamps=data.word_timestamps,
+        task = asyncio.create_task(
+            asr.process_input(
+                filepath=filepath,
+                alignment=data.alignment,
+                diarization=data.diarization,
+                dual_channel=data.dual_channel,
+                source_lang=data.source_lang,
+                timestamps_format=data.timestamps,
+                word_timestamps=data.word_timestamps,
+            )
         )
+        utterances = await task
 
         return AudioResponse(
             utterances=utterances,

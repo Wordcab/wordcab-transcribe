@@ -56,15 +56,18 @@ async def inference_with_audio_url(
     background_tasks.add_task(delete_file, filepath=f"{filename}.{extension}")
 
     try:
-        utterances = await asr.process_input(
-            filepath=filepath,
-            alignment=data.alignment,
-            diarization=data.diarization,
-            dual_channel=data.dual_channel,
-            source_lang=data.source_lang,
-            timestamps_format=data.timestamps,
-            word_timestamps=data.word_timestamps,
+        task = asyncio.create_task(
+            asr.process_input(
+                filepath=filepath,
+                alignment=data.alignment,
+                diarization=data.diarization,
+                dual_channel=data.dual_channel,
+                source_lang=data.source_lang,
+                timestamps_format=data.timestamps,
+                word_timestamps=data.word_timestamps,
+            )
         )
+        utterances = await task
 
         return AudioResponse(
             utterances=utterances,
