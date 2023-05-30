@@ -33,7 +33,9 @@ from wordcab_transcribe.utils import (
 router = APIRouter()
 
 
-@router.post("", response_model=Union[AudioResponse, str], status_code=http_status.HTTP_200_OK)
+@router.post(
+    "", response_model=Union[AudioResponse, str], status_code=http_status.HTTP_200_OK
+)
 async def inference_with_audio(
     background_tasks: BackgroundTasks,
     alignment: bool = Form(False),  # noqa: B008
@@ -95,7 +97,9 @@ async def inference_with_audio(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        ) from e
 
     finally:
         background_tasks.add_task(delete_file, filepath=filepath)

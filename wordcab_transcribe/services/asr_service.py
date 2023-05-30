@@ -39,12 +39,18 @@ class ASRService(ABC):
 
         This class is not meant to be instantiated. Use the subclasses instead.
         """
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"  # Do we have a GPU? If so, use it!
-        self.sample_rate = 16000  # The sample rate to use for inference for all audio files (Hz)
+        self.device = (
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )  # Do we have a GPU? If so, use it!
+        self.sample_rate = (
+            16000  # The sample rate to use for inference for all audio files (Hz)
+        )
 
         self.queues = None  # the queue to store requests
         self.queue_locks = None  # the locks to access the queues
-        self.needs_processing = None  # the flag to indicate if the queue needs processing
+        self.needs_processing = (
+            None  # the flag to indicate if the queue needs processing
+        )
         self.needs_processing_timer = None  # the timer to schedule processing
 
     @abstractmethod
@@ -77,10 +83,16 @@ class ASRAsyncService(ASRService):
             "post_processing": 8,
         }
         self.thread_executors: dict = {
-            "transcription": ThreadPoolExecutor(max_workers=self.task_threads["transcription"]),
-            "diarization": ThreadPoolExecutor(max_workers=self.task_threads["diarization"]),
+            "transcription": ThreadPoolExecutor(
+                max_workers=self.task_threads["transcription"]
+            ),
+            "diarization": ThreadPoolExecutor(
+                max_workers=self.task_threads["diarization"]
+            ),
             "alignment": ThreadPoolExecutor(max_workers=self.task_threads["alignment"]),
-            "post_processing": ThreadPoolExecutor(max_workers=self.task_threads["post_processing"]),
+            "post_processing": ThreadPoolExecutor(
+                max_workers=self.task_threads["post_processing"]
+            ),
         }
         self.services: dict = {
             "transcription": TranscribeService(
@@ -139,7 +151,9 @@ class ASRAsyncService(ASRService):
         Args:
             task_type (str): The task type to schedule processing for.
         """
-        if len(self.queues[task_type]) >= 1:  # We process the queue as soon as we have one request
+        if (
+            len(self.queues[task_type]) >= 1
+        ):  # We process the queue as soon as we have one request
             self.needs_processing[task_type].set()
         elif self.queues[task_type]:
             self.needs_processing_timer[task_type] = asyncio.get_event_loop().call_at(
@@ -166,7 +180,7 @@ class ASRAsyncService(ASRService):
         and stored in separated keys in the task dictionary.
 
         Args:
-            filepath (Union[str, Tuple[str]]): Path to the audio file.
+            filepath (Union[str, Tuple[str, str]]): Path to the audio file or tuple of paths to the audio files.
             alignment (bool): Whether to do alignment or not.
             diarization (bool): Whether to do diarization or not.
             dual_channel (bool): Whether to do dual channel or not.
@@ -263,7 +277,8 @@ class ASRAsyncService(ASRService):
             async with self.queue_locks[task_type]:
                 if self.queues[task_type]:
                     longest_wait = (
-                        asyncio.get_event_loop().time() - self.queues[task_type][0]["time"]
+                        asyncio.get_event_loop().time()
+                        - self.queues[task_type][0]["time"]
                     )
                     logger.debug(f"[{task_type}] longest wait: {longest_wait}")
                 else:
@@ -291,7 +306,9 @@ class ASRAsyncService(ASRService):
             finally:
                 task_to_run[f"{task_type}_done"].set()
 
-    def process_transcription(self, task: dict) -> Union[List[dict], Tuple[List[dict], List[dict]]]:
+    def process_transcription(
+        self, task: dict
+    ) -> Union[List[dict], Tuple[List[dict], List[dict]]]:
         """
         Process a task of transcription.
 
@@ -300,10 +317,15 @@ class ASRAsyncService(ASRService):
 
         Returns:
             List[dict]: List of transcribed segments.
+
+        Raises:
+            ValueError: If the task is not a dual channel task and the input is not a string.
         """
         if isinstance(task["input"], str):  # Not a dual channel task
             # We enforce word timestamps if alignment is True
-            word_timestamps = task["word_timestamps"] if task["alignment"] is False else True
+            word_timestamps = (
+                task["word_timestamps"] if task["alignment"] is False else True
+            )
 
             segments = self.services["transcription"](
                 task["input"],
@@ -388,7 +410,9 @@ class ASRAsyncService(ASRService):
                 word_timestamps=word_timestamps,
             )
         else:
-            segments = task["alignment_result"] if alignment else task["transcription_result"]
+            segments = (
+                task["alignment_result"] if alignment else task["transcription_result"]
+            )
 
             formatted_segments = format_segments(
                 segments=segments,
@@ -397,7 +421,9 @@ class ASRAsyncService(ASRService):
             )
 
             if diarization:
-                utterances = self.services["post_processing"].single_channel_speaker_mapping(
+                utterances = self.services[
+                    "post_processing"
+                ].single_channel_speaker_mapping(
                     transcript_segments=formatted_segments,
                     speaker_timestamps=task["diarization_result"],
                     word_timestamps=word_timestamps,
@@ -405,7 +431,9 @@ class ASRAsyncService(ASRService):
             else:
                 utterances = formatted_segments
 
-        final_utterances = self.services["post_processing"].final_processing_before_returning(
+        final_utterances = self.services[
+            "post_processing"
+        ].final_processing_before_returning(
             utterances=utterances,
             diarization=diarization,
             dual_channel=task["dual_channel"],
@@ -513,7 +541,7 @@ class ASRAsyncService(ASRService):
         return final_transcript
 
 
-class ASRLiveService():
+class ASRLiveService:
     """ASR Service module for live endpoints."""
 
     def __init__(self) -> None:

@@ -13,6 +13,7 @@
 # limitations under the License.
 """Audio url endpoint for the Wordcab Transcribe API."""
 
+import asyncio
 from typing import Optional
 
 import shortuuid
@@ -23,11 +24,8 @@ from wordcab_transcribe.dependencies import asr
 from wordcab_transcribe.models import AudioRequest, AudioResponse
 from wordcab_transcribe.utils import (
     convert_file_to_wav,
-    convert_timestamp,
     delete_file,
     download_audio_file,
-    format_punct,
-    is_empty_string,
     split_dual_channel_file,
 )
 
@@ -80,7 +78,9 @@ async def inference_with_audio_url(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        ) from e
 
     finally:
         background_tasks.add_task(delete_file, filepath=filepath)

@@ -19,7 +19,7 @@ import re
 import subprocess  # noqa: S404
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 import aiofiles

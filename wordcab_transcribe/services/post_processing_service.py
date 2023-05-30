@@ -244,7 +244,7 @@ class PostProcessingService:
         diarization: bool,
         dual_channel: bool,
         timestamps_format: str,
-        word_timestamps: bool
+        word_timestamps: bool,
     ) -> List[dict]:
         """
         Do final processing before returning the utterances to the API.

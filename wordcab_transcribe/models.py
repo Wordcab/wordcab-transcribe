@@ -100,14 +100,14 @@ class YouTubeResponse(BaseResponse):
 class CortexError(BaseModel):
     """Error model for the Cortex API."""
 
-    detail: str
+    message: str
 
     class Config:
         """Pydantic config class."""
 
         schema_extra = {
             "example": {
-                "detail": "Error message here",
+                "message": "Error message here",
             }
         }
 

@@ -141,7 +141,6 @@ async def send_update_with_svix(
                 payload_retention_period=payload_retention_period,
                 payload=payload,
             ),
-            None,
         )
     else:
         logger.warning(

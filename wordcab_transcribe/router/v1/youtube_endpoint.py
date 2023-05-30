@@ -52,7 +52,6 @@ async def inference_with_youtube(
                 source_lang=data.source_lang,
                 timestamps_format=data.timestamps,
                 word_timestamps=data.word_timestamps,
-                
             )
         )
         utterances = await task
@@ -68,7 +67,9 @@ async def inference_with_youtube(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        ) from e
 
     finally:
         background_tasks.add_task(delete_file, filepath=filepath)

@@ -23,7 +23,11 @@ class TranscribeService:
     """Transcribe Service for audio files."""
 
     def __init__(
-        self, model_path: str, compute_type: str, device: str, num_workers: int,
+        self,
+        model_path: str,
+        compute_type: str,
+        device: str,
+        num_workers: int,
     ) -> None:
         """Initialize the Transcribe Service.
 
