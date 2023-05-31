@@ -42,9 +42,12 @@ class AudioDataset(IterableDataset):
 
     def __init__(
         self,
-        audio: torch.tensor,
+        filepath: str,
         n_samples: int,
         mel_filters: torch.Tensor,
+        sample_rate: int = 16000,
+        hop_length: int = 160,
+        n_fft: int = 400,
     ) -> None:
         """
         Initialize the Audio Dataset for transcribing audio files in batches.
@@ -53,85 +56,68 @@ class AudioDataset(IterableDataset):
             audio_chunks (torch.tensor): Audio chunks tensor containing the audio chunks.
             n_samples (int): Number of samples.
             mel_filters (torch.Tensor): Mel filters tensor.
+            sample_rate (int, optional): Sample rate. Defaults to 16000.
+            hop_length (int, optional): Hop length. Defaults to 160.
+            n_fft (int, optional): Number of FFT. Defaults to 400.
         """
         self.n_samples = n_samples
         self.mel_filters = mel_filters
-        sample_rate = 16000
+        self.sample_rate = sample_rate
+        self.hop_length = hop_length
+        self.n_fft = n_fft
 
-        wav, sr = torchaudio.load(audio)
+        waveform = self.read_audio(filepath)
+
+        _features = self._log_mel_spectrogram(waveform)
+
+        self.features = self.get_chunks(_features)
+
+    def read_audio(self, filepath: str) -> torch.Tensor:
+        """Read an audio file and return the audio tensor."""
+        wav, sr = torchaudio.load(filepath)
 
         if wav.size(0) > 1:
             wav = wav.mean(dim=0, keepdim=True)
 
-        if sr != sample_rate:
-            transform = torchaudio.transforms.Resample(orig_freq=sr, new_freq=sample_rate)
+        if sr != self.sample_rate:
+            transform = torchaudio.transforms.Resample(orig_freq=sr, new_freq=self.sample_rate)
             wav = transform(wav)
-            sr = sample_rate
+            sr = self.sample_rate
 
-        wav = wav.squeeze(0)
+        return wav.squeeze(0)
 
-        self.features = []
-        for chunk in audio_chunks:
-            _padding = self.n_samples - chunk.shape[0]
-            self.features.append(self._log_mel_spectrogram(chunk, padding=_padding))
+    def get_chunks(self, features: torch.Tensor) -> List[torch.Tensor]:
+        """Get the audio chunks from the audio tensor."""
+        nb_max_frames = self.n_samples // self.hop_length
+        time_per_frame = self.hop_length / self.sample_rate
+
+        content_frames = features.shape[-1] - nb_max_frames
+        # idx = 0
+        seek = 0
+        # all_tokens = []
+        # prompt_reset_since = 0
+
+        final_features = []
+        while seek < content_frames:
+            # time_offset = seek * time_per_frame
+            segment = features[:, seek : seek + nb_max_frames]
+            segment_size = min(nb_max_frames, content_frames - seek)
+            # segment_duration = segment_size * time_per_frame
+
+            final_features.append(segment)
+
+            seek += segment_size
+
+        return final_features
 
     def __iter__(self) -> iter:
         """Iterate over the audio chunks and yield the features."""
         for feature in self.features:
             yield feature
 
-    def frame_wave(
-        self, waveform: torch.Tensor, n_fft: int, hop_length: int, center: bool = True
-    ) -> torch.Tensor:
-        """
-        Frame a waveform into overlapping frames.
-
-        Args:
-            waveform (torch.Tensor): Waveform tensor of shape (n_samples,).
-            frame_length (int): Frame length.
-            hop_length (int): Hop length.
-            center (bool, optional): Whether to pad the waveform on both sides so that the
-                frame is centered at the time-step. Defaults to True.
-
-        Returns:
-            torch.Tensor: Framed waveform tensor of shape (n_frames, frame_length).
-        """
-        frames = []
-        for i in range(0, waveform.shape[0] + 1, hop_length):
-            half_window = (n_fft - 1) // 2 + 1
-            if center:
-                start = i - half_window if i > half_window else 0
-                end = (
-                    i + half_window
-                    if i < waveform.shape[0] - half_window
-                    else waveform.shape[0]
-                )
-
-                frame = waveform[start:end]
-
-                if start == 0:
-                    padding_width = (-i + half_window, 0)
-                    frame = F.pad(frame.unsqueeze(0), padding_width, mode="reflect").squeeze(0)
-
-                elif end == waveform.shape[0]:
-                    padding_width = (0, (i - waveform.shape[0] + half_window))
-                    frame = F.pad(frame.unsqueeze(0), padding_width, mode="reflect").squeeze(0)
-
-            else:
-                frame = waveform[i : i + n_fft]
-                frame_width = frame.shape[0]
-                if frame_width < waveform.shape[0]:
-                    frame = F.pad(frame, (0, n_fft - frame_width), mode="constant", value=0)
-
-            frames.append(frame)
-
-        return torch.stack(frames, dim=0)
-
     def _log_mel_spectrogram(
         self,
         audio: torch.Tensor,
-        n_fft: Optional[int] = 400,
-        hop_length: Optional[int] = 160,
         padding: Optional[int] = 0,
     ) -> torch.Tensor:
         """
@@ -139,8 +125,6 @@ class AudioDataset(IterableDataset):
 
         Args:
             audio (torch.Tensor): Audio tensor of shape (n_samples,).
-            n_fft (int, optional): Number of FFT points. Defaults to 400.
-            hop_length (int, optional): Hop length for the STFT. Defaults to 160.
             padding (int, optional): Padding to apply to the audio. Defaults to 0.
 
         Returns:
@@ -149,9 +133,8 @@ class AudioDataset(IterableDataset):
         if padding > 0:
             audio = F.pad(audio, (0, padding))
 
-        window = torch.hann_window(n_fft).to(audio.device)
-        frames = self.frame_wave(audio, n_fft, hop_length, center=True)
-        stft = torch.stft(frames, n_fft, hop_length, window=window, return_complex=True)
+        window = torch.hann_window(self.n_fft).to(audio.device)
+        stft = torch.stft(audio, self.n_fft, self.hop_length, window=window, return_complex=True)
 
         magnitudes = stft[..., :-1].abs() ** 2
         mel_spec = self.mel_filters @ magnitudes
