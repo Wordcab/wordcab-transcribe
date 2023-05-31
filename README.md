@@ -65,6 +65,44 @@ docker exec -it wordcab-transcribe /bin/bash
 
 This is useful to check everything is working as expected.
 
+<details open>
+<summary>⏱️ Profile the API</summary>
+
+You can profile the process executions using `py-spy` as a profiler.
+
+```bash
+# Launch the container with the cap-add=SYS_PTRACE option
+docker run -d --name wordcab-transcribe \
+    --gpus all \
+    --shm-size 1g \
+    --restart unless-stopped \
+    --cap-add=SYS_PTRACE \
+    -p 5001:5001 \
+    -v ~/.cache:/root/.cache \
+    wordcab-transcribe:latest
+
+# Enter the container
+docker exec -it wordcab-transcribe /bin/bash
+
+# Install py-spy
+pip install py-spy
+
+# Find the PID of the process to profile
+top  # 28 for example
+
+# Run the profiler
+py-spy record --pid 28 --format speedscope -o profile.speedscope.json
+
+# Launch any task on the API to generate some profiling data
+
+# Exit the container and copy the generated file to your local machine
+exit
+docker cp wordcab-transcribe:/app/profile.speedscope.json profile.speedscope.json
+
+# Go to https://www.speedscope.app/ and upload the file to visualize the profile
+```
+</details>
+
 ## Test the API
 
 Once the container is running, you can test the API.
