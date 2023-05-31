@@ -63,8 +63,11 @@ async def startup_event():
             "Report any issues with your env specs to: https://github.com/Wordcab/wordcab-transcribe/issues"
         )
 
-    asyncio.create_task(asr.runner())
-    # asyncio.create_task(asr.warmup())
+    if settings.asr_type == "async":
+        task_names = asr.queues.keys()
+        for task in task_names:
+            logger.info(f"Starting {task} task...")
+            asyncio.create_task(asr.runner(task))
 
 
 @app.get("/", tags=["status"])

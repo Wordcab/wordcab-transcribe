@@ -100,14 +100,14 @@ class YouTubeResponse(BaseResponse):
 class CortexError(BaseModel):
     """Error model for the Cortex API."""
 
-    detail: str
+    message: str
 
     class Config:
         """Pydantic config class."""
 
         schema_extra = {
             "example": {
-                "detail": "Error message here",
+                "message": "Error message here",
             }
         }
 
@@ -116,8 +116,8 @@ class CortexPayload(BaseModel):
     """Request object for Cortex endpoint."""
 
     url_type: str = "audio_url"
-    url: str = None
-    api_key: str = None
+    url: Optional[str] = None
+    api_key: Optional[str] = None
     alignment: Optional[bool] = False
     diarization: Optional[bool] = False
     dual_channel: Optional[bool] = False
@@ -238,11 +238,11 @@ class CortexYoutubeResponse(YouTubeResponse):
 class BaseRequest(BaseModel):
     """Base request model for the API."""
 
-    alignment: Optional[bool] = False
-    diarization: Optional[bool] = False
-    source_lang: Optional[str] = "en"
-    timestamps: Optional[str] = "s"
-    word_timestamps: Optional[bool] = False
+    alignment: bool = False
+    diarization: bool = False
+    source_lang: str = "en"
+    timestamps: str = "s"
+    word_timestamps: bool = False
 
     @validator("timestamps")
     def validate_timestamps_values(cls, value: str) -> str:  # noqa: B902, N805
@@ -268,7 +268,7 @@ class BaseRequest(BaseModel):
 class AudioRequest(BaseRequest):
     """Request model for the ASR audio file and url endpoint."""
 
-    dual_channel: Optional[bool] = False
+    dual_channel: bool = False
 
     class Config:
         """Pydantic config class."""
@@ -310,4 +310,4 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     """TokenData model for authentication."""
 
-    username: str = None
+    username: Optional[str] = None

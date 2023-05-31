@@ -110,7 +110,7 @@ class TranscribeService:
         model_path: str,
         compute_type: str,
         device: str,
-        batch_size: Optional[int] = 32,
+        num_workers: int,
     ) -> None:
         """Initialize the Transcribe Service.
 

@@ -139,9 +139,9 @@ def test_base_response() -> None:
 def test_cortex_error() -> None:
     """Test the CortexError model."""
     error = CortexError(
-        detail="This is a test error",
+        message="This is a test error",
     )
-    assert error.detail == "This is a test error"
+    assert error.message == "This is a test error"
 
 
 def test_corxet_payload() -> None:
