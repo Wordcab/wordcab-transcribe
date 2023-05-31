@@ -15,7 +15,10 @@
 
 from typing import List, Optional, Tuple, Union
 
+from faster_whisper.vad import get_speech_timestamps
+
 import torch
+import torchaudio
 
 
 class VadService:
@@ -24,13 +27,13 @@ class VadService:
     def __init__(self) -> None:
         """Initialize the VAD Service."""
         self.sample_rate = 16000
-        self.model, utils = torch.hub.load(
-            repo_or_dir="snakers4/silero-vad",
-            model="silero_vad",
-            force_reload=True,
-            onnx=False,
-        )
-        self.get_speech_timestamps, self.save_audio, self.read_audio, _, _ = utils
+        # self.model, utils = torch.hub.load(
+        #     repo_or_dir="snakers4/silero-vad",
+        #     model="silero_vad",
+        #     force_reload=True,
+        #     onnx=True,
+        # )
+        # self.get_speech_timestamps, self.save_audio, self.read_audio, _, _ = utils
 
     def __call__(
         self, filepath: str, group_timestamps: Optional[bool] = True
@@ -45,19 +48,39 @@ class VadService:
         Returns:
             Tuple[Union[List[dict], List[List[dict]]], torch.Tensor]: Speech timestamps and audio tensor.
         """
-        audio = self.read_audio(filepath, sampling_rate=self.sample_rate)
-        speech_timestamps = self.get_speech_timestamps(
-            audio, self.model, sampling_rate=self.sample_rate
-        )
+        # audio = self.read_audio(filepath, sampling_rate=self.sample_rate)
+        # speech_timestamps = self.get_speech_timestamps(
+        #     audio, self.model, sampling_rate=self.sample_rate
+        # )
+
+        # speech_timestamps_list = [
+        #     {"start": ts["start"], "end": ts["end"]} for ts in speech_timestamps
+        # ]
+
+        # if group_timestamps:
+        #     speech_timestamps_list = self.group_timestamps(speech_timestamps_list)
+
+        # return speech_timestamps_list, audio
+        wav, sr = torchaudio.load(filepath)
+
+        if wav.size(0) > 1:
+            wav = wav.mean(dim=0, keepdim=True)
+
+        if sr != self.sample_rate:
+            transform = torchaudio.transforms.Resample(orig_freq=sr, new_freq=self.sample_rate)
+            wav = transform(wav)
+            sr = self.sample_rate
+
+        assert sr == self.sample_rate
+        wav = wav.squeeze(0)
+        
+        speech_timestamps = get_speech_timestamps(audio=wav)
 
         speech_timestamps_list = [
             {"start": ts["start"], "end": ts["end"]} for ts in speech_timestamps
         ]
-
-        if group_timestamps:
-            speech_timestamps_list = self.group_timestamps(speech_timestamps_list)
-
-        return speech_timestamps_list, audio
+        
+        return speech_timestamps_list, wav
 
     def group_timestamps(
         self, timestamps: List[dict], threshold: Optional[float] = 3.0

@@ -13,7 +13,6 @@
 # limitations under the License.
 """Transcribe Service for audio files."""
 
-import multiprocessing
 import os
 from pathlib import Path
 from time import time
@@ -22,6 +21,7 @@ from typing import List, Optional, Union
 import numpy as np
 import torch
 import torch.nn.functional as F  # noqa N812
+import torchaudio
 from ctranslate2 import StorageView
 from ctranslate2.models import WhisperGenerationResult
 from faster_whisper import WhisperModel
@@ -42,7 +42,7 @@ class AudioDataset(IterableDataset):
 
     def __init__(
         self,
-        audio_chunks: torch.tensor,
+        audio: torch.tensor,
         n_samples: int,
         mel_filters: torch.Tensor,
     ) -> None:
@@ -56,6 +56,19 @@ class AudioDataset(IterableDataset):
         """
         self.n_samples = n_samples
         self.mel_filters = mel_filters
+        sample_rate = 16000
+
+        wav, sr = torchaudio.load(audio)
+
+        if wav.size(0) > 1:
+            wav = wav.mean(dim=0, keepdim=True)
+
+        if sr != sample_rate:
+            transform = torchaudio.transforms.Resample(orig_freq=sr, new_freq=sample_rate)
+            wav = transform(wav)
+            sr = sample_rate
+
+        wav = wav.squeeze(0)
 
         self.features = []
         for chunk in audio_chunks:
@@ -66,6 +79,53 @@ class AudioDataset(IterableDataset):
         """Iterate over the audio chunks and yield the features."""
         for feature in self.features:
             yield feature
+
+    def frame_wave(
+        self, waveform: torch.Tensor, n_fft: int, hop_length: int, center: bool = True
+    ) -> torch.Tensor:
+        """
+        Frame a waveform into overlapping frames.
+
+        Args:
+            waveform (torch.Tensor): Waveform tensor of shape (n_samples,).
+            frame_length (int): Frame length.
+            hop_length (int): Hop length.
+            center (bool, optional): Whether to pad the waveform on both sides so that the
+                frame is centered at the time-step. Defaults to True.
+
+        Returns:
+            torch.Tensor: Framed waveform tensor of shape (n_frames, frame_length).
+        """
+        frames = []
+        for i in range(0, waveform.shape[0] + 1, hop_length):
+            half_window = (n_fft - 1) // 2 + 1
+            if center:
+                start = i - half_window if i > half_window else 0
+                end = (
+                    i + half_window
+                    if i < waveform.shape[0] - half_window
+                    else waveform.shape[0]
+                )
+
+                frame = waveform[start:end]
+
+                if start == 0:
+                    padding_width = (-i + half_window, 0)
+                    frame = F.pad(frame.unsqueeze(0), padding_width, mode="reflect").squeeze(0)
+
+                elif end == waveform.shape[0]:
+                    padding_width = (0, (i - waveform.shape[0] + half_window))
+                    frame = F.pad(frame.unsqueeze(0), padding_width, mode="reflect").squeeze(0)
+
+            else:
+                frame = waveform[i : i + n_fft]
+                frame_width = frame.shape[0]
+                if frame_width < waveform.shape[0]:
+                    frame = F.pad(frame, (0, n_fft - frame_width), mode="constant", value=0)
+
+            frames.append(frame)
+
+        return torch.stack(frames, dim=0)
 
     def _log_mel_spectrogram(
         self,
@@ -90,7 +150,8 @@ class AudioDataset(IterableDataset):
             audio = F.pad(audio, (0, padding))
 
         window = torch.hann_window(n_fft).to(audio.device)
-        stft = torch.stft(audio, n_fft, hop_length, window=window, return_complex=True)
+        frames = self.frame_wave(audio, n_fft, hop_length, center=True)
+        stft = torch.stft(frames, n_fft, hop_length, window=window, return_complex=True)
 
         magnitudes = stft[..., :-1].abs() ** 2
         mel_spec = self.mel_filters @ magnitudes
@@ -122,7 +183,7 @@ class TranscribeService:
             device (str): Device to use for inference. Can be "cpu" or "cuda".
             batch_size (Optional[int], optional): Batch size to use for inference. Defaults to 32.
         """
-        self.model = WhisperModel(model_path, device=device, compute_type=compute_type, num_workers=8)
+        self.model = WhisperModel(model_path, device=device, compute_type=compute_type, num_workers=num_workers)
         self.tokenizer = Tokenizer(
             self.model.hf_tokenizer,
             self.model.model.is_multilingual,
@@ -130,7 +191,7 @@ class TranscribeService:
             language="en",  # Default language, to gain some speed
         )
 
-        self._batch_size = batch_size
+        self._batch_size = 32
         self.sample_rate = 16000
         self._chunk_size = 30
         self._n_samples = self.sample_rate * self._chunk_size
@@ -197,8 +258,8 @@ class TranscribeService:
             if self.sample_rate != vad_service.sample_rate:
                 self.sample_rate = vad_service.sample_rate
 
-            vad_timestamps, audio = vad_service(audio, group_timestamps=False)
-            vad_timestamps = self._merge_segments(vad_timestamps, self._chunk_size, self.sample_rate)
+            # vad_timestamps, audio = vad_service(audio, group_timestamps=False)
+            # vad_timestamps = self._merge_segments(vad_timestamps, self._chunk_size, self.sample_rate)
 
             if self.tokenizer.language_code != source_lang:
                 self.tokenizer = Tokenizer(
@@ -208,22 +269,24 @@ class TranscribeService:
                     language=source_lang,
                 )
 
-            audio_chunks: List[torch.Tensor] = []
-            for segment in vad_timestamps:
-                audio_chunks.append(audio[segment["start"] : segment["end"]])
+            # audio_chunks: List[torch.Tensor] = []
+            # for segment in vad_timestamps:
+            #     audio_chunks.append(audio[segment["start"] : segment["end"]])
 
             pipeline_start = time()
-            outputs = self.pipeline(audio_chunks, batch_size=self._batch_size)
+            # outputs = self.pipeline(audio_chunks, batch_size=self._batch_size)
+            outputs = self.pipeline(audio, batch_size=self._batch_size)
             pipeline_end = time()
             logger.debug(f"Pipeline took {pipeline_end - pipeline_start} seconds.")
 
             segments: List[dict] = []
             for idx, output in enumerate(outputs):
+                logger.debug(f"Transcription {idx + 1}/{len(outputs)}: {output}")
                 segments.append(
                     {
                         "text": output,
-                        "start": vad_timestamps[idx]["start"],
-                        "end": vad_timestamps[idx]["end"],
+                        # "start": output["start"],
+                        # "end": output["end"],
                     }
                 )
             full_end = time()
@@ -231,7 +294,7 @@ class TranscribeService:
 
             return segments
 
-    def pipeline(self, audio_chunks: torch.tensor, batch_size: int) -> List[dict]:
+    def pipeline(self, audio: torch.tensor, batch_size: int) -> List[dict]:
         """
         Transcription pipeline for audio chunks in batches.
 
@@ -242,7 +305,7 @@ class TranscribeService:
         Returns:
             List[dict]: List of segments with the following keys: "start", "end", "text".
         """
-        dataset = AudioDataset(audio_chunks, self._n_samples, self.mel_filters)
+        dataset = AudioDataset(audio, self._n_samples, self.mel_filters)
         dataloader = DataLoader(
             dataset, batch_size=batch_size, collate_fn=self._collate_fn,
         )
@@ -297,14 +360,14 @@ class TranscribeService:
             prefix=options.prefix,
         )
 
-        encoder_output = self._encode(batch)
+        features = self._encode(batch)
 
         # TODO: Could be better to get the results as np.ndarray/torch.tensor and not as a class for speed
         # Atm, we need to extract the results as a Python list which is slow because we get this results:
         # https://opennmt.net/CTranslate2/python/ctranslate2.models.WhisperGenerationResult.html
         # TODO: We access the inherited ctranslate2 model for generation here. This is not ideal.
         result: WhisperGenerationResult = self.model.model.generate(
-            encoder_output,
+            features,
             [prompt] * batch_size,
             beam_size=5,
             patience=1,
@@ -312,7 +375,6 @@ class TranscribeService:
             return_scores=False,
             return_no_speech_prob=False,
             suppress_blank=False,
-            asynchronous=True,
         )
 
         decoded_outputs = self._decode_batch(result)
@@ -353,7 +415,7 @@ class TranscribeService:
             List[str]: List of decoded texts.
         """
         tokens_to_decode = [
-            [token for token in result.result().sequences_ids[0] if token < self.tokenizer.eot]
+            [token for token in result.sequences_ids[0] if token < self.tokenizer.eot]
             for result in whisper_results
         ]
         # TODO: We call the inherited tokenizer here, because faster_whisper tokenizer
