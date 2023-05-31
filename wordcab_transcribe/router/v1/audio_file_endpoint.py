@@ -13,20 +13,18 @@
 # limitations under the License.
 """Audio file endpoint for the Wordcab Transcribe API."""
 
-from typing import Optional
+import asyncio
+from typing import Union
 
 import shortuuid
-from fastapi import APIRouter, BackgroundTasks, File, Form, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
 from fastapi import status as http_status
 
 from wordcab_transcribe.dependencies import asr
 from wordcab_transcribe.models import AudioRequest, AudioResponse
 from wordcab_transcribe.utils import (
     convert_file_to_wav,
-    convert_timestamp,
     delete_file,
-    format_punct,
-    is_empty_string,
     save_file_locally,
     split_dual_channel_file,
 )
@@ -35,22 +33,28 @@ from wordcab_transcribe.utils import (
 router = APIRouter()
 
 
-@router.post("", response_model=AudioResponse, status_code=http_status.HTTP_200_OK)
+@router.post(
+    "", response_model=Union[AudioResponse, str], status_code=http_status.HTTP_200_OK
+)
 async def inference_with_audio(
     background_tasks: BackgroundTasks,
-    alignment: Optional[bool] = Form(False),  # noqa: B008
-    diarization: Optional[bool] = Form(False),  # noqa: B008
-    dual_channel: Optional[bool] = Form(False),  # noqa: B008
-    source_lang: Optional[str] = Form("en"),  # noqa: B008
-    timestamps: Optional[str] = Form("s"),  # noqa: B008
-    word_timestamps: Optional[bool] = Form(False),  # noqa: B008
+    alignment: bool = Form(False),  # noqa: B008
+    diarization: bool = Form(False),  # noqa: B008
+    dual_channel: bool = Form(False),  # noqa: B008
+    source_lang: str = Form("en"),  # noqa: B008
+    timestamps: str = Form("s"),  # noqa: B008
+    word_timestamps: bool = Form(False),  # noqa: B008
     file: UploadFile = File(...),  # noqa: B008
 ) -> AudioResponse:
     """Inference endpoint with audio file."""
-    extension = file.filename.split(".")[-1]
+    if file.filename is not None:
+        extension = file.filename.split(".")[-1]
+    else:
+        extension = "wav"
+
     filename = f"audio_{shortuuid.ShortUUID().random(length=32)}.{extension}"
 
-    await save_file_locally(file, filename)
+    await save_file_locally(filename=filename, file=file)
 
     data = AudioRequest(
         alignment=alignment,
@@ -62,43 +66,40 @@ async def inference_with_audio(
     )
 
     if data.dual_channel:
-        filepath = await split_dual_channel_file(filename)
+        filepath = await split_dual_channel_file(filepath=filename)
     else:
-        filepath = await convert_file_to_wav(filename)
-        background_tasks.add_task(delete_file, filepath=filename)
+        filepath = await convert_file_to_wav(filepath=filename)
 
-    raw_utterances = await asr.process_input(
-        filepath,
-        alignment=data.alignment,
-        diarization=data.diarization,
-        dual_channel=data.dual_channel,
-        source_lang=data.source_lang,
-        word_timestamps=data.word_timestamps,
-    )
+    background_tasks.add_task(delete_file, filepath=filename)
 
-    timestamps_format = data.timestamps
-    utterances = [
-        {
-            "text": format_punct(utterance["text"]),
-            "start": convert_timestamp(utterance["start"], timestamps_format),
-            "end": convert_timestamp(utterance["end"], timestamps_format),
-            "speaker": int(utterance["speaker"])
-            if data.diarization or data.dual_channel
-            else None,
-            "words": utterance["words"] if data.word_timestamps else [],
-        }
-        for utterance in raw_utterances
-        if not is_empty_string(utterance["text"])
-    ]
+    try:
+        task = asyncio.create_task(
+            asr.process_input(
+                filepath=filepath,
+                alignment=data.alignment,
+                diarization=data.diarization,
+                dual_channel=data.dual_channel,
+                source_lang=data.source_lang,
+                timestamps_format=data.timestamps,
+                word_timestamps=data.word_timestamps,
+            )
+        )
+        utterances = await task
 
-    background_tasks.add_task(delete_file, filepath=filepath)
+        return AudioResponse(
+            utterances=utterances,
+            alignment=data.alignment,
+            diarization=data.diarization,
+            dual_channel=data.dual_channel,
+            source_lang=data.source_lang,
+            timestamps=data.timestamps,
+            word_timestamps=data.word_timestamps,
+        )
 
-    return AudioResponse(
-        utterances=utterances,
-        alignment=data.alignment,
-        diarization=data.diarization,
-        dual_channel=data.dual_channel,
-        source_lang=data.source_lang,
-        timestamps=data.timestamps,
-        word_timestamps=data.word_timestamps,
-    )
+    except Exception as e:
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        ) from e
+
+    finally:
+        background_tasks.add_task(delete_file, filepath=filepath)

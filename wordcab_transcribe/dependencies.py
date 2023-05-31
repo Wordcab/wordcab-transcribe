@@ -26,7 +26,6 @@ if settings.asr_type == "live":
 elif settings.asr_type == "async":
     asr = ASRAsyncService()
 else:
-    asr = None
     raise ValueError(f"Invalid ASR type: {settings.asr_type}")
 
 
