@@ -327,21 +327,10 @@ class ASRAsyncService(ASRService):
                 task["word_timestamps"] if task["alignment"] is False else True
             )
 
-            # First old process call
             segments = self.services["transcription"](
                 task["input"],
                 source_lang=task["source_lang"],
                 word_timestamps=word_timestamps,
-                vad_service=self.services["vad"],
-                old_process=True,
-            )
-            # Second batch process call
-            segments = self.services["transcription"](
-                task["input"],
-                source_lang=task["source_lang"],
-                word_timestamps=word_timestamps,
-                vad_service=self.services["vad"],
-                old_process=False,
             )
 
             return segments

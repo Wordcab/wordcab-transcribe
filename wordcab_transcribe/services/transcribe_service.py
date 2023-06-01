@@ -15,8 +15,7 @@
 
 import os
 from pathlib import Path
-from time import time
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -31,10 +30,7 @@ from faster_whisper.transcribe import (
     get_ctranslate2_storage,
     get_suppressed_tokens,
 )
-from loguru import logger
 from torch.utils.data import DataLoader, IterableDataset
-
-from wordcab_transcribe.services.vad_service import VadService
 
 
 class AudioDataset(IterableDataset):
@@ -42,7 +38,7 @@ class AudioDataset(IterableDataset):
 
     def __init__(
         self,
-        filepath: str,
+        audio: Union[str, torch.Tensor],
         n_samples: int,
         mel_filters: torch.Tensor,
         sample_rate: int = 16000,
@@ -53,7 +49,7 @@ class AudioDataset(IterableDataset):
         Initialize the Audio Dataset for transcribing audio files in batches.
 
         Args:
-            audio_chunks (torch.tensor): Audio chunks tensor containing the audio chunks.
+            audio (Union[str, torch.Tensor]): Audio file path or audio tensor.
             n_samples (int): Number of samples.
             mel_filters (torch.Tensor): Mel filters tensor.
             sample_rate (int, optional): Sample rate. Defaults to 16000.
@@ -66,11 +62,20 @@ class AudioDataset(IterableDataset):
         self.hop_length = hop_length
         self.n_fft = n_fft
 
-        waveform = self.read_audio(filepath)
+        if isinstance(audio, str):
+            waveform = self.read_audio(audio)
+        elif isinstance(audio, torch.Tensor):
+            waveform = audio
+        else:
+            raise TypeError("Audio must be a string or a tensor.")
 
         _features = self._log_mel_spectrogram(waveform)
 
-        self.features = self.get_chunks(_features)
+        (
+            self.features,
+            self.time_offsets,
+            self.segment_durations
+        ) = self.get_chunks(_features)
 
     def read_audio(self, filepath: str) -> torch.Tensor:
         """Read an audio file and return the audio tensor."""
@@ -86,46 +91,49 @@ class AudioDataset(IterableDataset):
 
         return wav.squeeze(0)
 
-    def get_chunks(self, features: torch.Tensor) -> List[torch.Tensor]:
+    def get_chunks(
+        self, features: torch.Tensor
+    ) -> Tuple[List[torch.Tensor], List[float], List[float]]:
         """Get the audio chunks from the audio tensor."""
         nb_max_frames = self.n_samples // self.hop_length
         time_per_frame = self.hop_length / self.sample_rate
 
         content_frames = features.shape[-1] - nb_max_frames
-        # idx = 0
         seek = 0
-        # all_tokens = []
-        # prompt_reset_since = 0
 
-        final_features = []
+        final_features, time_offsets, segment_durations = [], [], []
         while seek < content_frames:
-            # time_offset = seek * time_per_frame
+            time_offset = seek * time_per_frame
             segment = features[:, seek : seek + nb_max_frames]
             segment_size = min(nb_max_frames, content_frames - seek)
-            # segment_duration = segment_size * time_per_frame
+            segment_duration = segment_size * time_per_frame
 
             final_features.append(segment)
+            time_offsets.append(time_offset)
+            segment_durations.append(segment_duration)
 
             seek += segment_size
 
-        return final_features
+        return final_features, time_offsets, segment_durations
 
-    def __iter__(self) -> iter:
+    def __iter__(self) -> Dict[str, Union[torch.Tensor, float]]:
         """Iterate over the audio chunks and yield the features."""
-        for feature in self.features:
-            yield feature
+        for feature, time_offset, segment_duration in zip(
+            self.features, self.time_offsets, self.segment_durations
+        ):
+            yield {
+                "feature": feature,
+                "time_offset": time_offset,
+                "segment_duration": segment_duration
+            }
 
-    def _log_mel_spectrogram(
-        self,
-        audio: torch.Tensor,
-        padding: Optional[int] = 0,
-    ) -> torch.Tensor:
+    def _log_mel_spectrogram(self, audio: torch.Tensor, padding: int = 0) -> torch.Tensor:
         """
         Compute the log-Mel spectrogram of a given audio tensor.
 
         Args:
             audio (torch.Tensor): Audio tensor of shape (n_samples,).
-            padding (int, optional): Padding to apply to the audio. Defaults to 0.
+            padding (int, optional): Padding. Defaults to 0.
 
         Returns:
             torch.Tensor: Log-Mel spectrogram of shape (n_mels, T).
@@ -174,7 +182,7 @@ class TranscribeService:
             language="en",  # Default language, to gain some speed
         )
 
-        self._batch_size = 32
+        self._batch_size = 32  # TODO: Make this configurable
         self.sample_rate = 16000
         self._chunk_size = 30
         self._n_samples = self.sample_rate * self._chunk_size
@@ -207,82 +215,39 @@ class TranscribeService:
 
     def __call__(
         self,
-        audio: Union[str, np.ndarray],
+        audio: Union[str, torch.Tensor],
         source_lang: str,
-        vad_service: VadService,
         **kwargs: Optional[dict],
     ) -> List[dict]:
         """
         Run inference with the transcribe model.
 
         Args:
-            audio (Union[str, np.ndarray]): Path to the audio file or audio data.
+            audio (Union[str, torch.Tensor]): Audio file to transcribe.
             source_lang (str): Language of the audio file.
-            vad_service (VadService): VadService to use for splitting the audio file into segments.
             kwargs (Any): Additional arguments to pass to TranscribeService.
 
         Returns:
             List[dict]: List of segments with the following keys: "start", "end", "text", "confidence".
         """
-        if kwargs.pop("old_process", False):
-            old_start = time()
-            old_transcription_start = time()
-            segments, _ = self.model.transcribe(audio, language=source_lang, **kwargs)
-            old_transcription_end = time()
-            logger.info(f"Old transcription took {old_transcription_end - old_transcription_start} seconds")
+        if self.tokenizer.language_code != source_lang:
+            self.tokenizer = Tokenizer(
+                self.model.hf_tokenizer,
+                self.model.model.is_multilingual,
+                task="transcribe",
+                language=source_lang,
+            )
 
-            results = [segment._asdict() for segment in segments]
-            old_end = time()
-            logger.info(f"Old process took {old_end - old_start} seconds")
+        outputs = self.pipeline(audio, batch_size=self._batch_size)
 
-            return results
-        else:
-            full_start = time()
-            if self.sample_rate != vad_service.sample_rate:
-                self.sample_rate = vad_service.sample_rate
+        return outputs
 
-            # vad_timestamps, audio = vad_service(audio, group_timestamps=False)
-            # vad_timestamps = self._merge_segments(vad_timestamps, self._chunk_size, self.sample_rate)
-
-            if self.tokenizer.language_code != source_lang:
-                self.tokenizer = Tokenizer(
-                    self.model.hf_tokenizer,
-                    self.model.model.is_multilingual,
-                    task="transcribe",
-                    language=source_lang,
-                )
-
-            # audio_chunks: List[torch.Tensor] = []
-            # for segment in vad_timestamps:
-            #     audio_chunks.append(audio[segment["start"] : segment["end"]])
-
-            pipeline_start = time()
-            # outputs = self.pipeline(audio_chunks, batch_size=self._batch_size)
-            outputs = self.pipeline(audio, batch_size=self._batch_size)
-            pipeline_end = time()
-            logger.debug(f"Pipeline took {pipeline_end - pipeline_start} seconds.")
-
-            segments: List[dict] = []
-            for idx, output in enumerate(outputs):
-                logger.debug(f"Transcription {idx + 1}/{len(outputs)}: {output}")
-                segments.append(
-                    {
-                        "text": output,
-                        # "start": output["start"],
-                        # "end": output["end"],
-                    }
-                )
-            full_end = time()
-            logger.debug(f"Full transcription took {full_end - full_start} seconds.")
-
-            return segments
-
-    def pipeline(self, audio: torch.tensor, batch_size: int) -> List[dict]:
+    def pipeline(self, audio: Union[str, torch.Tensor], batch_size: int) -> List[dict]:
         """
         Transcription pipeline for audio chunks in batches.
 
         Args:
-            audio_chunks (torch.tensor): Audio chunks to transcribe.
+            audio (Union[str, torch.Tensor]): Audio file to transcribe.
             batch_size (int): Batch size to use for inference.
 
         Returns:
@@ -293,37 +258,41 @@ class TranscribeService:
             dataset, batch_size=batch_size, collate_fn=self._collate_fn,
         )
 
-        start_inference = time()
         outputs = []
         for batch in dataloader:
-            logger.debug(f"Batch size: {batch.size(0)}")
-            start_batch = time()
             batch_outputs = self._generate_segment_batched(
-                batch, self.tokenizer, self.options
+                features=batch["features"],
+                time_offsets=batch["time_offsets"],
+                segment_durations=batch["segment_durations"],
+                tokenizer=self.tokenizer,
+                options=self.options
             )
-            end_batch = time()
-            logger.debug(f"Batch inference took {end_batch - start_batch} seconds.")
             outputs.extend(batch_outputs)
-        end_inference = time()
-        logger.debug(f"Inference took {end_inference - start_inference} seconds.")
 
         return outputs
 
     def _generate_segment_batched(
-        self, batch: torch.tensor, tokenizer: Tokenizer, options: TranscriptionOptions
+        self,
+        features: torch.Tensor,
+        time_offsets: List[float],
+        segment_durations: List[float],
+        tokenizer: Tokenizer,
+        options: TranscriptionOptions,
     ) -> List[dict]:
         """
         Use the ctranslate2 Whisper model to generate text from audio chunks.
 
         Args:
-            batch (torch.tensor): Audio chunks to transcribe.
+            features (torch.Tensor): List of audio chunks.
+            time_offsets (List[float]): Time offsets for the audio chunks.
+            segment_durations (List[float]): Durations of the audio chunks.
             tokenizer (Tokenizer): Tokenizer to use for encoding the text.
             options (TranscriptionOptions): Options to use for transcription.
 
         Returns:
             List[dict]: List of segments with the following keys: "start", "end", "text", "confidence".
         """
-        batch_size = batch.size(0)
+        batch_size = features.size(0)
         if "TOKENIZERS_PARALLELISM" not in os.environ:
             os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -343,7 +312,7 @@ class TranscribeService:
             prefix=options.prefix,
         )
 
-        features = self._encode(batch)
+        features = self._encode(features)
 
         # TODO: Could be better to get the results as np.ndarray/torch.tensor and not as a class for speed
         # Atm, we need to extract the results as a Python list which is slow because we get this results:
@@ -360,16 +329,90 @@ class TranscribeService:
             suppress_blank=False,
         )
 
-        decoded_outputs = self._decode_batch(result)
+        outputs = []
+        for res, time_offset, segment_duration in zip(result, time_offsets, segment_durations):
+            tokens = res.sequences_ids[0]
+            current_segments = []
+
+            single_timestamp_ending = (
+                len(tokens) >= 2
+                and tokens[-2] < tokenizer.timestamp_begin
+                and tokens[-1] >= tokenizer.timestamp_begin
+            )
+
+            consecutive_timestamps = [
+                i
+                for i in range(len(tokens))
+                if i > 0
+                and tokens[i] >= tokenizer.timestamp_begin
+                and tokens[i - 1] >= tokenizer.timestamp_begin
+            ]
+
+            if len(consecutive_timestamps) > 0:
+                slices = list(consecutive_timestamps)
+                if single_timestamp_ending:
+                    slices.append(len(tokens))
+
+                last_slice = 0
+                for current_slice in slices:
+                    sliced_tokens = tokens[last_slice:current_slice]
+                    start_timestamp_position = (
+                        sliced_tokens[0] - tokenizer.timestamp_begin
+                    )
+                    end_timestamp_position = (
+                        sliced_tokens[-1] - tokenizer.timestamp_begin
+                    )
+                    start_time = (
+                        time_offset + start_timestamp_position * 0.02
+                    )
+                    end_time = (
+                        time_offset + end_timestamp_position * 0.02
+                    )
+
+                    current_segments.append(
+                        dict(
+                            start=start_time,
+                            end=end_time,
+                            tokens=sliced_tokens,
+                        )
+                    )
+                    last_slice = current_slice
+            else:
+                duration = segment_duration
+                timestamps = [
+                    token for token in tokens if token >= tokenizer.timestamp_begin
+                ]
+                if len(timestamps) > 0 and timestamps[-1] != tokenizer.timestamp_begin:
+                    last_timestamp_position = timestamps[-1] - tokenizer.timestamp_begin
+                    duration = last_timestamp_position * 0.02
+
+                current_segments.append(
+                    dict(
+                        start=time_offset,
+                        end=time_offset + duration,
+                        tokens=tokens,
+                    )
+                )
+
+            for segment in current_segments:
+                outputs.append(
+                    {
+                        "start": segment["start"],
+                        "end": segment["end"],
+                        "tokens": segment["tokens"],
+                    }
+                )
+
+        decoded_outputs = self._decode_batch(outputs)
 
         return decoded_outputs
 
-    def _encode(self, features: np.ndarray) -> StorageView:
+    def _encode(self, features: torch.Tensor) -> StorageView:
         """
         Encode a batch of features using the ctranslate2 Whisper model.
 
         Args:
-            features (np.ndarray): Batch of features
+            features (torch.Tensor): Batch of features.
 
         Returns:
             StorageView: Encoded features.
@@ -387,7 +430,7 @@ class TranscribeService:
 
         return self.model.model.encode(features, to_cpu=to_cpu)
 
-    def _decode_batch(self, whisper_results: WhisperGenerationResult) -> List[str]:
+    def _decode_batch(self, outputs: List[dict]) -> List[dict]:
         """
         Extract the token ids from the sequences ids and decode them using the tokenizer.
 
@@ -398,67 +441,34 @@ class TranscribeService:
             List[str]: List of decoded texts.
         """
         tokens_to_decode = [
-            [token for token in result.sequences_ids[0] if token < self.tokenizer.eot]
-            for result in whisper_results
+            [token for token in out["tokens"] if token < self.tokenizer.eot]
+            for out in outputs
         ]
         # TODO: We call the inherited tokenizer here, because faster_whisper tokenizer
         # doesn't have the decode_batch method. We should fix this in the future.
-        return self.tokenizer.tokenizer.decode_batch(tokens_to_decode)
+        decoded_tokens = self.tokenizer.tokenizer.decode_batch(tokens_to_decode)
 
-    def _merge_segments(self, vad_timestamps: list, chunk_size: int, sample_rate: int) -> list:
-        """Merge identified segments that are too small to be transcribed into bigger segments.
+        for out, decoded_tokens in zip(outputs, decoded_tokens):
+            out["text"] = decoded_tokens
 
-        This is done to avoid transcribing small segments and to optimize the transcription process.
+        return outputs
 
-        Args:
-            vad_timestamps (list): List of timestamps for the identified segments.
-            chunk_size (int): Minimum size of the segments to transcribe.
-            sample_rate (int): Sample rate of the audio. Required to compute the duration of the segments.
-
-        Returns:
-            list: List of merged segments.
-        """
-        if len(vad_timestamps) == 0:
-            raise ValueError("No active speech found in audio")
-
-        _chunk_size = int(chunk_size * sample_rate)
-
-        end_t = 0
-        start_t = vad_timestamps[0]["start"]
-
-        merged_segments = []
-        segment_indexs = []
-
-        for segment in vad_timestamps:
-            if segment["end"] - start_t > _chunk_size and end_t - start_t > 0:
-                merged_segments.append({
-                    "start": start_t,
-                    "end": end_t,
-                    "segments": segment_indexs,
-                })
-                start_t = segment["start"]
-                segment_indexs = []
-
-            end_t = segment["end"]
-            segment_indexs.append((segment["start"], segment["end"]))
-        
-        # Catch the last segment
-        merged_segments.append({ 
-            "start": start_t,
-            "end": end_t,
-            "segments": segment_indexs,
-        })
-        
-        return merged_segments
-
-    def _collate_fn(self, items: torch.tensor) -> torch.tensor:
+    def _collate_fn(
+        self, items: List[Dict[str, Union[torch.Tensor, List[float]]]]
+    ) -> Dict[str, Union[torch.Tensor, List]]:
         """
         Collator function for the dataloader.
 
         Args:
-            items (torch.tensor): Items to collate.
+            items (List[Dict[str, Union[torch.Tensor, List[float]]]]): List of items to collate.
 
         Returns:
             torch.tensor: Collated items.
         """
-        return torch.stack([item for item in items])
+        collated_items = {
+            "features": torch.stack([item["feature"] for item in items]),
+            "time_offsets": [item["time_offset"] for item in items],
+            "segment_durations": [item["segment_duration"] for item in items],
+        }
+
+        return collated_items
