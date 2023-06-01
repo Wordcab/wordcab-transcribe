@@ -178,7 +178,7 @@ load_dotenv()
 settings = Settings(
     # General configuration
     project_name=getenv("PROJECT_NAME", "Wordcab Transcribe"),
-    version=getenv("VERSION", "0.2.0"),
+    version=getenv("VERSION", "0.3.0"),
     description=getenv(
         "DESCRIPTION", "💬 ASR FastAPI server using faster-whisper and NVIDIA NeMo."
     ),
