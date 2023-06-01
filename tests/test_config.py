@@ -25,7 +25,7 @@ def default_settings() -> OrderedDict:
     """Return the default settings."""
     return OrderedDict(
         project_name="Wordcab Transcribe",
-        version="0.2.0",
+        version="0.3.0",
         description="💬 ASR FastAPI server using faster-whisper and NVIDIA NeMo.",
         api_prefix="/api/v1",
         debug=True,
@@ -56,7 +56,7 @@ def default_settings() -> OrderedDict:
 def test_config() -> None:
     """Test default config settings with the .env file."""
     assert settings.project_name == "Wordcab Transcribe"
-    assert settings.version == "0.2.0"
+    assert settings.version == "0.3.0"
     assert (
         settings.description
         == "💬 ASR FastAPI server using faster-whisper and NVIDIA NeMo."
