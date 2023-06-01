@@ -52,7 +52,6 @@ class VadService:
             wav = transform(wav)
             sr = self.sample_rate
 
-        assert sr == self.sample_rate
         wav = wav.squeeze(0)
 
         speech_timestamps = get_speech_timestamps(audio=wav)

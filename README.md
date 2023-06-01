@@ -101,6 +101,7 @@ docker cp wordcab-transcribe:/app/profile.speedscope.json profile.speedscope.jso
 
 # Go to https://www.speedscope.app/ and upload the file to visualize the profile
 ```
+
 </details>
 
 ## Test the API

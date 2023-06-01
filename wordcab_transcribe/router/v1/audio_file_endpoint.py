@@ -19,6 +19,7 @@ from typing import Union
 import shortuuid
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
 from fastapi import status as http_status
+from loguru import logger
 
 from wordcab_transcribe.dependencies import asr
 from wordcab_transcribe.models import AudioRequest, AudioResponse
@@ -72,20 +73,28 @@ async def inference_with_audio(
 
     background_tasks.add_task(delete_file, filepath=filename)
 
-    try:
-        task = asyncio.create_task(
-            asr.process_input(
-                filepath=filepath,
-                alignment=data.alignment,
-                diarization=data.diarization,
-                dual_channel=data.dual_channel,
-                source_lang=data.source_lang,
-                timestamps_format=data.timestamps,
-                word_timestamps=data.word_timestamps,
-            )
+    task = asyncio.create_task(
+        asr.process_input(
+            filepath=filepath,
+            alignment=data.alignment,
+            diarization=data.diarization,
+            dual_channel=data.dual_channel,
+            source_lang=data.source_lang,
+            timestamps_format=data.timestamps,
+            word_timestamps=data.word_timestamps,
         )
-        utterances = await task
+    )
+    utterances = await task
 
+    background_tasks.add_task(delete_file, filepath=filepath)
+
+    if isinstance(utterances, Exception):
+        logger.error(f"Error: {utterances}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(utterances),
+        )
+    else:
         return AudioResponse(
             utterances=utterances,
             alignment=data.alignment,
@@ -95,11 +104,3 @@ async def inference_with_audio(
             timestamps=data.timestamps,
             word_timestamps=data.word_timestamps,
         )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
-
-    finally:
-        background_tasks.add_task(delete_file, filepath=filepath)
