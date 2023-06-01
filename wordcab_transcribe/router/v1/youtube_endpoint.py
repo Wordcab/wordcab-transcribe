@@ -19,6 +19,7 @@ from typing import Optional
 import shortuuid
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi import status as http_status
+from loguru import logger
 
 from wordcab_transcribe.dependencies import asr, io_executor
 from wordcab_transcribe.models import BaseRequest, YouTubeResponse
@@ -42,20 +43,28 @@ async def inference_with_youtube(
 
     data = BaseRequest() if data is None else BaseRequest(**data.dict())
 
-    try:
-        task = asyncio.create_task(
-            asr.process_input(
-                filepath=filepath,
-                alignment=data.alignment,
-                diarization=data.diarization,
-                dual_channel=False,
-                source_lang=data.source_lang,
-                timestamps_format=data.timestamps,
-                word_timestamps=data.word_timestamps,
-            )
+    task = asyncio.create_task(
+        asr.process_input(
+            filepath=filepath,
+            alignment=data.alignment,
+            diarization=data.diarization,
+            dual_channel=False,
+            source_lang=data.source_lang,
+            timestamps_format=data.timestamps,
+            word_timestamps=data.word_timestamps,
         )
-        utterances = await task
+    )
+    utterances = await task
 
+    background_tasks.add_task(delete_file, filepath=filepath)
+
+    if isinstance(utterances, Exception):
+        logger.error(f"Error: {utterances}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(utterances),
+        )
+    else:
         return YouTubeResponse(
             utterances=utterances,
             alignment=data.alignment,
@@ -65,11 +74,3 @@ async def inference_with_youtube(
             word_timestamps=data.word_timestamps,
             video_url=url,
         )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
-
-    finally:
-        background_tasks.add_task(delete_file, filepath=filepath)

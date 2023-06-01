@@ -14,6 +14,7 @@
 """ASR Service module that handle all AI interactions."""
 
 import asyncio
+import traceback
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Tuple, Union
@@ -170,7 +171,7 @@ class ASRAsyncService(ASRService):
         source_lang: str,
         timestamps_format: str,
         word_timestamps: bool,
-    ) -> List[dict]:
+    ) -> Union[List[dict], Exception]:
         """Process the input request and return the results.
 
         This method will create a task and add it to the appropriate queues.
@@ -189,7 +190,7 @@ class ASRAsyncService(ASRService):
             word_timestamps (bool): Whether to return word timestamps or not.
 
         Returns:
-            List[dict]: List of speaker segments.
+            Union[List[dict], Exception]: The final transcription result or an exception.
         """
         task = {
             "input": filepath,  # TODO: Should be the file tensors to be optimized (loaded via torchaudio)
@@ -198,7 +199,7 @@ class ASRAsyncService(ASRService):
             "dual_channel": dual_channel,
             "source_lang": source_lang,
             "timestamps_format": timestamps_format,
-            "word_timestamps": word_timestamps,
+            "word_timestamps": False,  # TODO: Implement word timestamps, False for now
             "post_processed": False,
             "transcription_result": None,
             "transcription_done": asyncio.Event(),
@@ -229,10 +230,10 @@ class ASRAsyncService(ASRService):
         )
 
         if isinstance(task["diarization_result"], Exception):
-            raise task["diarization_result"]
+            return task["diarization_result"]
 
         if isinstance(task["transcription_result"], Exception):
-            raise task["transcription_result"]
+            return task["transcription_result"]
         else:
             if alignment and dual_channel is False:
                 async with self.queue_locks["alignment"]:
@@ -247,7 +248,7 @@ class ASRAsyncService(ASRService):
         )
 
         if isinstance(task["alignment_result"], Exception):
-            raise task["alignment_result"]
+            return task["alignment_result"]
         else:
             self.queues["post_processing"].append(task)
             self.schedule_processing_if_needed("post_processing")
@@ -301,7 +302,9 @@ class ASRAsyncService(ASRService):
                 del results
 
             except Exception as e:
-                task_to_run[f"{task_type}_result"] = e
+                task_to_run[f"{task_type}_result"] = Exception(
+                    f"Error in {task_type}: {e}\n{traceback.format_exc()}"
+                )
 
             finally:
                 task_to_run[f"{task_type}_done"].set()
@@ -322,10 +325,9 @@ class ASRAsyncService(ASRService):
             ValueError: If the task is not a dual channel task and the input is not a string.
         """
         if isinstance(task["input"], str):  # Not a dual channel task
-            # We enforce word timestamps if alignment is True
             word_timestamps = (
                 task["word_timestamps"] if task["alignment"] is False else True
-            )
+            )  # We enforce word timestamps if alignment is True for accuracy
 
             segments = self.services["transcription"](
                 task["input"],
