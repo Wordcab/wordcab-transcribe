@@ -14,6 +14,7 @@
 """ASR Service module that handle all AI interactions."""
 
 import asyncio
+import traceback
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Tuple, Union
@@ -301,7 +302,7 @@ class ASRAsyncService(ASRService):
                 del results
 
             except Exception as e:
-                task_to_run[f"{task_type}_result"] = e
+                task_to_run[f"{task_type}_result"] = f"Error in {task_type}: {e}\n{traceback.format_exc()}"
 
             finally:
                 task_to_run[f"{task_type}_done"].set()
@@ -322,10 +323,9 @@ class ASRAsyncService(ASRService):
             ValueError: If the task is not a dual channel task and the input is not a string.
         """
         if isinstance(task["input"], str):  # Not a dual channel task
-            # We enforce word timestamps if alignment is True
             word_timestamps = (
                 task["word_timestamps"] if task["alignment"] is False else True
-            )
+            ) # We enforce word timestamps if alignment is True for accuracy
 
             segments = self.services["transcription"](
                 task["input"],
