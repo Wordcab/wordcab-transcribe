@@ -184,9 +184,13 @@ class TranscribeService:
 
         self._batch_size = 32  # TODO: Make this configurable
         self.sample_rate = 16000
-        self._chunk_size = 30
-        self._n_samples = self.sample_rate * self._chunk_size
+
+        self._n_fft = 400
         self._n_mels = 80
+        self._chunk_size = 30
+        self._hop_length = 160
+
+        self._n_samples = self.sample_rate * self._chunk_size
 
         assets_dir = Path(__file__).parent.parent / "assets" / "mel_filters.npz"
         with np.load(str(assets_dir)) as f:
@@ -225,6 +229,7 @@ class TranscribeService:
         Args:
             audio (Union[str, torch.Tensor]): Audio file to transcribe.
             source_lang (str): Language of the audio file.
+            word_timestamps (bool): Whether to return word timestamps.
             kwargs (Any): Additional arguments to pass to TranscribeService.
 
         Returns:
@@ -238,22 +243,27 @@ class TranscribeService:
                 language=source_lang,
             )
 
-        outputs = self.pipeline(audio, batch_size=self._batch_size)
+        options = self.options._replace(**kwargs)
+
+        outputs = self.pipeline(audio, batch_size=self._batch_size, options=options)
 
         return outputs
 
-    def pipeline(self, audio: Union[str, torch.Tensor], batch_size: int) -> List[dict]:
+    def pipeline(self, audio: Union[str, torch.Tensor], batch_size: int, options: TranscriptionOptions) -> List[dict]:
         """
         Transcription pipeline for audio chunks in batches.
 
         Args:
             audio (Union[str, torch.Tensor]): Audio file to transcribe.
             batch_size (int): Batch size to use for inference.
+            options (TranscriptionOptions): Transcription options.
 
         Returns:
             List[dict]: List of segments with the following keys: "start", "end", "text".
         """
-        dataset = AudioDataset(audio, self._n_samples, self.mel_filters)
+        dataset = AudioDataset(
+            audio, self._n_samples, self.mel_filters, self.sample_rate, self._hop_length, self._n_fft
+        )
         dataloader = DataLoader(
             dataset, batch_size=batch_size, collate_fn=self._collate_fn,
         )
@@ -265,12 +275,14 @@ class TranscribeService:
                 time_offsets=batch["time_offsets"],
                 segment_durations=batch["segment_durations"],
                 tokenizer=self.tokenizer,
-                options=self.options
+                options=options
             )
             outputs.extend(batch_outputs)
 
         return outputs
 
+    # This is an adapted version of the faster-whisper transcription pipeline: 
+    # https://github.com/guillaumekln/faster-whisper/blob/master/faster_whisper/transcribe.py
     def _generate_segment_batched(
         self,
         features: torch.Tensor,
@@ -321,16 +333,16 @@ class TranscribeService:
         result: WhisperGenerationResult = self.model.model.generate(
             features,
             [prompt] * batch_size,
-            beam_size=5,
-            patience=1,
-            length_penalty=1,
+            beam_size=self.options.beam_size,
+            patience=self.options.patience,
+            length_penalty=self.options.length_penalty,
             return_scores=False,
             return_no_speech_prob=False,
             suppress_blank=False,
         )
 
         outputs = []
-        for res, time_offset, segment_duration in zip(result, time_offsets, segment_durations):
+        for idx, res, time_offset, segment_duration in enumerate(zip(result, time_offsets, segment_durations)):
             tokens = res.sequences_ids[0]
             current_segments = []
 
@@ -394,12 +406,24 @@ class TranscribeService:
                     )
                 )
 
+            if options.word_timestamps:
+                segment_size = segment_duration / (self._hop_length / self.sample_rate)
+                self.model.add_word_timestamps(
+                    current_segments,
+                    tokenizer,
+                    features[idx],
+                    segment_size,
+                    options.prepend_punctuations,
+                    options.append_punctuations,
+                )
+
             for segment in current_segments:
                 outputs.append(
                     {
                         "start": segment["start"],
                         "end": segment["end"],
                         "tokens": segment["tokens"],
+                        "words": segment["words"] if options.word_timestamps else None,
                     }
                 )
 
