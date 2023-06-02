@@ -20,7 +20,6 @@ import time
 from functools import wraps
 from typing import Awaitable, Callable
 
-from fastapi import Request
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -32,16 +31,21 @@ from wordcab_transcribe.config import settings
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     """Middleware to log requests, responses, errors and execution time."""
+
     def __init__(self, app: ASGIApp) -> None:
+        """Initialize the middleware."""
         super().__init__(app)
         logger.remove()
         logger.add(
             sys.stdout,
-            level="DEBUG" if settings.debug else "WARNING"  # Avoid logging debug messages in prod
+            level="DEBUG"
+            if settings.debug
+            else "WARNING",  # Avoid logging debug messages in prod
         )
 
     async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         """
         Dispatch a request and log it, along with the response and any errors.
 
@@ -58,7 +62,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         process_time = time.time() - start_time
-        logger.debug(f"Response status: {response.status_code}, Process Time: {process_time:.4f} secs")
+        logger.debug(
+            f"Response status: {response.status_code}, Process Time: {process_time:.4f} secs"
+        )
 
         return response
 
@@ -75,7 +81,6 @@ def time_and_tell(func: Callable) -> Callable:
     """
 
     @wraps(func)
-
     def sync_wrapper(*args, **kwargs) -> Callable:
         """Sync wrapper for the decorated function."""
         if settings.debug:
@@ -105,4 +110,3 @@ def time_and_tell(func: Callable) -> Callable:
         return result
 
     return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
-    

@@ -22,7 +22,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F  # noqa N812
 import torchaudio
-from ctranslate2 import StorageView
 from ctranslate2.models import WhisperGenerationResult
 from faster_whisper import WhisperModel
 from faster_whisper.tokenizer import Tokenizer
