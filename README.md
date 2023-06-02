@@ -65,6 +65,8 @@ docker exec -it wordcab-transcribe /bin/bash
 
 This is useful to check everything is working as expected.
 
+---
+
 <details open>
 <summary>⏱️ Profile the API</summary>
 
@@ -104,6 +106,8 @@ docker cp wordcab-transcribe:/app/profile.speedscope.json profile.speedscope.jso
 
 </details>
 
+---
+
 ## Test the API
 
 Once the container is running, you can test the API.
@@ -113,24 +117,32 @@ The API documentation is available at [http://localhost:5001/docs](http://localh
 - Audio file:
 
 ```python
+import json
 import requests
 
-headers = {"accept": "application/json"}
+filepath = "/path/to/audio/file.wav"  # or any other convertible format by ffmpeg
 data = {
+  "alignment": True,  # Longer processing time but better timestamps
+  "diarization": True,  # Longer processing time but speaker segment attribution
+  "dual_channel": False,  # Only for stereo audio files with one speaker per channel
   "source_lang": "en",  # optional, default is "en"
   "timestamps": "s",  # optional, default is "s". Can be "s", "ms" or "hms".
+  "word_timestamps": False,  # optional, default is False
 }
 
-filepath = "tests/sample_1.mp3"  # or any other audio file. Prefer wav files.
 with open(filepath, "rb") as f:
-  files = {"file": f}
-  response = requests.post(
-    "http://localhost:5001/api/v1/audio",
-    headers=headers,
-    files=files,
-    data=data,
-  )
-print(response.json())
+    files = {"file": f}
+    response = requests.post(
+        "http://localhost:5001/api/v1/audio",
+        files=files,
+        data=data,
+    )
+
+r_json = response.json()
+
+filename = filepath.split(".")[0]
+with open(f"{filename}.json", "w", encoding="utf-8") as f:
+  json.dump(r_json, f, indent=4, ensure_ascii=False)
 ```
 
 - YouTube video:
@@ -142,8 +154,11 @@ import requests
 headers = {"accept": "application/json", "Content-Type": "application/json"}
 params = {"url": "https://youtu.be/JZ696sbfPHs"}
 data = {
+  "alignment": True,  # Longer processing time but better timestamps
+  "diarization": True,  # Longer processing time but speaker segment attribution
   "source_lang": "en",  # optional, default is "en"
   "timestamps": "s",  # optional, default is "s". Can be "s", "ms" or "hms".
+  "word_timestamps": False,  # optional, default is False
 }
 
 response = requests.post(
@@ -152,7 +167,11 @@ response = requests.post(
   params=params,
   data=json.dumps(data),
 )
-print(response.json())
+
+r_json = response.json()
+
+with open("youtube_video_output.json", "w", encoding="utf-8") as f:
+  json.dump(r_json, f, indent=4, ensure_ascii=False)
 ```
 
 ## Local testing
