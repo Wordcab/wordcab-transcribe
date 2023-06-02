@@ -25,6 +25,7 @@ import torchaudio
 from loguru import logger
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 
+from wordcab_transcribe.logging import time_and_tell
 from wordcab_transcribe.utils import interpolate_nans
 
 
@@ -137,6 +138,7 @@ class AlignService:
         self.model_map = MODEL_MAPPING
         self.available_lang = self.model_map.keys()
 
+    @time_and_tell
     def __call__(
         self, filepath: str, transcript_segments: List[dict], source_lang: str
     ) -> List[SingleAlignedSegment]:
