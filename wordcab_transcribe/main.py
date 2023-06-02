@@ -23,6 +23,7 @@ from loguru import logger
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.dependencies import asr
+from wordcab_transcribe.logging import LoggingMiddleware
 from wordcab_transcribe.router.authentication import get_current_user
 from wordcab_transcribe.router.v1.endpoints import (
     api_router,
@@ -32,6 +33,7 @@ from wordcab_transcribe.router.v1.endpoints import (
 from wordcab_transcribe.utils import retrieve_user_platform
 
 
+# Main application instance creation
 app = FastAPI(
     title=settings.project_name,
     version=settings.version,
@@ -39,6 +41,10 @@ app = FastAPI(
     debug=settings.debug,
 )
 
+# Add logging middleware
+app.add_middleware(LoggingMiddleware)
+
+# Include the appropiate routers based on the settings
 if settings.debug is False:
     app.include_router(auth_router, tags=["authentication"])
     app.include_router(

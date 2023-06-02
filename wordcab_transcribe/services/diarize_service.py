@@ -20,6 +20,7 @@ import librosa
 import soundfile as sf
 from nemo.collections.asr.models.msdd_models import NeuralDiarizer
 
+from wordcab_transcribe.logging import time_and_tell
 from wordcab_transcribe.utils import load_nemo_config
 
 
@@ -52,6 +53,7 @@ class DiarizeService:
             )
         ).to(device)
 
+    @time_and_tell
     def __call__(self, filepath: str) -> List[dict]:
         """
         Run inference with the diarization model.

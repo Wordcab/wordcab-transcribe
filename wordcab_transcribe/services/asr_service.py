@@ -24,6 +24,7 @@ import torch
 from loguru import logger
 
 from wordcab_transcribe.config import settings
+from wordcab_transcribe.logging import time_and_tell
 from wordcab_transcribe.services.align_service import AlignService
 from wordcab_transcribe.services.diarize_service import DiarizeService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
@@ -162,6 +163,7 @@ class ASRAsyncService(ASRService):
                 self.needs_processing[task_type].set,
             )
 
+    @time_and_tell
     async def process_input(
         self,
         filepath: Union[str, Tuple[str, str]],
@@ -276,15 +278,6 @@ class ASRAsyncService(ASRService):
                 self.needs_processing_timer[task_type] = None
 
             async with self.queue_locks[task_type]:
-                if self.queues[task_type]:
-                    longest_wait = (
-                        asyncio.get_event_loop().time()
-                        - self.queues[task_type][0]["time"]
-                    )
-                    logger.debug(f"[{task_type}] longest wait: {longest_wait}")
-                else:
-                    longest_wait = None
-
                 task_to_run = self.queues[task_type][0]
                 del self.queues[task_type][0]
 
@@ -309,6 +302,7 @@ class ASRAsyncService(ASRService):
             finally:
                 task_to_run[f"{task_type}_done"].set()
 
+    @time_and_tell
     def process_transcription(
         self, task: dict
     ) -> Union[List[dict], Tuple[List[dict], List[dict]]]:
@@ -357,6 +351,7 @@ class ASRAsyncService(ASRService):
         else:
             raise ValueError(f"Invalid input type: {type(task['input'])}")
 
+    @time_and_tell
     def process_diarization(self, task: dict) -> List[dict]:
         """
         Process a task of diarization.
@@ -371,6 +366,7 @@ class ASRAsyncService(ASRService):
 
         return utterances
 
+    @time_and_tell
     def process_alignment(self, task: dict) -> List[dict]:
         """
         Process a task of alignment.
@@ -389,6 +385,7 @@ class ASRAsyncService(ASRService):
 
         return segments
 
+    @time_and_tell
     def process_post_processing(self, task: dict) -> List[dict]:
         """
         Process a task of post processing.
@@ -445,6 +442,7 @@ class ASRAsyncService(ASRService):
 
         return final_utterances
 
+    @time_and_tell
     def transcribe_dual_channel(
         self,
         source_lang: str,

@@ -22,7 +22,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F  # noqa N812
 import torchaudio
-from ctranslate2 import StorageView
 from ctranslate2.models import WhisperGenerationResult
 from faster_whisper import WhisperModel
 from faster_whisper.tokenizer import Tokenizer
@@ -31,7 +30,10 @@ from faster_whisper.transcribe import (
     get_ctranslate2_storage,
     get_suppressed_tokens,
 )
+from loguru import logger
 from torch.utils.data import DataLoader, IterableDataset
+
+from wordcab_transcribe.logging import time_and_tell
 
 
 # Word implementation from faster-whisper:
@@ -109,6 +111,7 @@ class AudioDataset(IterableDataset):
 
         return wav.squeeze(0)
 
+    @time_and_tell
     def create_chunks(
         self, waveform: torch.Tensor
     ) -> Tuple[List[torch.Tensor], List[int], List[float]]:
@@ -204,7 +207,7 @@ class TranscribeService:
             language="en",  # Default language, to gain some speed
         )
 
-        self._batch_size = 32  # TODO: Make this configurable
+        self._batch_size = 8  # TODO: Make this configurable
         self.sample_rate = 16000
 
         self.n_fft = 400
@@ -272,6 +275,7 @@ class TranscribeService:
 
         return outputs
 
+    @time_and_tell
     def pipeline(
         self,
         audio: Union[str, torch.Tensor],
@@ -319,6 +323,7 @@ class TranscribeService:
 
     # This is an adapted version of the faster-whisper transcription pipeline:
     # https://github.com/guillaumekln/faster-whisper/blob/master/faster_whisper/transcribe.py
+    @time_and_tell
     def _generate_segment_batched(
         self,
         features: torch.Tensor,
@@ -340,9 +345,11 @@ class TranscribeService:
         Returns:
             List[dict]: List of segments with the following keys: "start", "end", "text", "confidence".
         """
-        batch_size = features.size(0)
         if "TOKENIZERS_PARALLELISM" not in os.environ:
             os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+        batch_size = features.size(0)
+        logger.debug(f"Batch size: {batch_size}")
 
         all_tokens = []
         prompt_reset_since = 0
@@ -360,7 +367,7 @@ class TranscribeService:
             prefix=options.prefix,
         )
 
-        features = self._encode(features)
+        features = get_ctranslate2_storage(features)
 
         # TODO: Could be better to get the results as np.ndarray/torch.tensor and not as a class for speed
         # Atm, we need to extract the results as a Python list which is slow because we get this results:
@@ -470,29 +477,6 @@ class TranscribeService:
         decoded_outputs = self._decode_batch(outputs)
 
         return decoded_outputs
-
-    def _encode(self, features: torch.Tensor) -> StorageView:
-        """
-        Encode a batch of features using the ctranslate2 Whisper model.
-
-        Args:
-            features (torch.Tensor): Batch of features.
-
-        Returns:
-            StorageView: Encoded features.
-        """
-        # TODO: We call the inherited model here, because faster_whisper model does not allow to
-        # access the device and the device_index. We should fix this in the future.
-        to_cpu = (
-            self.model.model.device == "cuda" and len(self.model.model.device_index) > 1
-        )
-
-        if len(features.shape) == 2:
-            features = np.expand_dims(features, 0)
-
-        features = get_ctranslate2_storage(features)
-
-        return self.model.model.encode(features, to_cpu=to_cpu)
 
     def _decode_batch(self, outputs: List[dict]) -> List[dict]:
         """
