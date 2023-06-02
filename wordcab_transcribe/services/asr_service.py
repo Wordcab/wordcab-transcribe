@@ -278,15 +278,6 @@ class ASRAsyncService(ASRService):
                 self.needs_processing_timer[task_type] = None
 
             async with self.queue_locks[task_type]:
-                if self.queues[task_type]:
-                    longest_wait = (
-                        asyncio.get_event_loop().time()
-                        - self.queues[task_type][0]["time"]
-                    )
-                    logger.debug(f"[{task_type}] longest wait: {longest_wait}")
-                else:
-                    longest_wait = None
-
                 task_to_run = self.queues[task_type][0]
                 del self.queues[task_type][0]
 
