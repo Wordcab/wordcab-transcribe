@@ -101,4 +101,6 @@ class VadService:
             filepath (str): Path to save the audio file.
             audio (torch.Tensor): Audio tensor.
         """
-        torchaudio.save(filepath, audio.unsqueeze(0), self.sample_rate, bits_per_sample=16)
+        torchaudio.save(
+            filepath, audio.unsqueeze(0), self.sample_rate, bits_per_sample=16
+        )

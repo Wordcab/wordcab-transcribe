@@ -533,7 +533,9 @@ class ASRAsyncService(ASRService):
                 delete_file(temp_filepath)
 
             except Exception as e:
-                logger.error(f"Dual channel trasncription error: {e}\n{traceback.format_exc()}")
+                logger.error(
+                    f"Dual channel trasncription error: {e}\n{traceback.format_exc()}"
+                )
                 pass
 
         return final_transcript
