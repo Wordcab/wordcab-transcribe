@@ -32,7 +32,7 @@ def default_settings() -> OrderedDict:
         batch_size=1,
         max_wait=0.1,
         whisper_model="large-v2",
-        compute_type="int8_float16",
+        compute_type="float16",
         nemo_domain_type="general",
         nemo_storage_path="nemo_storage",
         nemo_output_path="nemo_outputs",
@@ -67,7 +67,7 @@ def test_config() -> None:
     assert settings.batch_size == 1
     assert settings.max_wait == 0.1
     assert settings.whisper_model == "large-v2"
-    assert settings.compute_type == "int8_float16"
+    assert settings.compute_type == "float16"
     assert settings.nemo_domain_type == "telephonic"
     assert settings.nemo_storage_path == "nemo_storage"
     assert settings.nemo_output_path == "nemo_outputs"
