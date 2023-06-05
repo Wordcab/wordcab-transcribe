@@ -56,9 +56,14 @@ class VadService:
 
         speech_timestamps = get_speech_timestamps(audio=wav)
 
-        speech_timestamps_list = [
+        _speech_timestamps_list = [
             {"start": ts["start"], "end": ts["end"]} for ts in speech_timestamps
         ]
+
+        if group_timestamps:
+            speech_timestamps_list = self.group_timestamps(_speech_timestamps_list)
+        else:
+            speech_timestamps_list = _speech_timestamps_list
 
         return speech_timestamps_list, wav
 
@@ -87,3 +92,13 @@ class VadService:
             grouped_segments[-1].append(timestamps[i])
 
         return grouped_segments
+
+    def save_audio(self, filepath: str, audio: torch.Tensor) -> None:
+        """
+        Save audio tensor to file.
+
+        Args:
+            filepath (str): Path to save the audio file.
+            audio (torch.Tensor): Audio tensor.
+        """
+        torchaudio.save(filepath, audio.unsqueeze(0), self.sample_rate, bits_per_sample=16)

@@ -484,9 +484,7 @@ class ASRAsyncService(ASRService):
 
                 tensors = torch.cat(audio_segments)
                 temp_filepath = f"{filepath}_{speaker_label}_{ix}.wav"
-                self.services["vad"].save_audio(
-                    temp_filepath, tensors, sampling_rate=self.sample_rate
-                )
+                self.services["vad"].save_audio(temp_filepath, tensors)
 
                 segments, _ = self.services["transcription"].model.transcribe(
                     audio=temp_filepath,
@@ -535,7 +533,7 @@ class ASRAsyncService(ASRService):
                 delete_file(temp_filepath)
 
             except Exception as e:
-                logger.error(f"Dual channel trasncription error: {e}")
+                logger.error(f"Dual channel trasncription error: {e}\n{traceback.format_exc()}")
                 pass
 
         return final_transcript
