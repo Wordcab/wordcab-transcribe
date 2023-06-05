@@ -259,19 +259,27 @@ class TranscribeService:
         Returns:
             List[dict]: List of segments with the following keys: "start", "end", "text", "confidence".
         """
-        if self.tokenizer.language_code != source_lang:
-            self.tokenizer = Tokenizer(
-                self.model.hf_tokenizer,
-                self.model.model.is_multilingual,
-                task="transcribe",
-                language=source_lang,
+        if kwargs.get("faster_whisper", False):
+            segments, _ = self.model.transcribe(
+                audio, language=source_lang, word_timestamps=True
             )
 
-        _options = self.options.copy()
-        _options.update(kwargs)
-        options = TranscriptionOptions(**_options)
+            outputs = [segment._asdict() for segment in segments]
 
-        outputs = self.pipeline(audio, batch_size=self._batch_size, options=options)
+        else:
+            if self.tokenizer.language_code != source_lang:
+                self.tokenizer = Tokenizer(
+                    self.model.hf_tokenizer,
+                    self.model.model.is_multilingual,
+                    task="transcribe",
+                    language=source_lang,
+                )
+
+            _options = self.options.copy()
+            _options.update(kwargs)
+            options = TranscriptionOptions(**_options)
+
+            outputs = self.pipeline(audio, batch_size=self._batch_size, options=options)
 
         return outputs
 
