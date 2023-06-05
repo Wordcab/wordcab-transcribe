@@ -100,9 +100,9 @@ class Settings:
     @validator("compute_type")
     def compute_type_must_be_valid(cls, value: str):  # noqa: B902, N805
         """Check that the model precision is valid."""
-        if value not in {"int8", "int8_float16", "int16", "float_16"}:
+        if value not in {"int8", "int8_float16", "int16", "float16"}:
             raise ValueError(
-                f"{value} is not a valid compute type. Choose one of int8, int8_float16, int16, float_16."
+                f"{value} is not a valid compute type. Choose one of int8, int8_float16, int16, float16."
             )
         return value
 
