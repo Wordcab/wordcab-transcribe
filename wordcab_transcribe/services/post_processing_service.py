@@ -13,7 +13,7 @@
 # limitations under the License.
 """Post-Processing Service for audio files."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from wordcab_transcribe.utils import (
     _convert_s_to_ms,
@@ -56,9 +56,7 @@ class PostProcessingService:
         )
 
         utterances = self.utterances_speaker_mapping(
-            segments_with_speaker_mapping,
-            word_timestamps,
-            speaker_timestamps,
+            segments_with_speaker_mapping, word_timestamps
         )
 
         return utterances
@@ -158,7 +156,6 @@ class PostProcessingService:
         self,
         transcript_segments: List[dict],
         word_timestamps: bool,
-        speaker_timestamps: Optional[List[str]] = None,
     ) -> List[dict]:
         """
         Map utterances of the same speaker together for dual channel use case.
@@ -166,19 +163,15 @@ class PostProcessingService:
         Args:
             transcript_segments (List[dict]): List of transcript segments.
             word_timestamps (bool): Whether to include word timestamps.
-            speaker_timestamps (Optional[List[str]]): List of speaker timestamps.
 
         Returns:
             List[dict]: List of sentences with speaker mapping.
         """
-        if speaker_timestamps:
-            start_t0, end_t0, speaker_t0 = speaker_timestamps[0]
-        else:
-            start_t0, end_t0, speaker_t0 = (
-                transcript_segments[0]["start"],
-                transcript_segments[0]["end"],
-                transcript_segments[0]["speaker"],
-            )
+        start_t0, end_t0, speaker_t0 = (
+            transcript_segments[0]["start"],
+            transcript_segments[0]["end"],
+            transcript_segments[0]["speaker"],
+        )
 
         previous_speaker = speaker_t0
         current_sentence = {
