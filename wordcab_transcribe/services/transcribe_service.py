@@ -26,8 +26,7 @@ import torchaudio
 from ctranslate2.models import WhisperGenerationResult
 from faster_whisper import WhisperModel
 from faster_whisper.tokenizer import Tokenizer
-from faster_whisper.transcribe import get_ctranslate2_storage, get_suppressed_tokens
-from loguru import logger
+from faster_whisper.transcribe import get_ctranslate2_storage
 from torch.utils.data import DataLoader, IterableDataset
 
 from wordcab_transcribe.logging import time_and_tell
@@ -37,6 +36,7 @@ from wordcab_transcribe.logging import time_and_tell
 # https://github.com/guillaumekln/faster-whisper/blob/master/faster_whisper/transcribe.py#L24
 class Word(NamedTuple):
     """Word unit for word_timestamps option."""
+
     start: float
     end: float
     word: str
@@ -45,6 +45,7 @@ class Word(NamedTuple):
 
 class AudioDataset(IterableDataset):
     """Audio Dataset for transcribing audio files in batches."""
+
     def __init__(
         self,
         audio: Union[str, torch.Tensor],
@@ -82,7 +83,10 @@ class AudioDataset(IterableDataset):
             raise TypeError("Audio must be a string or a tensor.")
 
         (
-            self.indexes, _audio_chunks, self.time_offsets, self.segment_durations,
+            self.indexes,
+            _audio_chunks,
+            self.time_offsets,
+            self.segment_durations,
         ) = self.create_chunks(waveform)
 
         self.features = [
@@ -186,6 +190,7 @@ class AudioDataset(IterableDataset):
 
 class FallBackDataset(IterableDataset):
     """Custom Dataset for transcribing fallback segments in batches."""
+
     def __init__(self, failed_segments: List[Dict[str, Any]]) -> None:
         """
         Initialize the Dataset.
@@ -199,7 +204,7 @@ class FallBackDataset(IterableDataset):
         """
         Iterate over the failed segments and yield the features.
 
-        Returns:
+        Yields:
             Dict[str, Any]: Dictionary containing the features.
             A segment looks like this:
             {
@@ -209,8 +214,7 @@ class FallBackDataset(IterableDataset):
                 "segment_duration": 30.0,
             }
         """
-        for segment in self.segments:
-            yield segment
+        yield from self.segments
 
 
 class TranscribeService:
@@ -352,7 +356,9 @@ class TranscribeService:
                                 "index": batch["indexes"][output_index],
                                 "feature": batch["features"][output_index],
                                 "time_offset": batch["time_offsets"][output_index],
-                                "segment_duration": batch["segment_durations"][output_index],
+                                "segment_duration": batch["segment_durations"][
+                                    output_index
+                                ],
                             }
                         )
                     else:
@@ -368,7 +374,7 @@ class TranscribeService:
                 beam_size = 1
                 num_hypotheses = 5
                 sampling_top_k = 0
-                temperature = (temperature + 0.2) if temperature is not 1.0 else 0.0
+                temperature = (temperature + 0.2) if temperature != 1.0 else 0.2
                 stop_temperature = temperature  # Used to stop the loop if the temperature reaches 1.0 again.
             else:
                 break  # All segments have been processed successfully.
@@ -421,7 +427,6 @@ class TranscribeService:
             os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
         batch_size = features.size(0)
-        logger.debug(f"Batch size: {batch_size}")
 
         all_tokens = []
         prompt_reset_since = 0
@@ -469,12 +474,15 @@ class TranscribeService:
             _text = tokenizer.decode(tokens).strip()
 
             compression_ratio, average_log_probability = self._get_quality_metrics(
-                tokens, _text, segment_score, length_penalty,
+                tokens,
+                _text,
+                segment_score,
+                length_penalty,
             )
 
             # We check if the segment is valid based on the metrics thresholds.
             if (
-                average_log_probability > self.log_probability_threshold 
+                average_log_probability > self.log_probability_threshold
                 and compression_ratio < self.compression_ratio_threshold
             ):
                 single_timestamp_ending = (
@@ -521,8 +529,13 @@ class TranscribeService:
                     timestamps = [
                         token for token in tokens if token >= tokenizer.timestamp_begin
                     ]
-                    if len(timestamps) > 0 and timestamps[-1] != tokenizer.timestamp_begin:
-                        last_timestamp_position = timestamps[-1] - tokenizer.timestamp_begin
+                    if (
+                        len(timestamps) > 0
+                        and timestamps[-1] != tokenizer.timestamp_begin
+                    ):
+                        last_timestamp_position = (
+                            timestamps[-1] - tokenizer.timestamp_begin
+                        )
                         duration = last_timestamp_position * 0.02
 
                     current_segments.append(
