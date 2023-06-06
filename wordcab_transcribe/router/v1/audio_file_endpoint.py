@@ -67,7 +67,14 @@ async def inference_with_audio(
     )
 
     if data.dual_channel:
-        filepath = await split_dual_channel_file(filepath=filename)
+        try:
+            filepath = await split_dual_channel_file(filename)
+        except Exception as e:
+            logger.error(f"{e}\nFallback to single channel mode.")
+
+            data.dual_channel = False
+            filepath = await convert_file_to_wav(filename)
+
     else:
         filepath = await convert_file_to_wav(filepath=filename)
 

@@ -55,7 +55,7 @@ async def inference_with_audio_url(
 
             data.dual_channel = False
             filepath = await convert_file_to_wav(filepath)
-            
+
     else:
         filepath = await convert_file_to_wav(filepath)
 
