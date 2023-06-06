@@ -48,7 +48,14 @@ async def inference_with_audio_url(
     filepath, extension = await download_audio_file(url, filename)
 
     if data.dual_channel:
-        filepath = await split_dual_channel_file(filepath)
+        try:
+            filepath = await split_dual_channel_file(filepath)
+        except Exception as e:
+            logger.error(f"{e}\nFallback to single channel mode.")
+
+            data.dual_channel = False
+            filepath = await convert_file_to_wav(filepath)
+            
     else:
         filepath = await convert_file_to_wav(filepath)
 
