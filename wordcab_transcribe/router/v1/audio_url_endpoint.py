@@ -45,19 +45,19 @@ async def inference_with_audio_url(
 
     data = AudioRequest() if data is None else AudioRequest(**data.dict())
 
-    filepath, extension = await download_audio_file(url, filename)
+    _filepath, extension = await download_audio_file(url, filename)
 
     if data.dual_channel:
         try:
-            filepath = await split_dual_channel_file(filepath)
+            filepath = await split_dual_channel_file(_filepath)
         except Exception as e:
             logger.error(f"{e}\nFallback to single channel mode.")
 
             data.dual_channel = False
-            filepath = await convert_file_to_wav(filepath)
+            filepath = await convert_file_to_wav(_filepath)
 
     else:
-        filepath = await convert_file_to_wav(filepath)
+        filepath = await convert_file_to_wav(_filepath)
 
     background_tasks.add_task(delete_file, filepath=f"{filename}.{extension}")
 
