@@ -327,7 +327,6 @@ class ASRAsyncService(ASRService):
                 task["input"],
                 source_lang=task["source_lang"],
                 word_timestamps=word_timestamps,
-                faster_whisper=True,
             )
 
             return segments
