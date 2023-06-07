@@ -265,7 +265,7 @@ class TranscribeService:
             self.mel_filters = torch.from_numpy(f[f"mel_{self.n_mels}"])
 
         self.compression_ratio_threshold = 2.4
-        self.log_probability_threshold = -1.0
+        self.log_probability_threshold = -0.8
 
     def __call__(
         self,
@@ -347,6 +347,7 @@ class TranscribeService:
                     patience=patience,
                     sampling_top_k=sampling_top_k,
                     temperature=temperature,
+                    last_chance_inference=False if stop_temperature != 1.0 else True,
                 )
 
                 for output_index, output in enumerate(batch_outputs):
@@ -394,6 +395,7 @@ class TranscribeService:
         tokenizer: Tokenizer,
         beam_size: int = 5,
         initial_prompt: Optional[str] = None,
+        last_chance_inference: bool = False,
         length_penalty: float = 1.0,
         patience: int = 1.0,
         prefix: Optional[str] = None,
@@ -411,6 +413,7 @@ class TranscribeService:
             segment_durations (List[float]): Durations of the audio chunks.
             tokenizer (Tokenizer): Tokenizer to use for encoding the text.
             beam_size (int): Beam size to use for beam search.
+            last_chance_inference (bool): Whether to accept the result of the inference even if not perfect.
             length_penalty (float): Length penalty to use for beam search.
             initial_prompt (Optional[str]): Initial prompt to use for the generation.
             num_hypotheses (int): Number of hypotheses used by generate.
@@ -481,10 +484,11 @@ class TranscribeService:
             )
 
             # We check if the segment is valid based on the metrics thresholds.
+            # Or if it is the last chance inference, we will accept the result even if not perfect.
             if (
                 average_log_probability > self.log_probability_threshold
                 and compression_ratio < self.compression_ratio_threshold
-            ):
+            ) or last_chance_inference:
                 single_timestamp_ending = (
                     len(tokens) >= 2
                     and tokens[-2] < tokenizer.timestamp_begin
