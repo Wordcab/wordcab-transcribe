@@ -201,7 +201,7 @@ class ASRAsyncService(ASRService):
             "dual_channel": dual_channel,
             "source_lang": source_lang,
             "timestamps_format": timestamps_format,
-            "word_timestamps": False,  # TODO: Implement word timestamps, False for now
+            "word_timestamps": word_timestamps,
             "post_processed": False,
             "transcription_result": None,
             "transcription_done": asyncio.Event(),

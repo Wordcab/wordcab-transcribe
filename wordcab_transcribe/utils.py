@@ -440,10 +440,10 @@ def format_segments(
             else:
                 _words = [
                     {
-                        "word": word.word.strip(),
-                        "start": word.start,
-                        "end": word.end,
-                        "score": round(word.probability, 3),
+                        "word": word["word"].strip(),
+                        "start": word["start"],
+                        "end": word["end"],
+                        "score": round(word["probability"], 2),
                     }
                     for word in segment["words"]
                 ]
