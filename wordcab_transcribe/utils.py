@@ -14,6 +14,7 @@
 """Utils module of the Wordcab Transcribe."""
 import asyncio
 import json
+import requests
 import math
 import re
 import subprocess  # noqa: S404
@@ -60,7 +61,66 @@ CURRENCIES_CHARACTERS = [
     "₿",
 ]
 
+# run API for youtube video endpoint
+def run_api_youtube(url : str, sourceLang = "en", timestamps = "s", wordTimestamps = False):
+    headers = {"accept": "application/json", "Content-Type": "application/json"}
+    params = {"url": url}
+    data = {
+        "alignment": True,  # Longer processing time but better timestamps
+        "diarization": True,  # Longer processing time but speaker segment attribution
+        "source_lang": sourceLang,  # optional, default is "en"
+        "timestamps": timestamps,  # optional, default is "s". Can be "s", "ms" or "hms".
+        "word_timestamps": wordTimestamps,  # optional, default is False
+    }
 
+    response = requests.post(
+        "http://localhost:5001/api/v1/youtube",
+        headers=headers,
+        params=params,
+        data=json.dumps(data),
+    )
+
+    r_json = response.json()
+
+    with open("youtube_video_output.json", "w", encoding="utf-8") as f:
+        json.dump(r_json, f, indent=4, ensure_ascii=False)
+        
+        
+ # run API for audio file endpoint 
+ def run_api_audioFile(file : str, sourceLang = "en", timestamps = "s", wordTimestamps = False):
+    filepath = file  # or any other convertible format by ffmpeg
+    data = {
+        "alignment": True,  # Longer processing time but better timestamps
+        "diarization": True,  # Longer processing time but speaker segment attribution
+        "dual_channel": False,  # Only for stereo audio files with one speaker per channel
+        "source_lang": sourceLang,  # optional, default is "en"
+        "timestamps": timestamps,  # optional, default is "s". Can be "s", "ms" or "hms".
+        "word_timestamps": wordTimestamps,  # optional, default is False
+    }
+
+    with open(filepath, "rb") as f:
+        files = {"file": f}
+        response = requests.post(
+            "http://localhost:5001/api/v1/audio",
+            files=files,
+            data=data,
+        )
+
+    r_json = response.json()
+
+    filename = filepath.split(".")[0]
+    with open(f"{filename}.json", "w", encoding="utf-8") as f:
+        json.dump(r_json, f, indent=4, ensure_ascii=False)
+        
+        
+# run API function that will delegate to other functions based on the endpoint         
+def run_api (url : str, endpoint: str, sourceLang = "en", timestamps = "s", wordTimestamps = False)
+    if endpoint == "youtube":
+        run_api_youtube(url, sourceLang, timestamps, wordTimestamps)
+    elif endpoint == "audioFile":
+        run_api_audioFile(url, sourceLang, timestamps, wordTimestamps)
+
+        
 # pragma: no cover
 async def async_run_subprocess(command: List[str]) -> tuple:
     """
