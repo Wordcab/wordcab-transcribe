@@ -277,6 +277,7 @@ class TranscribeService:
         self,
         audio: Union[str, torch.Tensor],
         source_lang: str,
+        suppress_blank: bool = True,
         word_timestamps: bool = False,
     ) -> List[dict]:
         """
@@ -285,6 +286,7 @@ class TranscribeService:
         Args:
             audio (Union[str, torch.Tensor]): Audio file to transcribe.
             source_lang (str): Language of the audio file.
+            suppress_blank (bool): Whether to suppress blank at the beginning of the sampling.
             word_timestamps (bool): Whether to return word timestamps.
 
         Returns:
@@ -298,7 +300,7 @@ class TranscribeService:
                 language=source_lang,
             )
 
-        outputs = self.pipeline(audio, self._batch_size, word_timestamps)
+        outputs = self.pipeline(audio, self._batch_size, suppress_blank, word_timestamps)
 
         return outputs
 
@@ -307,6 +309,7 @@ class TranscribeService:
         self,
         audio: Union[str, torch.Tensor],
         batch_size: int,
+        suppress_blank: bool = True,
         word_timestamps: bool = False,
     ) -> List[dict]:
         """
@@ -315,6 +318,7 @@ class TranscribeService:
         Args:
             audio (Union[str, torch.Tensor]): Audio file to transcribe.
             batch_size (int): Batch size to use for inference.
+            suppress_blank (bool): Whether to suppress blank at the beginning of the sampling.
             word_timestamps (bool): Whether to return word timestamps.
 
         Returns:
@@ -358,6 +362,7 @@ class TranscribeService:
                     num_hypotheses=num_hypotheses,
                     patience=patience,
                     sampling_top_k=sampling_top_k,
+                    suppress_blank=suppress_blank,
                     temperature=temperature,
                     last_chance_inference=False if stop_temperature != 1.0 else True,
                     word_timestamps=word_timestamps,
@@ -414,6 +419,7 @@ class TranscribeService:
         prefix: Optional[str] = None,
         num_hypotheses: int = 1,
         sampling_top_k: int = 1,
+        suppress_blank: bool = True,
         temperature: float = 1.0,
         without_timestamps: bool = False,
         word_timestamps: bool = False,
@@ -434,6 +440,7 @@ class TranscribeService:
             patience (int): Patience to use for beam search.
             prefix (Optional[str]): Prefix to use for the generation.
             sampling_top_k (int): Sampling top k to use for sampling.
+            suppress_blank (bool): Whether to suppress blank output of the sampling.
             temperature (float): Temperature to use for sampling.
             without_timestamps (bool): Whether to remove timestamps from the generated text.
             word_timestamps (bool): Whether to use word timestamps instead of character timestamps.
@@ -474,7 +481,7 @@ class TranscribeService:
             length_penalty=length_penalty,
             return_scores=True,
             return_no_speech_prob=True,
-            suppress_blank=False,
+            suppress_blank=suppress_blank,
             sampling_temperature=temperature,
             sampling_topk=sampling_top_k,
         )
