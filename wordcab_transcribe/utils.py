@@ -353,6 +353,9 @@ def enhance_audio(
         waveform = audio
         sample_rate = 16000
 
+    if waveform.size(0) > 1:
+        waveform = waveform.mean(dim=0, keepdim=True)
+
     if sample_rate != 16000:
         transform = torchaudio.transforms.Resample(
             orig_freq=sample_rate, new_freq=16000,
