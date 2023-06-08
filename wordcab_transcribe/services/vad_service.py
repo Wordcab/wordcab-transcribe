@@ -28,7 +28,7 @@ class VadService:
         self.sample_rate = 16000
 
     def __call__(
-        self, filepath: str, group_timestamps: Optional[bool] = True
+        self, waveform: torch.Tensor, group_timestamps: Optional[bool] = True
     ) -> Tuple[Union[List[dict], List[List[dict]]], torch.Tensor]:
         """
         Use the VAD model to get the speech timestamps. Dual channel pipeline.
@@ -40,21 +40,10 @@ class VadService:
         Returns:
             Tuple[Union[List[dict], List[List[dict]]], torch.Tensor]: Speech timestamps and audio tensor.
         """
-        wav, sr = torchaudio.load(filepath)
+        if waveform.size(0) == 1:
+            waveform = waveform.squeeze(0)
 
-        if wav.size(0) > 1:
-            wav = wav.mean(dim=0, keepdim=True)
-
-        if sr != self.sample_rate:
-            transform = torchaudio.transforms.Resample(
-                orig_freq=sr, new_freq=self.sample_rate
-            )
-            wav = transform(wav)
-            sr = self.sample_rate
-
-        wav = wav.squeeze(0)
-
-        speech_timestamps = get_speech_timestamps(audio=wav)
+        speech_timestamps = get_speech_timestamps(audio=waveform)
 
         _speech_timestamps_list = [
             {"start": ts["start"], "end": ts["end"]} for ts in speech_timestamps
@@ -65,7 +54,7 @@ class VadService:
         else:
             speech_timestamps_list = _speech_timestamps_list
 
-        return speech_timestamps_list, wav
+        return speech_timestamps_list, waveform
 
     def group_timestamps(
         self, timestamps: List[dict], threshold: Optional[float] = 3.0
