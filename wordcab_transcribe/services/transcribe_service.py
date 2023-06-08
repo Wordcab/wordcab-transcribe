@@ -50,7 +50,7 @@ class AudioDataset(IterableDataset):
 
     def __init__(
         self,
-        audio: Union[str, torch.Tensor],
+        audio: Union[str, torch.Tensor, List[torch.Tensor]],
         chunk_size: int,
         hop_length: int,
         mel_filters: torch.Tensor,
@@ -62,7 +62,7 @@ class AudioDataset(IterableDataset):
         Initialize the Audio Dataset for transcribing audio files in batches.
 
         Args:
-            audio (Union[str, torch.Tensor]): Audio file path or audio tensor.
+            audio (Union[str, torch.Tensor, List[torch.Tensor]]): Audio file, tensor, or list of tensors.
             chunk_size (int): Size of audio chunks.
             hop_length (int): Hop length for the STFT.
             mel_filters (torch.Tensor): Mel filters to apply to the STFT.
@@ -79,8 +79,15 @@ class AudioDataset(IterableDataset):
 
         if isinstance(audio, str):
             waveform = self.read_audio(audio)
+
         elif isinstance(audio, torch.Tensor):
             waveform = audio
+
+        elif isinstance(audio, list):
+            if not all(isinstance(a, torch.Tensor) for a in audio):
+                raise TypeError("Audio must be a list of tensors.")
+            waveform = audio
+
         else:
             raise TypeError("Audio must be a string or a tensor.")
 
@@ -130,25 +137,28 @@ class AudioDataset(IterableDataset):
 
     @time_and_tell
     def create_chunks(
-        self, waveform: torch.Tensor
+        self, waveform: Union[torch.Tensor, List[torch.Tensor]]
     ) -> Tuple[List[torch.Tensor], List[int], List[float]]:
         """
         Create 30-second chunks from the audio file loaded as a tensor.
 
         Args:
-            waveform (torch.Tensor): Audio tensor of shape (n_samples,).
+            waveform (Union[torch.Tensor, List[torch.Tensor]]): Audio file loaded as a tensor.
 
         Returns:
             Tuple[List[torch.Tensor], List[int], List[float]]: Tuple of audio chunks,
         """
-        num_segments = math.ceil(waveform.size(0) / self.n_samples)
+        if isinstance(waveform, torch.Tensor):
+            num_segments = math.ceil(waveform.size(0) / self.n_samples)
+            segments = [
+                waveform[i * self.n_samples : (i + 1) * self.n_samples]
+                for i in range(num_segments)
+            ]
+        else:
+            segments = waveform
+            num_segments = len(segments)
+
         indexes = [i for i in range(num_segments)]
-
-        segments = [
-            waveform[i * self.n_samples : (i + 1) * self.n_samples]
-            for i in range(num_segments)
-        ]
-
         time_offsets = [(i * self.chunk_size) for i in range(num_segments)]
         segment_durations = [
             self.chunk_size
