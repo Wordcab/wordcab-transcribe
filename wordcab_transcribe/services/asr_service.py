@@ -466,74 +466,67 @@ class ASRAsyncService(ASRService):
             apply_bandpass=False,
         )
         grouped_segments, audio = self.services["vad"](enhanced_audio)
-        # delete_file(enhanced_filepath)
 
         final_transcript = []
         silence_padding = torch.from_numpy(np.zeros(int(3 * self.sample_rate))).float()
 
-# Need to wrap this in a function
+        # Need to wrap this in a function
         for group in grouped_segments:
-            try:
-                audio_segments = []
-                for segment in group:
-                    segment_start = segment["start"]
-                    segment_end = segment["end"]
-                    audio_segment = audio[segment_start:segment_end]
-                    audio_segments.append(audio_segment)
-                    # audio_segments.append(silence_padding)
+            audio_segments = []
+            for segment in group:
+                segment_start = segment["start"]
+                segment_end = segment["end"]
+                audio_segment = audio[segment_start:segment_end]
+                audio_segments.append(audio_segment)
+                audio_segments.append(silence_padding)
 
-                tensors = torch.cat(audio_segments)
-# End of the function wrap
+            _grouped_tensors = torch.cat(audio_segments)
+        # End of the function wrap
 
-                segments = self.services["transcription"](
-                    audio=tensors,
-                    source_lang=source_lang,
-                    suppress_blank=False,
-                    word_timestamps=True,
-                )
+            segments = self.services["transcription"](
+                audio=_grouped_tensors,
+                source_lang=source_lang,
+                suppress_blank=False,
+                word_timestamps=True,
+            )
 
-                group_start = group[0]["start"]
+            group_start = group[0]["start"]
 
-                for segment in segments:
-                    segment_dict = {
-                        "start": None,
-                        "end": None,
-                        "text": segment["text"],
-                        "words": [],
-                        "speaker": speaker_id,
-                    }
+            for segment in segments:
+                segment_dict = {
+                    "start": None,
+                    "end": None,
+                    "text": segment["text"],
+                    "words": [],
+                    "speaker": speaker_id,
+                }
 
-                    for word in segment["words"]:
-                        word_start_adjusted = (
-                            group_start / self.sample_rate
-                        ) + word["start"]
-                        word_end_adjusted = (group_start / self.sample_rate) + word["end"]
-                        segment_dict["words"].append(
-                            {
-                                "start": word_start_adjusted,
-                                "end": word_end_adjusted,
-                                "text": word["word"],
-                            }
-                        )
+                for word in segment["words"]:
+                    word_start_adjusted = (
+                        group_start / self.sample_rate
+                    ) + word["start"]
+                    word_end_adjusted = (group_start / self.sample_rate) + word["end"]
+                    segment_dict["words"].append(
+                        {
+                            "start": word_start_adjusted,
+                            "end": word_end_adjusted,
+                            "word": word["word"],
+                        }
+                    )
 
-                        if (
-                            segment_dict["start"] is None
-                            or word_start_adjusted < segment_dict["start"]
-                        ):
-                            segment_dict["start"] = word_start_adjusted
-                        if (
-                            segment_dict["end"] is None
-                            or word_end_adjusted > segment_dict["end"]
-                        ):
-                            segment_dict["end"] = word_end_adjusted
+                    if (
+                        segment_dict["start"] is None
+                        or word_start_adjusted < segment_dict["start"]
+                    ):
+                        segment_dict["start"] = word_start_adjusted
+            
+                    if (
+                        segment_dict["end"] is None
+                        or word_end_adjusted > segment_dict["end"]
+                    ):
+                        segment_dict["end"] = word_end_adjusted
 
-                    final_transcript.append(segment_dict)
-
-            except Exception as e:
-                logger.error(
-                    f"Dual channel trasncription error: {e}\n{traceback.format_exc()}"
-                )
-                pass
+                final_transcript.append(segment_dict)
 
         return final_transcript
 
