@@ -360,7 +360,7 @@ def enhance_audio(
         transform = torchaudio.transforms.Resample(
             orig_freq=sample_rate, new_freq=16000,
         )
-        wav = transform(wav)
+        waveform = transform(waveform)
         sample_rate = 16000
 
     if apply_agc:
