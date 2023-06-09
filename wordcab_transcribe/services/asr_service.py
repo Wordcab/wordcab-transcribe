@@ -320,6 +320,7 @@ class ASRAsyncService(ASRService):
             task["input"],
             source_lang=task["source_lang"],
             word_timestamps=True,
+            vad_service=self.services["vad"] if task["dual_channel"] else None,
         )
 
         return segments
