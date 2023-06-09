@@ -32,6 +32,8 @@ from faster_whisper.transcribe import get_ctranslate2_storage
 from torch.utils.data import DataLoader, IterableDataset
 
 from wordcab_transcribe.logging import time_and_tell
+from wordcab_transcribe.services.vad_service import VadService
+from wordcab_transcribe.utils import enhance_audio
 
 
 # Word implementation from faster-whisper:
@@ -50,7 +52,7 @@ class AudioDataset(IterableDataset):
 
     def __init__(
         self,
-        audio: Union[str, torch.Tensor],
+        audio: Union[str, torch.Tensor, List[torch.Tensor]],
         chunk_size: int,
         hop_length: int,
         mel_filters: torch.Tensor,
@@ -62,7 +64,7 @@ class AudioDataset(IterableDataset):
         Initialize the Audio Dataset for transcribing audio files in batches.
 
         Args:
-            audio (Union[str, torch.Tensor]): Audio file path or audio tensor.
+            audio (Union[str, torch.Tensor, List[torch.Tensor]]): Audio file, tensor, or list of tensors.
             chunk_size (int): Size of audio chunks.
             hop_length (int): Hop length for the STFT.
             mel_filters (torch.Tensor): Mel filters to apply to the STFT.
@@ -79,8 +81,15 @@ class AudioDataset(IterableDataset):
 
         if isinstance(audio, str):
             waveform = self.read_audio(audio)
+
         elif isinstance(audio, torch.Tensor):
             waveform = audio
+
+        elif isinstance(audio, list):
+            if not all(isinstance(a, torch.Tensor) for a in audio):
+                raise TypeError("Audio must be a list of tensors.")
+            waveform = audio
+
         else:
             raise TypeError("Audio must be a string or a tensor.")
 
@@ -130,25 +139,28 @@ class AudioDataset(IterableDataset):
 
     @time_and_tell
     def create_chunks(
-        self, waveform: torch.Tensor
+        self, waveform: Union[torch.Tensor, List[torch.Tensor]]
     ) -> Tuple[List[torch.Tensor], List[int], List[float]]:
         """
         Create 30-second chunks from the audio file loaded as a tensor.
 
         Args:
-            waveform (torch.Tensor): Audio tensor of shape (n_samples,).
+            waveform (Union[torch.Tensor, List[torch.Tensor]]): Audio file loaded as a tensor.
 
         Returns:
             Tuple[List[torch.Tensor], List[int], List[float]]: Tuple of audio chunks,
         """
-        num_segments = math.ceil(waveform.size(0) / self.n_samples)
+        if isinstance(waveform, torch.Tensor):
+            num_segments = math.ceil(waveform.size(0) / self.n_samples)
+            segments = [
+                waveform[i * self.n_samples : (i + 1) * self.n_samples]
+                for i in range(num_segments)
+            ]
+        else:
+            segments = waveform
+            num_segments = len(segments)
+
         indexes = [i for i in range(num_segments)]
-
-        segments = [
-            waveform[i * self.n_samples : (i + 1) * self.n_samples]
-            for i in range(num_segments)
-        ]
-
         time_offsets = [(i * self.chunk_size) for i in range(num_segments)]
         segment_durations = [
             self.chunk_size
@@ -275,20 +287,27 @@ class TranscribeService:
 
     def __call__(
         self,
-        audio: Union[str, torch.Tensor],
+        audio: Union[str, torch.Tensor, Tuple[str, str]],
         source_lang: str,
-        word_timestamps: bool = False,
-    ) -> List[dict]:
+        suppress_blank: bool = True,
+        word_timestamps: bool = True,
+        vad_service: Optional[VadService] = None,
+    ) -> Union[List[dict], List[List[dict]]]:
         """
         Run inference with the transcribe model.
 
         Args:
-            audio (Union[str, torch.Tensor]): Audio file to transcribe.
+            audio (Union[str, torch.Tensor, Tuple[str, str]]): Audio file path or audio tensor. If a tuple is passed,
+                the task is assumed to be a dual_channel task and the tuple should contain the paths to the two
+                audio files.
             source_lang (str): Language of the audio file.
+            suppress_blank (bool): Whether to suppress blank at the beginning of the sampling.
             word_timestamps (bool): Whether to return word timestamps.
+            vad_service (Optional[VADService]): VADService to use for voice activity detection in the dual_channel case.
 
         Returns:
-            List[dict]: List of transcribed segments.
+            Union[List[dict], List[List[dict]]]: List of transcriptions. If the task is a dual_channel task,
+                a list of lists is returned.
         """
         if self.tokenizer.language_code != source_lang:
             self.tokenizer = Tokenizer(
@@ -298,7 +317,21 @@ class TranscribeService:
                 language=source_lang,
             )
 
-        outputs = self.pipeline(audio, self._batch_size, word_timestamps)
+        if isinstance(audio, tuple):
+            outputs = []
+            for audio_index, audio_file in enumerate(audio):
+                outputs.append(
+                    self._transcribe_dual_channel(
+                        audio_file,
+                        audio_index,
+                        vad_service,
+                    )
+                )
+
+        else:
+            outputs = self.pipeline(
+                audio, self._batch_size, suppress_blank, word_timestamps
+            )
 
         return outputs
 
@@ -307,6 +340,7 @@ class TranscribeService:
         self,
         audio: Union[str, torch.Tensor],
         batch_size: int,
+        suppress_blank: bool = True,
         word_timestamps: bool = False,
     ) -> List[dict]:
         """
@@ -315,6 +349,7 @@ class TranscribeService:
         Args:
             audio (Union[str, torch.Tensor]): Audio file to transcribe.
             batch_size (int): Batch size to use for inference.
+            suppress_blank (bool): Whether to suppress blank at the beginning of the sampling.
             word_timestamps (bool): Whether to return word timestamps.
 
         Returns:
@@ -358,6 +393,7 @@ class TranscribeService:
                     num_hypotheses=num_hypotheses,
                     patience=patience,
                     sampling_top_k=sampling_top_k,
+                    suppress_blank=suppress_blank,
                     temperature=temperature,
                     last_chance_inference=False if stop_temperature != 1.0 else True,
                     word_timestamps=word_timestamps,
@@ -414,6 +450,7 @@ class TranscribeService:
         prefix: Optional[str] = None,
         num_hypotheses: int = 1,
         sampling_top_k: int = 1,
+        suppress_blank: bool = True,
         temperature: float = 1.0,
         without_timestamps: bool = False,
         word_timestamps: bool = False,
@@ -434,6 +471,7 @@ class TranscribeService:
             patience (int): Patience to use for beam search.
             prefix (Optional[str]): Prefix to use for the generation.
             sampling_top_k (int): Sampling top k to use for sampling.
+            suppress_blank (bool): Whether to suppress blank output of the sampling.
             temperature (float): Temperature to use for sampling.
             without_timestamps (bool): Whether to remove timestamps from the generated text.
             word_timestamps (bool): Whether to use word timestamps instead of character timestamps.
@@ -474,7 +512,7 @@ class TranscribeService:
             length_penalty=length_penalty,
             return_scores=True,
             return_no_speech_prob=True,
-            suppress_blank=False,
+            suppress_blank=suppress_blank,
             sampling_temperature=temperature,
             sampling_topk=sampling_top_k,
         )
@@ -636,6 +674,79 @@ class TranscribeService:
             out["text"] = text
 
         return outputs
+
+    def _transcribe_dual_channel(
+        self,
+        audio: Union[str, torch.Tensor],
+        speaker_id: int,
+        vad_service: VadService,
+    ) -> List[dict]:
+        """
+        Transcribe an audio file with two channels.
+
+        Args:
+            audio (Union[str, torch.Tensor]): Audio file path or loaded audio.
+            speaker_id (int): Speaker ID used in the diarization.
+            vad_service (VadService): VAD service.
+
+        Returns:
+            List[dict]: List of transcribed segments.
+        """
+        enhanced_audio = enhance_audio(audio, apply_agc=True, apply_bandpass=False)
+        grouped_segments, audio = vad_service(enhanced_audio)
+
+        final_transcript = []
+        silence_padding = torch.from_numpy(np.zeros(int(3 * self.sample_rate))).float()
+
+        for group in grouped_segments:
+            audio_segments = []
+            for segment in group:
+                audio_segments.extend(
+                    [audio[segment["start"] : segment["end"]], silence_padding]
+                )
+
+            segments = self.pipeline(
+                torch.cat(audio_segments), self._batch_size, False, True
+            )
+
+            group_start = group[0]["start"]
+            for segment in segments:
+                segment_dict = {
+                    "start": None,
+                    "end": None,
+                    "text": segment["text"],
+                    "words": [],
+                    "speaker": speaker_id,
+                }
+
+                for word in segment["words"]:
+                    word_start_adjusted = (group_start / self.sample_rate) + word[
+                        "start"
+                    ]
+                    word_end_adjusted = (group_start / self.sample_rate) + word["end"]
+                    segment_dict["words"].append(
+                        {
+                            "start": word_start_adjusted,
+                            "end": word_end_adjusted,
+                            "word": word["word"],
+                        }
+                    )
+
+                    if (
+                        segment_dict["start"] is None
+                        or word_start_adjusted < segment_dict["start"]
+                    ):
+                        segment_dict["start"] = word_start_adjusted
+
+                    if (
+                        segment_dict["end"] is None
+                        or word_end_adjusted > segment_dict["end"]
+                    ):
+                        segment_dict["end"] = word_end_adjusted
+
+                final_transcript.append(segment_dict)
+
+        return final_transcript
 
     @time_and_tell
     def _add_word_timestamps(

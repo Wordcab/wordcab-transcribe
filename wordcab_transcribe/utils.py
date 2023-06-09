@@ -26,12 +26,12 @@ import aiofiles
 import aiohttp
 import filetype
 import pandas as pd
+import torch
+import torchaudio
 from fastapi import UploadFile
 from loguru import logger
 from num2words import num2words
 from omegaconf import DictConfig, ListConfig, OmegaConf
-from pydub import AudioSegment
-from pydub.effects import high_pass_filter, low_pass_filter, normalize
 from yt_dlp import YoutubeDL
 
 
@@ -97,6 +97,22 @@ def run_subprocess(command: List[str]) -> tuple:
     stdout, stderr = process.communicate()
 
     return process.returncode, stdout, stderr
+
+
+def check_number_of_segments(chunk_size: int, duration: Union[int, float]) -> int:
+    """
+    Check the number of chunks considering the duration of the audio.
+
+    Args:
+        chunk_size (int): Size of each chunk.
+        duration (Union[int, float]): Duration of the audio in milliseconds.
+
+    Returns:
+        int: Number of chunks after ceil the division of the duration by the chunk size.
+    """
+    _duration = _convert_ms_to_s(duration)
+
+    return math.ceil(_duration / chunk_size)
 
 
 def convert_timestamp(
@@ -332,37 +348,47 @@ def delete_file(filepath: Union[str, Tuple[str, Optional[str]]]) -> None:
 
 
 def enhance_audio(
-    filepath: str,
-    speaker_label: Optional[int] = 0,
+    audio: Union[str, torch.Tensor],
     apply_agc: Optional[bool] = True,
     apply_bandpass: Optional[bool] = False,
-) -> str:
+) -> torch.Tensor:
     """
     Enhance the audio by applying automatic gain control and bandpass filter.
 
     Args:
-        filepath (str): Path to the audio file.
-        speaker_label (Optional[str], optional): Speaker label. Defaults to "".
+        audio (Union[str, torch.Tensor]): Path to the audio file or the waveform.
         apply_agc (Optional[bool], optional): Whether to apply automatic gain control. Defaults to True.
         apply_bandpass (Optional[bool], optional): Whether to apply bandpass filter. Defaults to False.
 
     Returns:
-        str: Path to the enhanced audio file.
+        torch.Tensor: The enhanced audio waveform.
     """
-    audio = AudioSegment.from_file(filepath)
-    audio = audio.set_frame_rate(16000)
+    if isinstance(audio, str):
+        waveform, sample_rate = torchaudio.load(audio)
+    else:
+        waveform = audio
+        sample_rate = 16000
+
+    if waveform.size(0) > 1:
+        waveform = waveform.mean(dim=0, keepdim=True)
+
+    if sample_rate != 16000:
+        transform = torchaudio.transforms.Resample(
+            orig_freq=sample_rate,
+            new_freq=16000,
+        )
+        waveform = transform(waveform)
+        sample_rate = 16000
 
     if apply_agc:
-        audio = normalize(audio)
+        # Volmax normalization to mimic AGC
+        waveform /= waveform.abs().max()
 
     if apply_bandpass:
-        audio = high_pass_filter(audio, 300)
-        audio = low_pass_filter(audio, 3400)
+        highpass = torchaudio.functional.highpass_biquad(waveform, sample_rate, 300)
+        waveform = torchaudio.functional.lowpass_biquad(highpass, sample_rate, 3400)
 
-    enhanced_filepath = filepath.replace(".wav", f"_enhanced_{speaker_label}.wav")
-    audio.export(enhanced_filepath, format="wav")
-
-    return enhanced_filepath
+    return waveform
 
 
 def is_empty_string(text: str):
