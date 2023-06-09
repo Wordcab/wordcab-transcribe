@@ -17,7 +17,7 @@ from typing import List, Optional, Tuple, Union
 
 import torch
 import torchaudio
-from faster_whisper.vad import get_speech_timestamps
+from faster_whisper.vad import get_speech_timestamps, VadOptions
 
 
 class VadService:
@@ -26,6 +26,14 @@ class VadService:
     def __init__(self) -> None:
         """Initialize the VAD Service."""
         self.sample_rate = 16000
+        self.options = VadOptions(
+            threshold=0.5,
+            min_speech_duration_ms=250,
+            max_speech_duration_s=float("inf"),
+            min_silence_duration_ms=100,
+            window_size_samples=512,
+            speech_pad_ms=30,
+        )
 
     def __call__(
         self, filepath: str, group_timestamps: Optional[bool] = True
@@ -54,7 +62,7 @@ class VadService:
 
         wav = wav.squeeze(0)
 
-        speech_timestamps = get_speech_timestamps(audio=wav)
+        speech_timestamps = get_speech_timestamps(audio=wav, vad_options=self.options)
 
         _speech_timestamps_list = [
             {"start": ts["start"], "end": ts["end"]} for ts in speech_timestamps
