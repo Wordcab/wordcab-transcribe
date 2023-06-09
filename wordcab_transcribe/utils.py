@@ -99,6 +99,23 @@ def run_subprocess(command: List[str]) -> tuple:
     return process.returncode, stdout, stderr
 
 
+def check_number_of_segments(chunk_size: int, duration: Union[int, float]) -> int:
+    """
+    Check the number of chunks considering the duration of the audio.
+
+    Args:
+        chunk_size (int): Size of each chunk.
+        duration (Union[int, float]): Duration of the audio in milliseconds.
+
+    Returns:
+        int: Number of chunks after ceil the division of the duration by the chunk size.
+    """
+    _duration = _convert_ms_to_s(duration)
+
+    return math.ceil(_duration / chunk_size)
+    
+
+
 def convert_timestamp(
     timestamp: float, target: str, round_digits: Optional[int] = 3
 ) -> Union[str, float]:

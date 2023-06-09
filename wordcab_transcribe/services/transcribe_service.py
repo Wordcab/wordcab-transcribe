@@ -32,6 +32,8 @@ from faster_whisper.transcribe import get_ctranslate2_storage
 from torch.utils.data import DataLoader, IterableDataset
 
 from wordcab_transcribe.logging import time_and_tell
+from wordcab_transcribe.services.vad_service import VADService
+from wordcab_transcribe.utils import check_number_of_segments, enhance_audio
 
 
 # Word implementation from faster-whisper:
@@ -285,22 +287,27 @@ class TranscribeService:
 
     def __call__(
         self,
-        audio: Union[str, torch.Tensor],
+        audio: Union[str, torch.Tensor, Tuple[str, str]],
         source_lang: str,
-        suppress_blank: bool = True,
-        word_timestamps: bool = False,
-    ) -> List[dict]:
+        suppress_blank: bool = False,
+        word_timestamps: bool = True,
+        vad_service: Optional[VADService] = None,
+    ) -> Union[List[dict], List[List[dict]]]:
         """
         Run inference with the transcribe model.
 
         Args:
-            audio (Union[str, torch.Tensor]): Audio file to transcribe.
+            audio (Union[str, torch.Tensor, Tuple[str, str]]): Audio file path or audio tensor. If a tuple is passed,
+                the task is assumed to be a dual_channel task and the tuple should contain the paths to the two
+                audio files.
             source_lang (str): Language of the audio file.
             suppress_blank (bool): Whether to suppress blank at the beginning of the sampling.
             word_timestamps (bool): Whether to return word timestamps.
+            vad_service (Optional[VADService]): VADService to use for voice activity detection in the dual_channel case.
 
         Returns:
-            List[dict]: List of transcribed segments.
+            Union[List[dict], List[List[dict]]]: List of transcriptions. If the task is a dual_channel task,
+                a list of lists is returned.
         """
         if self.tokenizer.language_code != source_lang:
             self.tokenizer = Tokenizer(
@@ -310,7 +317,45 @@ class TranscribeService:
                 language=source_lang,
             )
 
-        outputs = self.pipeline(audio, self._batch_size, suppress_blank, word_timestamps)
+        if isinstance(audio, tuple):
+            outputs = []
+            for audio_file in audio:
+                enhanced_audio = enhance_audio(
+                    audio_file,
+                    apply_agc=True,
+                    apply_bandpass=False,
+                )
+
+                grouped_segments, audio = vad_service(enhanced_audio)
+                silence_padding = torch.from_numpy(np.zeros(int(3 * self.sample_rate))).float()
+
+                # Need to wrap this in a function
+                group_mapping = {}
+                batch_counter = 0
+                grouped_tensors = []
+                for group_index, group in enumerate(grouped_segments):
+                    audio_segments = []
+                    group_duration = 0
+
+                    for segment in group:
+                        segment_start, segment_end = segment["start"], segment["end"]
+
+                        segment_duration = segment_end - segment_start
+                        group_duration += segment_duration
+
+                        audio_segments.extend([audio[segment_start:segment_end], silence_padding])
+
+                    number_of_segments = check_number_of_segments(30, group_duration)
+                    group_mapping[group_index] = [i + batch_counter for i in range(number_of_segments)]
+                    batch_counter += number_of_segments
+                    grouped_tensors.append(torch.cat(audio_segments))
+                # End of the function wrap
+                outputs.append(
+                    self.pipeline(audio_file, self._batch_size, suppress_blank, word_timestamps)
+                )
+
+        else:
+            outputs = self.pipeline(audio, self._batch_size, suppress_blank, word_timestamps)
 
         return outputs
 
@@ -602,6 +647,103 @@ class TranscribeService:
             )
 
         return outputs
+
+    def transcribe_dual_channel(
+        self,
+        source_lang: str,
+        filepath: str,
+        speaker_id: int
+    ) -> List[dict]:
+        """
+        Transcribe multiple segments of audio in the dual channel mode.
+
+        Args:
+            source_lang (str): Source language of the audio file.
+            filepath (str): Path to the audio file.
+            speaker_id (int): Speaker ID of the audio file.
+
+        Returns:
+            List[dict]: List of transcribed segments.
+        """
+        enhanced_audio = enhance_audio(
+            filepath,
+            apply_agc=True,
+            apply_bandpass=False,
+        )
+
+        grouped_segments, audio = self.services["vad"](enhanced_audio)
+        silence_padding = torch.from_numpy(np.zeros(int(3 * self.sample_rate))).float()
+
+        # Need to wrap this in a function
+        group_mapping = {}
+        batch_counter = 0
+        grouped_tensors = []
+        for group_index, group in enumerate(grouped_segments):
+            audio_segments = []
+            group_duration = 0
+
+            for segment in group:
+                segment_start, segment_end = segment["start"], segment["end"]
+
+                segment_duration = segment_end - segment_start
+                group_duration += segment_duration
+
+                audio_segments.extend([audio[segment_start:segment_end], silence_padding])
+
+            number_of_segments = check_number_of_segments(30, group_duration)
+            group_mapping[group_index] = [i + batch_counter for i in range(number_of_segments)]
+            batch_counter += number_of_segments
+            grouped_tensors.append(torch.cat(audio_segments))
+        # End of the function wrap
+
+        segments = self.services["transcription"](
+            audio=grouped_tensors,
+            source_lang=source_lang,
+            suppress_blank=False,
+            word_timestamps=True,
+        )
+
+        final_transcript = []
+        for group in grouped_segments:
+            group_start = group[0]["start"]
+
+            for segment in segments:
+                segment_dict = {
+                    "start": None,
+                    "end": None,
+                    "text": segment["text"],
+                    "words": [],
+                    "speaker": speaker_id,
+                }
+
+                for word in segment["words"]:
+                    word_start_adjusted = (
+                        group_start / self.sample_rate
+                    ) + word["start"]
+                    word_end_adjusted = (group_start / self.sample_rate) + word["end"]
+                    segment_dict["words"].append(
+                        {
+                            "start": word_start_adjusted,
+                            "end": word_end_adjusted,
+                            "word": word["word"],
+                        }
+                    )
+
+                    if (
+                        segment_dict["start"] is None
+                        or word_start_adjusted < segment_dict["start"]
+                    ):
+                        segment_dict["start"] = word_start_adjusted
+            
+                    if (
+                        segment_dict["end"] is None
+                        or word_end_adjusted > segment_dict["end"]
+                    ):
+                        segment_dict["end"] = word_end_adjusted
+
+                final_transcript.append(segment_dict)
+
+        return final_transcript
 
     def _encode_batch(
         self, features: torch.Tensor, word_timestamps: bool

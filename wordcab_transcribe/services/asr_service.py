@@ -19,9 +19,7 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Tuple, Union
 
-import numpy as np
 import torch
-from loguru import logger
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.logging import time_and_tell
@@ -30,7 +28,7 @@ from wordcab_transcribe.services.diarize_service import DiarizeService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
 from wordcab_transcribe.services.vad_service import VadService
-from wordcab_transcribe.utils import delete_file, enhance_audio, format_segments
+from wordcab_transcribe.utils import format_segments
 
 
 class ASRService(ABC):
@@ -318,38 +316,13 @@ class ASRAsyncService(ASRService):
         Raises:
             ValueError: If the task is not a dual channel task and the input is not a string.
         """
-        if isinstance(task["input"], str):  # Not a dual channel task
-            word_timestamps = (
-                task["word_timestamps"] if task["alignment"] is False else True
-            )  # We enforce word timestamps if alignment is True for accuracy
+        segments = self.services["transcription"](
+            task["input"],
+            source_lang=task["source_lang"],
+            word_timestamps=True,
+        )
 
-            segments = self.services["transcription"](
-                task["input"],
-                source_lang=task["source_lang"],
-                word_timestamps=word_timestamps,
-            )
-
-            return segments
-
-        elif isinstance(task["input"], tuple):  # Dual channel task
-            left_channel, right_channel = task["input"]
-            source_lang = task["source_lang"]
-
-            left_transcribed_segments = self.transcribe_dual_channel(
-                source_lang,
-                filepath=left_channel,
-                speaker_id=0,
-            )
-            right_transcribed_segments = self.transcribe_dual_channel(
-                source_lang,
-                filepath=right_channel,
-                speaker_id=1,
-            )
-
-            return left_transcribed_segments, right_transcribed_segments
-
-        else:
-            raise ValueError(f"Invalid input type: {type(task['input'])}")
+        return segments
 
     @time_and_tell
     def process_diarization(self, task: dict) -> List[dict]:
@@ -441,94 +414,6 @@ class ASRAsyncService(ASRService):
         )
 
         return final_utterances
-
-    @time_and_tell
-    def transcribe_dual_channel(
-        self,
-        source_lang: str,
-        filepath: str,
-        speaker_id: int
-    ) -> List[dict]:
-        """
-        Transcribe multiple segments of audio in the dual channel mode.
-
-        Args:
-            source_lang (str): Source language of the audio file.
-            filepath (str): Path to the audio file.
-            speaker_id (int): Speaker ID of the audio file.
-
-        Returns:
-            List[dict]: List of transcribed segments.
-        """
-        enhanced_audio = enhance_audio(
-            filepath,
-            apply_agc=True,
-            apply_bandpass=False,
-        )
-        grouped_segments, audio = self.services["vad"](enhanced_audio)
-
-        final_transcript = []
-        silence_padding = torch.from_numpy(np.zeros(int(3 * self.sample_rate))).float()
-
-        # Need to wrap this in a function
-        for group in grouped_segments:
-            audio_segments = []
-            for segment in group:
-                segment_start = segment["start"]
-                segment_end = segment["end"]
-                audio_segment = audio[segment_start:segment_end]
-                audio_segments.append(audio_segment)
-                audio_segments.append(silence_padding)
-
-            _grouped_tensors = torch.cat(audio_segments)
-        # End of the function wrap
-
-            segments = self.services["transcription"](
-                audio=_grouped_tensors,
-                source_lang=source_lang,
-                suppress_blank=False,
-                word_timestamps=True,
-            )
-
-            group_start = group[0]["start"]
-
-            for segment in segments:
-                segment_dict = {
-                    "start": None,
-                    "end": None,
-                    "text": segment["text"],
-                    "words": [],
-                    "speaker": speaker_id,
-                }
-
-                for word in segment["words"]:
-                    word_start_adjusted = (
-                        group_start / self.sample_rate
-                    ) + word["start"]
-                    word_end_adjusted = (group_start / self.sample_rate) + word["end"]
-                    segment_dict["words"].append(
-                        {
-                            "start": word_start_adjusted,
-                            "end": word_end_adjusted,
-                            "word": word["word"],
-                        }
-                    )
-
-                    if (
-                        segment_dict["start"] is None
-                        or word_start_adjusted < segment_dict["start"]
-                    ):
-                        segment_dict["start"] = word_start_adjusted
-            
-                    if (
-                        segment_dict["end"] is None
-                        or word_end_adjusted > segment_dict["end"]
-                    ):
-                        segment_dict["end"] = word_end_adjusted
-
-                final_transcript.append(segment_dict)
-
-        return final_transcript
 
 
 class ASRLiveService:
