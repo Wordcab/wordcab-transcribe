@@ -42,7 +42,7 @@ class VadService:
         Use the VAD model to get the speech timestamps. Dual channel pipeline.
 
         Args:
-            filepath (str): Path to the audio file.
+            waveform (torch.Tensor): Audio tensor.
             group_timestamps (Optional[bool], optional): Group timestamps. Defaults to True.
 
         Returns:
@@ -51,7 +51,9 @@ class VadService:
         if waveform.size(0) == 1:
             waveform = waveform.squeeze(0)
 
-        speech_timestamps = get_speech_timestamps(audio=waveform, vad_options=self.options)
+        speech_timestamps = get_speech_timestamps(
+            audio=waveform, vad_options=self.options
+        )
 
         _speech_timestamps_list = [
             {"start": ts["start"], "end": ts["end"]} for ts in speech_timestamps

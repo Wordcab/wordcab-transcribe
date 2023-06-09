@@ -312,13 +312,11 @@ class ASRAsyncService(ASRService):
 
         Returns:
             List[dict]: List of transcribed segments.
-
-        Raises:
-            ValueError: If the task is not a dual channel task and the input is not a string.
         """
         segments = self.services["transcription"](
             task["input"],
             source_lang=task["source_lang"],
+            suppress_blank=True,
             word_timestamps=True,
             vad_service=self.services["vad"] if task["dual_channel"] else None,
         )

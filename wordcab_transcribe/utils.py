@@ -113,7 +113,6 @@ def check_number_of_segments(chunk_size: int, duration: Union[int, float]) -> in
     _duration = _convert_ms_to_s(duration)
 
     return math.ceil(_duration / chunk_size)
-    
 
 
 def convert_timestamp(
@@ -357,7 +356,7 @@ def enhance_audio(
     Enhance the audio by applying automatic gain control and bandpass filter.
 
     Args:
-        filepath (str): Path to the audio file.
+        audio (Union[str, torch.Tensor]): Path to the audio file or the waveform.
         apply_agc (Optional[bool], optional): Whether to apply automatic gain control. Defaults to True.
         apply_bandpass (Optional[bool], optional): Whether to apply bandpass filter. Defaults to False.
 
@@ -375,7 +374,8 @@ def enhance_audio(
 
     if sample_rate != 16000:
         transform = torchaudio.transforms.Resample(
-            orig_freq=sample_rate, new_freq=16000,
+            orig_freq=sample_rate,
+            new_freq=16000,
         )
         waveform = transform(waveform)
         sample_rate = 16000

@@ -33,7 +33,7 @@ from torch.utils.data import DataLoader, IterableDataset
 
 from wordcab_transcribe.logging import time_and_tell
 from wordcab_transcribe.services.vad_service import VadService
-from wordcab_transcribe.utils import check_number_of_segments, enhance_audio
+from wordcab_transcribe.utils import enhance_audio
 
 
 # Word implementation from faster-whisper:
@@ -289,7 +289,7 @@ class TranscribeService:
         self,
         audio: Union[str, torch.Tensor, Tuple[str, str]],
         source_lang: str,
-        suppress_blank: bool = False,
+        suppress_blank: bool = True,
         word_timestamps: bool = True,
         vad_service: Optional[VadService] = None,
     ) -> Union[List[dict], List[List[dict]]]:
@@ -322,12 +322,16 @@ class TranscribeService:
             for audio_index, audio_file in enumerate(audio):
                 outputs.append(
                     self._transcribe_dual_channel(
-                        audio_file, audio_index, vad_service,
+                        audio_file,
+                        audio_index,
+                        vad_service,
                     )
                 )
 
         else:
-            outputs = self.pipeline(audio, self._batch_size, suppress_blank, word_timestamps)
+            outputs = self.pipeline(
+                audio, self._batch_size, suppress_blank, word_timestamps
+            )
 
         return outputs
 
@@ -697,11 +701,13 @@ class TranscribeService:
         for group in grouped_segments:
             audio_segments = []
             for segment in group:
-                audio_segments.extend([
-                    audio[segment["start"]: segment["end"]], silence_padding
-                ])
+                audio_segments.extend(
+                    [audio[segment["start"] : segment["end"]], silence_padding]
+                )
 
-            segments = self.pipeline(torch.cat(audio_segments), self._batch_size, False, True)
+            segments = self.pipeline(
+                torch.cat(audio_segments), self._batch_size, False, True
+            )
 
             group_start = group[0]["start"]
             for segment in segments:
@@ -714,9 +720,9 @@ class TranscribeService:
                 }
 
                 for word in segment["words"]:
-                    word_start_adjusted = (
-                        group_start / self.sample_rate
-                    ) + word["start"]
+                    word_start_adjusted = (group_start / self.sample_rate) + word[
+                        "start"
+                    ]
                     word_end_adjusted = (group_start / self.sample_rate) + word["end"]
                     segment_dict["words"].append(
                         {
@@ -731,7 +737,7 @@ class TranscribeService:
                         or word_start_adjusted < segment_dict["start"]
                     ):
                         segment_dict["start"] = word_start_adjusted
-            
+
                     if (
                         segment_dict["end"] is None
                         or word_end_adjusted > segment_dict["end"]
