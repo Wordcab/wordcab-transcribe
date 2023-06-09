@@ -17,7 +17,7 @@ from typing import List, Optional, Tuple, Union
 
 import torch
 import torchaudio
-from faster_whisper.vad import get_speech_timestamps, VadOptions
+from faster_whisper.vad import VadOptions, get_speech_timestamps
 
 
 class VadService:
