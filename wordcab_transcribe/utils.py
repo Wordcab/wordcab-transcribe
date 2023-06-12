@@ -559,6 +559,22 @@ def load_nemo_config(
     return cfg
 
 
+def remove_words_for_svix(utterances: List[dict]) -> List[dict]:
+    """
+    Remove the words from the utterances for SVIX.
+
+    Args:
+        utterances (List[dict]): List of utterances.
+
+    Returns:
+        List[dict]: List of utterances with words removed.
+    """
+    for utterance in utterances:
+        utterance.pop("words", None)
+
+    return utterances
+
+
 def retrieve_user_platform() -> str:
     """
     Retrieve the user's platform.
