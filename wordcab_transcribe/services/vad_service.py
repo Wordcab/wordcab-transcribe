@@ -29,7 +29,7 @@ class VadService:
         self.options = VadOptions(
             threshold=0.5,
             min_speech_duration_ms=250,
-            max_speech_duration_s=float("inf"),
+            max_speech_duration_s=30,
             min_silence_duration_ms=100,
             window_size_samples=512,
             speech_pad_ms=30,

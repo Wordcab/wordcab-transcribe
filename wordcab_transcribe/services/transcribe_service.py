@@ -18,7 +18,7 @@ import math
 import os
 import zlib
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, NamedTuple, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -34,6 +34,16 @@ from torch.utils.data import DataLoader, IterableDataset
 from wordcab_transcribe.logging import time_and_tell
 from wordcab_transcribe.services.vad_service import VadService
 from wordcab_transcribe.utils import enhance_audio
+
+
+class DualChannelInput(NamedTuple):
+    """Tuple used for dual channel processing.
+
+    The first element is the index of the VAD group. The second element is the audio tensor.
+    """
+
+    group_index: int
+    audio: torch.Tensor
 
 
 # Word implementation from faster-whisper:
@@ -52,7 +62,7 @@ class AudioDataset(IterableDataset):
 
     def __init__(
         self,
-        audio: Union[str, torch.Tensor, List[torch.Tensor]],
+        audio: Union[str, torch.Tensor, List[DualChannelInput]],
         chunk_size: int,
         hop_length: int,
         mel_filters: torch.Tensor,
@@ -64,7 +74,7 @@ class AudioDataset(IterableDataset):
         Initialize the Audio Dataset for transcribing audio files in batches.
 
         Args:
-            audio (Union[str, torch.Tensor, List[torch.Tensor]]): Audio file, tensor, or list of tensors.
+            audio (Union[str, torch.Tensor, List[DualChannelInput]]): Audio to transcribe.
             chunk_size (int): Size of audio chunks.
             hop_length (int): Hop length for the STFT.
             mel_filters (torch.Tensor): Mel filters to apply to the STFT.
@@ -72,6 +82,10 @@ class AudioDataset(IterableDataset):
             n_samples (int): Number of samples to pad the audio.
             sample_rate (int): Sample rate of the audio.
         """
+        if isinstance(audio, list):
+            if not all(isinstance(a, DualChannelInput) for a in audio):
+                raise TypeError("Audio must be a list of DualChannelInput.")
+
         self.chunk_size = chunk_size
         self.hop_length = hop_length
         self.n_fft = n_fft
@@ -81,23 +95,15 @@ class AudioDataset(IterableDataset):
 
         if isinstance(audio, str):
             waveform = self.read_audio(audio)
-
-        elif isinstance(audio, torch.Tensor):
-            waveform = audio
-
-        elif isinstance(audio, list):
-            if not all(isinstance(a, torch.Tensor) for a in audio):
-                raise TypeError("Audio must be a list of tensors.")
-            waveform = audio
-
         else:
-            raise TypeError("Audio must be a string or a tensor.")
+            waveform = audio
 
         (
             self.indexes,
             _audio_chunks,
             self.time_offsets,
             self.segment_durations,
+            self.group_ids,
         ) = self.create_chunks(waveform)
 
         self.features = [
@@ -109,16 +115,26 @@ class AudioDataset(IterableDataset):
         """Get the number of audio chunks."""
         return len(self.indexes)
 
-    def __iter__(self) -> Dict[str, Union[torch.Tensor, float]]:
+    def __iter__(self) -> Iterator[Dict[str, Union[torch.Tensor, int, float, None]]]:
         """Iterate over the audio chunks and yield the features."""
-        for index, feature, time_offset, segment_duration in zip(
-            self.indexes, self.features, self.time_offsets, self.segment_durations
+        if self.group_ids is None:
+            group_ids_iter = itertools.repeat(None)
+        else:
+            group_ids_iter = iter(self.group_ids)
+
+        for index, feature, time_offset, segment_duration, group_id in zip(
+            self.indexes,
+            self.features,
+            self.time_offsets,
+            self.segment_durations,
+            group_ids_iter,
         ):
             yield {
                 "index": index,
                 "feature": feature,
                 "time_offset": time_offset,
                 "segment_duration": segment_duration,
+                "group_id": group_id,
             }
 
     def read_audio(self, filepath: str) -> torch.Tensor:
@@ -139,16 +155,18 @@ class AudioDataset(IterableDataset):
 
     @time_and_tell
     def create_chunks(
-        self, waveform: Union[torch.Tensor, List[torch.Tensor]]
-    ) -> Tuple[List[torch.Tensor], List[int], List[float]]:
+        self, waveform: Union[torch.Tensor, List[DualChannelInput]]
+    ) -> Tuple[
+        List[int], List[torch.Tensor], List[int], List[float], Union[None, List[int]]
+    ]:
         """
         Create 30-second chunks from the audio file loaded as a tensor.
 
         Args:
-            waveform (Union[torch.Tensor, List[torch.Tensor]]): Audio file loaded as a tensor.
+            waveform (Union[torch.Tensor, List[DualChannelInput]]): Audio to transcribe.
 
         Returns:
-            Tuple[List[torch.Tensor], List[int], List[float]]: Tuple of audio chunks,
+            Tuple[List[int], List[torch.Tensor], List[int], List[float], Union[None, List[int]]]:
         """
         if isinstance(waveform, torch.Tensor):
             num_segments = math.ceil(waveform.size(0) / self.n_samples)
@@ -156,8 +174,11 @@ class AudioDataset(IterableDataset):
                 waveform[i * self.n_samples : (i + 1) * self.n_samples]
                 for i in range(num_segments)
             ]
-        else:
-            segments = waveform
+            group_ids = None
+
+        elif isinstance(waveform, list):
+            segments = [segment.audio for segment in waveform]
+            group_ids = [segment.group_index for segment in waveform]
             num_segments = len(segments)
 
         indexes = [i for i in range(num_segments)]
@@ -169,7 +190,7 @@ class AudioDataset(IterableDataset):
             for segment in segments
         ]
 
-        return indexes, segments, time_offsets, segment_durations
+        return indexes, segments, time_offsets, segment_durations, group_ids
 
     def _log_mel_spectrogram(
         self, audio: torch.Tensor, padding: int = 0
@@ -338,7 +359,7 @@ class TranscribeService:
     @time_and_tell
     def pipeline(
         self,
-        audio: Union[str, torch.Tensor],
+        audio: Union[str, torch.Tensor, List[DualChannelInput]],
         batch_size: int,
         suppress_blank: bool = True,
         word_timestamps: bool = False,
@@ -347,7 +368,8 @@ class TranscribeService:
         Transcription pipeline for audio chunks in batches.
 
         Args:
-            audio (Union[str, torch.Tensor]): Audio file to transcribe.
+            audio (Union[str, torch.Tensor, List[DualChannelInput]]): Audio file path, audio tensor or list of
+                DualChannelInput objects.
             batch_size (int): Batch size to use for inference.
             suppress_blank (bool): Whether to suppress blank at the beginning of the sampling.
             word_timestamps (bool): Whether to return word timestamps.
@@ -388,6 +410,7 @@ class TranscribeService:
                     features=batch["features"],
                     time_offsets=batch["time_offsets"],
                     segment_durations=batch["segment_durations"],
+                    group_ids=batch["group_ids"],
                     tokenizer=self.tokenizer,
                     beam_size=beam_size,
                     num_hypotheses=num_hypotheses,
@@ -409,6 +432,7 @@ class TranscribeService:
                                 "segment_duration": batch["segment_durations"][
                                     output_index
                                 ],
+                                "group_id": batch["group_ids"][output_index],
                             }
                         )
                     else:
@@ -441,12 +465,13 @@ class TranscribeService:
         features: torch.Tensor,
         time_offsets: List[float],
         segment_durations: List[float],
+        group_ids: List[int],
         tokenizer: Tokenizer,
         beam_size: int = 5,
         initial_prompt: Optional[str] = None,
         last_chance_inference: bool = False,
         length_penalty: float = 1.0,
-        patience: int = 1.0,
+        patience: float = 1.0,
         prefix: Optional[str] = None,
         num_hypotheses: int = 1,
         sampling_top_k: int = 1,
@@ -462,13 +487,14 @@ class TranscribeService:
             features (torch.Tensor): List of audio chunks.
             time_offsets (List[float]): Time offsets for the audio chunks.
             segment_durations (List[float]): Durations of the audio chunks.
+            group_ids (List[int]): Group ids of the audio chunks.
             tokenizer (Tokenizer): Tokenizer to use for encoding the text.
             beam_size (int): Beam size to use for beam search.
             last_chance_inference (bool): Whether to accept the result of the inference even if not perfect.
             length_penalty (float): Length penalty to use for beam search.
             initial_prompt (Optional[str]): Initial prompt to use for the generation.
             num_hypotheses (int): Number of hypotheses used by generate.
-            patience (int): Patience to use for beam search.
+            patience (float): Patience to use for beam search.
             prefix (Optional[str]): Prefix to use for the generation.
             sampling_top_k (int): Sampling top k to use for sampling.
             suppress_blank (bool): Whether to suppress blank output of the sampling.
@@ -518,8 +544,8 @@ class TranscribeService:
         )
 
         outputs = []
-        for res, time_offset, segment_duration in zip(
-            result, time_offsets, segment_durations
+        for res, time_offset, segment_duration, group_id in zip(
+            result, time_offsets, segment_durations, group_ids
         ):
             current_segments = []
             tokens = res.sequences_ids[0]
@@ -575,6 +601,7 @@ class TranscribeService:
                                 start=start_time,
                                 end=end_time,
                                 tokens=sliced_tokens,
+                                group_id=group_id,
                             )
                         )
                         last_slice = current_slice
@@ -597,6 +624,7 @@ class TranscribeService:
                             start=time_offset,
                             end=time_offset + duration,
                             tokens=tokens,
+                            group_id=group_id,
                         )
                     )
 
@@ -698,53 +726,62 @@ class TranscribeService:
         final_transcript = []
         silence_padding = torch.from_numpy(np.zeros(int(3 * self.sample_rate))).float()
 
-        for group in grouped_segments:
+        prepared_groups = []
+        for group_id, group in enumerate(grouped_segments):
             audio_segments = []
             for segment in group:
                 audio_segments.extend(
                     [audio[segment["start"] : segment["end"]], silence_padding]
                 )
 
-            segments = self.pipeline(
-                torch.cat(audio_segments), self._batch_size, False, True
+            prepared_groups.append(
+                DualChannelInput(group_id, torch.cat(audio_segments))
             )
 
-            group_start = group[0]["start"]
-            for segment in segments:
-                segment_dict = {
-                    "start": None,
-                    "end": None,
-                    "text": segment["text"],
-                    "words": [],
-                    "speaker": speaker_id,
-                }
+        segments = self.pipeline(prepared_groups, self._batch_size, False, True)
 
-                for word in segment["words"]:
-                    word_start_adjusted = (group_start / self.sample_rate) + word[
-                        "start"
-                    ]
-                    word_end_adjusted = (group_start / self.sample_rate) + word["end"]
-                    segment_dict["words"].append(
-                        {
-                            "start": word_start_adjusted,
-                            "end": word_end_adjusted,
-                            "word": word["word"],
-                        }
-                    )
+        for segment in segments:
+            group_timestamps_base = (
+                grouped_segments[segment["group_id"]][0]["start"] / self.sample_rate
+            )
+            group_timestamps_shift = segment["group_id"] * 30
 
-                    if (
-                        segment_dict["start"] is None
-                        or word_start_adjusted < segment_dict["start"]
-                    ):
-                        segment_dict["start"] = word_start_adjusted
+            segment_dict = {
+                "start": None,
+                "end": None,
+                "text": segment["text"],
+                "words": [],
+                "speaker": speaker_id,
+            }
 
-                    if (
-                        segment_dict["end"] is None
-                        or word_end_adjusted > segment_dict["end"]
-                    ):
-                        segment_dict["end"] = word_end_adjusted
+            for word in segment["words"]:
+                word_start_adjusted = (
+                    group_timestamps_base + word["start"] - group_timestamps_shift
+                )
+                word_end_adjusted = (
+                    group_timestamps_base + word["end"] - group_timestamps_shift
+                )
+                segment_dict["words"].append(
+                    {
+                        "start": word_start_adjusted,
+                        "end": word_end_adjusted,
+                        "word": word["word"],
+                    }
+                )
 
-                final_transcript.append(segment_dict)
+                if (
+                    segment_dict["start"] is None
+                    or word_start_adjusted < segment_dict["start"]
+                ):
+                    segment_dict["start"] = word_start_adjusted
+
+                if (
+                    segment_dict["end"] is None
+                    or word_end_adjusted > segment_dict["end"]
+                ):
+                    segment_dict["end"] = word_end_adjusted
+
+            final_transcript.append(segment_dict)
 
         return final_transcript
 
@@ -992,8 +1029,8 @@ class TranscribeService:
         return compression_ratio, average_log_probability
 
     def _collate_fn(
-        self, items: List[Dict[str, Union[int, torch.Tensor, List[float]]]]
-    ) -> Dict[str, Union[torch.Tensor, List]]:
+        self, items: List[Dict[str, Union[torch.Tensor, int, float, None]]]
+    ) -> Dict[str, Union[torch.Tensor, List[int], List[float], List[None]]]:
         """
         Collator function for the dataloader.
 
@@ -1001,13 +1038,14 @@ class TranscribeService:
             items (List[Dict[str, Union[int, torch.Tensor, List[float]]]]): List of items to collate.
 
         Returns:
-            Dict[str, Union[torch.Tensor, List]]: Collated items.
+            Dict[str, Union[torch.Tensor, List[int], List[float], List[None]]]: Collated items.
         """
         collated_items = {
             "indexes": [item["index"] for item in items],
             "features": torch.stack([item["feature"] for item in items]),
             "time_offsets": [item["time_offset"] for item in items],
             "segment_durations": [item["segment_duration"] for item in items],
+            "group_ids": [item["group_id"] for item in items],
         }
 
         return collated_items
