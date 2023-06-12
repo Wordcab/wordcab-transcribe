@@ -559,20 +559,20 @@ def load_nemo_config(
     return cfg
 
 
-def remove_words_for_svix(utterances: List[dict]) -> List[dict]:
+def remove_words_for_svix(dict_payload: dict) -> dict:
     """
     Remove the words from the utterances for SVIX.
 
     Args:
-        utterances (List[dict]): List of utterances.
+        dict_payload (dict): The dict payload.
 
     Returns:
-        List[dict]: List of utterances with words removed.
+        dict: The dict payload with the words removed.
     """
-    for utterance in utterances:
+    for utterance in dict_payload["utterances"]:
         utterance.pop("words", None)
 
-    return utterances
+    return dict_payload
 
 
 def retrieve_user_platform() -> str:
