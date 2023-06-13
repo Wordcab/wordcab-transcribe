@@ -20,6 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List, Tuple, Union
 
 import torch
+from loguru import logger
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.logging import time_and_tell
@@ -248,10 +249,13 @@ class ASRAsyncService(ASRService):
         )
 
         if isinstance(task["alignment_result"], Exception):
-            return task["alignment_result"]
-        else:
-            self.queues["post_processing"].append(task)
-            self.schedule_processing_if_needed("post_processing")
+            logger.error(f"Alignment failed: {task['alignment_result']}")
+            # Failed alignment should not fail the whole request anymore, as not critical
+            # So we keep processing the request and return the transcription result
+            # return task["alignment_result"]
+
+        self.queues["post_processing"].append(task)
+        self.schedule_processing_if_needed("post_processing")
 
         await task["post_processing_done"].wait()
 
@@ -382,7 +386,9 @@ class ASRAsyncService(ASRService):
             )
         else:
             segments = (
-                task["alignment_result"] if alignment else task["transcription_result"]
+                task["alignment_result"]
+                if alignment and not isinstance(task["alignment_result"], Exception)
+                else task["transcription_result"]
             )
 
             formatted_segments = format_segments(
