@@ -320,9 +320,10 @@ class ASRAsyncService(ASRService):
         segments = self.services["transcription"](
             task["input"],
             source_lang=task["source_lang"],
-            suppress_blank=True,
+            suppress_blank=False,
             word_timestamps=True,
             vad_service=self.services["vad"] if task["dual_channel"] else None,
+            original_pipeline=True,
         )
 
         return segments
