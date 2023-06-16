@@ -32,14 +32,18 @@ def test_audio_request() -> None:
     """Test the AudioRequest model."""
     request = AudioRequest(
         alignment=True,
+        diarization=True,
         dual_channel=True,
         source_lang="en",
         timestamps="s",
     )
     assert request.alignment is True
+    assert request.diarization is True
     assert request.dual_channel is True
     assert request.source_lang == "en"
     assert request.timestamps == "s"
+    assert request.use_batch is False
+    assert request.word_timestamps is False
 
 
 def test_audio_response() -> None:
@@ -51,6 +55,7 @@ def test_audio_response() -> None:
         dual_channel=False,
         source_lang="en",
         timestamps="s",
+        use_batch=False,
         word_timestamps=False,
     )
     assert response.utterances == []
@@ -59,6 +64,7 @@ def test_audio_response() -> None:
     assert response.dual_channel is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
+    assert response.use_batch is False
     assert response.word_timestamps is False
 
     response = AudioResponse(
@@ -71,6 +77,7 @@ def test_audio_response() -> None:
         dual_channel=True,
         source_lang="en",
         timestamps="s",
+        use_batch=False,
         word_timestamps=True,
     )
     assert response.utterances == [
@@ -82,6 +89,7 @@ def test_audio_response() -> None:
     assert response.dual_channel is True
     assert response.source_lang == "en"
     assert response.timestamps == "s"
+    assert response.use_batch is False
     assert response.word_timestamps is True
 
 
@@ -102,8 +110,11 @@ def test_base_request_default() -> None:
     """Test the BaseRequest model with default values."""
     req = BaseRequest()
     assert req.alignment is False
+    assert req.diarization is False
     assert req.source_lang == "en"
     assert req.timestamps == "s"
+    assert req.use_batch is False
+    assert req.word_timestamps is False
 
 
 def test_base_request_invalid() -> None:
@@ -123,6 +134,7 @@ def test_base_response() -> None:
         diarization=False,
         source_lang="en",
         timestamps="s",
+        use_batch=False,
         word_timestamps=False,
     )
     assert response.utterances == [
@@ -133,6 +145,7 @@ def test_base_response() -> None:
     assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
+    assert response.use_batch is False
     assert response.word_timestamps is False
 
 
@@ -155,6 +168,7 @@ def test_corxet_payload() -> None:
         dual_channel=False,
         source_lang="en",
         timestamps="s",
+        use_batch=False,
         word_timestamps=False,
         job_name="test_job",
         ping=False,
@@ -167,6 +181,7 @@ def test_corxet_payload() -> None:
     assert payload.dual_channel is False
     assert payload.source_lang == "en"
     assert payload.timestamps == "s"
+    assert payload.use_batch is False
     assert payload.word_timestamps is False
     assert payload.job_name == "test_job"
     assert payload.ping is False
@@ -183,6 +198,7 @@ def test_cortex_url_response() -> None:
         diarization=False,
         source_lang="en",
         timestamps="s",
+        use_batch=False,
         word_timestamps=False,
         dual_channel=False,
         job_name="test_job",
@@ -196,6 +212,7 @@ def test_cortex_url_response() -> None:
     assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
+    assert response.use_batch is False
     assert response.word_timestamps is False
     assert response.dual_channel is False
     assert response.job_name == "test_job"
@@ -213,6 +230,7 @@ def test_cortex_youtube_response() -> None:
         diarization=False,
         source_lang="en",
         timestamps="s",
+        use_batch=False,
         word_timestamps=False,
         video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         job_name="test_job",
@@ -226,6 +244,7 @@ def test_cortex_youtube_response() -> None:
     assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
+    assert response.use_batch is False
     assert response.word_timestamps is False
     assert response.video_url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     assert response.job_name == "test_job"
@@ -243,6 +262,7 @@ def test_youtube_response() -> None:
         diarization=False,
         source_lang="en",
         timestamps="s",
+        use_batch=False,
         word_timestamps=False,
         video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     )
@@ -254,5 +274,6 @@ def test_youtube_response() -> None:
     assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
+    assert response.use_batch is False
     assert response.word_timestamps is False
     assert response.video_url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"

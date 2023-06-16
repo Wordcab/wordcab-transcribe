@@ -70,6 +70,7 @@ async def run_cortex(
                 dual_channel=payload.dual_channel,
                 source_lang=payload.source_lang,
                 timestamps=payload.timestamps,
+                use_batch=payload.use_batch,
                 word_timestamps=payload.word_timestamps,
             )
             utterances: AudioResponse = await inference_with_audio_url(
@@ -81,8 +82,11 @@ async def run_cortex(
         elif payload.url_type == "youtube":
             data = BaseRequest(
                 alignment=payload.alignment,
+                diarization=payload.diarization,
                 source_lang=payload.source_lang,
                 timestamps=payload.timestamps,
+                use_batch=payload.use_batch,
+                word_timestamps=payload.word_timestamps,
             )
             utterances: YouTubeResponse = await inference_with_youtube(
                 background_tasks=BackgroundTasks(),
