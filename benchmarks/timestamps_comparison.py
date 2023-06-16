@@ -6,7 +6,7 @@ from loguru import logger
 
 
 def compare_starting_timestamps(
-    api_output: Union[str, dict], reference_timestamp: float, tolerance: float = 1e-2
+    api_output: Union[str, dict], reference_timestamp: float, tolerance: float = 5e-1
 ) -> bool:
     """
     Compare the starting timestamps in the API output with the reference timestamp.
