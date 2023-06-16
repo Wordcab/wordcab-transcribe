@@ -26,6 +26,7 @@ class BaseResponse(BaseModel):
     diarization: bool
     source_lang: str
     timestamps: str
+    use_batch: bool
     word_timestamps: bool
 
 
@@ -57,6 +58,7 @@ class AudioResponse(BaseResponse):
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
+                "use_batch": False,
                 "word_timestamps": False,
                 "dual_channel": False,
             }
@@ -91,6 +93,7 @@ class YouTubeResponse(BaseResponse):
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
+                "use_batch": False,
                 "word_timestamps": False,
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             }
@@ -123,6 +126,7 @@ class CortexPayload(BaseModel):
     dual_channel: Optional[bool] = False
     source_lang: Optional[str] = "en"
     timestamps: Optional[str] = "s"
+    use_batch: Optional[bool] = False
     word_timestamps: Optional[bool] = False
     job_name: Optional[str] = None
     ping: Optional[bool] = False
@@ -154,6 +158,7 @@ class CortexPayload(BaseModel):
                 "dual_channel": False,
                 "source_lang": "en",
                 "timestamps": "s",
+                "use_batch": False,
                 "word_timestamps": False,
                 "job_name": "job_abc123",
                 "ping": False,
@@ -190,6 +195,7 @@ class CortexUrlResponse(AudioResponse):
                 "diariation": False,
                 "source_lang": "en",
                 "timestamps": "s",
+                "use_batch": False,
                 "word_timestamps": False,
                 "dual_channel": False,
                 "job_name": "job_name",
@@ -227,6 +233,7 @@ class CortexYoutubeResponse(YouTubeResponse):
                 "diariation": False,
                 "source_lang": "en",
                 "timestamps": "s",
+                "use_batch": False,
                 "word_timestamps": False,
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 "job_name": "job_name",
@@ -242,6 +249,7 @@ class BaseRequest(BaseModel):
     diarization: bool = False
     source_lang: str = "en"
     timestamps: str = "s"
+    use_batch: bool = False
     word_timestamps: bool = False
 
     @validator("timestamps")
@@ -260,6 +268,7 @@ class BaseRequest(BaseModel):
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
+                "use_batch": False,
                 "word_timestamps": False,
             }
         }
@@ -279,6 +288,7 @@ class AudioRequest(BaseRequest):
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
+                "use_batch": False,
                 "word_timestamps": False,
                 "dual_channel": False,
             }

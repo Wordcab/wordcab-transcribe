@@ -313,7 +313,7 @@ class TranscribeService:
         suppress_blank: bool = False,
         word_timestamps: bool = True,
         vad_service: Optional[VadService] = None,
-        **kwargs,
+        use_batch: bool = True,
     ) -> Union[List[dict], List[List[dict]]]:
         """
         Run inference with the transcribe model.
@@ -326,13 +326,13 @@ class TranscribeService:
             suppress_blank (bool): Whether to suppress blank at the beginning of the sampling.
             word_timestamps (bool): Whether to return word timestamps.
             vad_service (Optional[VADService]): VADService to use for voice activity detection in the dual_channel case.
-            kwargs (dict): Additional keyword arguments.
+            use_batch (bool): Whether to use batch inference.
 
         Returns:
             Union[List[dict], List[List[dict]]]: List of transcriptions. If the task is a dual_channel task,
                 a list of lists is returned.
         """
-        if kwargs.get("original_pipeline", False):
+        if not use_batch:
             segments, _ = self.model.transcribe(
                 audio,
                 language=source_lang,
