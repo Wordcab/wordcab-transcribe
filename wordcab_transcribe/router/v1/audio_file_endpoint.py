@@ -44,6 +44,7 @@ async def inference_with_audio(
     dual_channel: bool = Form(False),  # noqa: B008
     source_lang: str = Form("en"),  # noqa: B008
     timestamps: str = Form("s"),  # noqa: B008
+    use_batch: bool = Form(False),  # noqa: B008
     word_timestamps: bool = Form(False),  # noqa: B008
     file: UploadFile = File(...),  # noqa: B008
 ) -> AudioResponse:
@@ -62,6 +63,7 @@ async def inference_with_audio(
         diarization=diarization,
         source_lang=source_lang,
         timestamps=timestamps,
+        use_batch=use_batch,
         word_timestamps=word_timestamps,
         dual_channel=dual_channel,
     )
@@ -88,6 +90,7 @@ async def inference_with_audio(
             dual_channel=data.dual_channel,
             source_lang=data.source_lang,
             timestamps_format=data.timestamps,
+            use_batch=data.use_batch,
             word_timestamps=data.word_timestamps,
         )
     )
@@ -109,5 +112,6 @@ async def inference_with_audio(
             dual_channel=data.dual_channel,
             source_lang=data.source_lang,
             timestamps=data.timestamps,
+            use_batch=data.use_batch,
             word_timestamps=data.word_timestamps,
         )
