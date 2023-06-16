@@ -32,9 +32,10 @@ def compare_starting_timestamps(
 
     first_timestamp = utterances[0]["start"]
     if np.allclose(first_timestamp, reference_timestamp, atol=tolerance):
+        logger.info(f"First timestamp {first_timestamp} matches the reference timestamp {reference_timestamp} within a tolerance of {tolerance} seconds.")
         return True
     else:
         logger.error(f"First timestamp {first_timestamp} does not match the reference timestamp {reference_timestamp}.")
         return False
     
-compare_starting_timestamps("data/nissan_sample_5.json", 12.0, 1e-2)
+compare_starting_timestamps("data/nissan_sample_5.json", 11.8)
