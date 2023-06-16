@@ -2,6 +2,7 @@ import json
 from typing import Union
 
 import numpy as np
+from loguru import logger
 
 
 def compare_starting_timestamps(
@@ -22,7 +23,8 @@ def compare_starting_timestamps(
         ValueError: If no utterances are found in the API output.
     """
     if isinstance(api_output, str):
-        api_output = json.loads(api_output)
+        with open(api_output, "r") as f:
+            api_output = json.load(f)
 
     utterances = api_output.get("utterances", [])
     if not utterances:
@@ -32,4 +34,7 @@ def compare_starting_timestamps(
     if np.allclose(first_timestamp, reference_timestamp, atol=tolerance):
         return True
     else:
+        logger.error(f"First timestamp {first_timestamp} does not match the reference timestamp {reference_timestamp}.")
         return False
+    
+compare_starting_timestamps("data/nissan_sample_5.json", 12.0, 1e-2)
