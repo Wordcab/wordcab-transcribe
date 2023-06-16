@@ -37,5 +37,33 @@ def compare_starting_timestamps(
     else:
         logger.error(f"First timestamp {first_timestamp} does not match the reference timestamp {reference_timestamp}.")
         return False
-    
-compare_starting_timestamps("data/nissan_sample_5.json", 11.8)
+
+
+def launch_timestamps_comparison(args):
+    """Launch the timestamps comparison subcommand."""
+    return TimestampsComparison(args.json, args.ref, args.tolerance)
+
+
+class TimestampsComparison:
+    @staticmethod
+    def register_subcommand(parser) -> None:
+        """Register the subcommand."""
+        subparser = parser.add_parser("timestamps", help="Compare the timestamps of the API output with the reference timestamps.")
+        subparser.add_argument("-j", "--json", type=str, required=True, help="Path to the API output json file.")
+        subparser.add_argument("-r", "--ref", type=float, required=True, help="Reference timestamp of the audio starting point in seconds.")
+        subparser.add_argument("-t", "--tolerance", type=float, default=5e-1, help="Tolerance in seconds. Defaults to 0.5 seconds.")
+        subparser.set_defaults(func=launch_timestamps_comparison)
+
+    def __init__(
+        self, api_output: Union[str, dict], reference_timestamp: float, tolerance: float = 5e-1
+    ) -> None:
+        """Initialize the subcommand."""
+        self.api_output = api_output
+        self.reference_timestamp = reference_timestamp
+        self.tolerance = tolerance
+
+    def run(self) -> bool:
+        """Run the subcommand."""
+        return compare_starting_timestamps(
+            self.api_output, self.reference_timestamp, self.tolerance
+        )

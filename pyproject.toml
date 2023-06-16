@@ -5,6 +5,9 @@ description = "ASR FastAPI server using faster-whisper and NVIDIA NeMo diarizati
 authors = ["Wordcab <info@wordcab.com>"]
 readme = "README.md"
 
+[tool.poetry.scripts]
+wordcab-transcribe = "benchmarks.cli:main"
+
 [tool.poetry.dependencies]
 python = ">=3.8.1,<3.10"
 aiohttp = ">=3.8.4"
