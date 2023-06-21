@@ -72,7 +72,7 @@ def test_config() -> None:
     assert settings.whisper_model == "large-v2"
     assert settings.compute_type == "float16"
     assert settings.extra_languages == ["he"]
-    assert settings.extra_languages_model_paths == {"he": "path/to/model"}
+    assert settings.extra_languages_model_paths == {"he": ""}
 
     assert settings.nemo_domain_type == "telephonic"
     assert settings.nemo_storage_path == "nemo_storage"
