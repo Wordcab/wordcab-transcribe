@@ -73,7 +73,15 @@ async def startup_event():
         logger.info("Downloading models for extra languages...")
         for model in settings.extra_languages:
             try:
-                download_model(compute_type=settings.compute_type, language=model)
+                model_path = download_model(
+                    compute_type=settings.compute_type, language=model
+                )
+
+                if model_path is not None:
+                    settings.extra_languages_model_paths[model] = model_path
+                else:
+                    raise Exception(f"Coudn't download model for {model}")
+
             except Exception as e:
                 logger.error(f"Error downloading model for {model}: {e}")
 

@@ -29,8 +29,10 @@ from ctranslate2.models import WhisperGenerationResult
 from faster_whisper import WhisperModel
 from faster_whisper.tokenizer import Tokenizer
 from faster_whisper.transcribe import get_ctranslate2_storage
+from loguru import logger
 from torch.utils.data import DataLoader, IterableDataset
 
+from wordcab_transcribe.config import settings
 from wordcab_transcribe.logging import time_and_tell
 from wordcab_transcribe.services.vad_service import VadService
 from wordcab_transcribe.utils import enhance_audio
@@ -272,11 +274,16 @@ class TranscribeService:
             device (str): Device to use for inference. Can be "cpu" or "cuda".
             num_workers (int): Number of workers to use for inference.
         """
+        self.compute_type = compute_type
+        self.device = device
+        self.model_path = model_path
+        self.num_workers = num_workers
+
         self.model = WhisperModel(
-            model_path,
-            device=device,
-            compute_type=compute_type,
-            num_workers=num_workers,
+            self.model_path,
+            device=self.device,
+            compute_type=self.compute_type,
+            num_workers=self.num_workers,
         )
         self.tokenizer = Tokenizer(
             self.model.hf_tokenizer,
@@ -284,6 +291,10 @@ class TranscribeService:
             task="transcribe",
             language="en",  # Default language, to gain some speed
         )
+
+        self.loaded_model_lang = "multi" if self.model.model.is_multilingual else "en"
+        self.extra_lang = settings.extra_languages
+        self.extra_lang_models = settings.extra_languages_model_paths
 
         self._batch_size = 8  # TODO: Make this configurable
         self.sample_rate = 16000
@@ -332,6 +343,27 @@ class TranscribeService:
             Union[List[dict], List[List[dict]]]: List of transcriptions. If the task is a dual_channel task,
                 a list of lists is returned.
         """
+        # Load the model for the correct language if extra languages are used
+        if source_lang in self.extra_lang and self.loaded_model_lang != source_lang:
+            logger.debug(f"Loading model for language {source_lang}")
+            self.model = WhisperModel(
+                self.extra_lang_models[source_lang],
+                device=self.device,
+                compute_type=self.compute_type,
+                num_workers=self.num_workers,
+            )
+            self.loaded_model_lang = source_lang
+
+        elif source_lang not in self.extra_lang and self.loaded_model_lang != "multi":
+            logger.debug("Re-loading multi-language model.")
+            self.model = WhisperModel(
+                self.model_path,
+                device=self.device,
+                compute_type=self.compute_type,
+                num_workers=self.num_workers,
+            )
+            self.loaded_model_lang = "multi"
+
         if not use_batch:
             segments, _ = self.model.transcribe(
                 audio,

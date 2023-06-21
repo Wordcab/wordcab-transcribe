@@ -334,7 +334,7 @@ async def download_audio_file(
 
 
 # pragma: no cover
-def download_model(compute_type: str, language: str) -> None:
+def download_model(compute_type: str, language: str) -> Optional[str]:
     """
     Download the special models during the warmup phase.
 
@@ -343,7 +343,7 @@ def download_model(compute_type: str, language: str) -> None:
         language (str): The target language.
 
     Returns:
-        None
+        Optional[str]: The path to the downloaded model.
     """
     if compute_type == "float16":
         repo_id = f"wordcab/whisper-large-fp16-{language}"
@@ -355,12 +355,12 @@ def download_model(compute_type: str, language: str) -> None:
         # No other models are supported
         return None
 
-    allow_patterns = ["config.json", "model.bin", "vocabulary.*"]
-    huggingface_hub.snapshot_download(
+    allow_patterns = ["config.json", "model.bin", "tokenizer.json", "vocabulary.*"]
+    snapshot_path = huggingface_hub.snapshot_download(
         repo_id, local_files_only=False, allow_patterns=allow_patterns
     )
 
-    return None
+    return snapshot_path
 
 
 def delete_file(filepath: Union[str, Tuple[str, Optional[str]]]) -> None:

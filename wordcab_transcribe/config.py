@@ -15,7 +15,7 @@
 
 from os import getenv
 from pathlib import Path
-from typing import List, Union
+from typing import Dict, List, Union
 
 from dotenv import load_dotenv
 from faster_whisper.utils import _MODELS
@@ -42,6 +42,7 @@ class Settings:
     whisper_model: str
     compute_type: str
     extra_languages: List[str]
+    extra_languages_model_paths: Dict[str, str]
     # NVIDIA NeMo
     nemo_domain_type: str
     nemo_storage_path: str
@@ -199,6 +200,7 @@ settings = Settings(
     whisper_model=getenv("WHISPER_MODEL", "large-v2"),
     compute_type=getenv("COMPUTE_TYPE", "int8_float16"),
     extra_languages=extra_languages,
+    extra_languages_model_paths={lang: "" for lang in extra_languages},
     # NeMo
     nemo_domain_type=getenv("NEMO_DOMAIN_TYPE", "general"),
     nemo_storage_path=getenv("NEMO_STORAGE_PATH", "nemo_storage"),

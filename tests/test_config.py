@@ -34,6 +34,7 @@ def default_settings() -> OrderedDict:
         whisper_model="large-v2",
         compute_type="float16",
         extra_languages=["he"],
+        extra_languages_model_paths={"he": "path/to/model"},
         nemo_domain_type="general",
         nemo_storage_path="nemo_storage",
         nemo_output_path="nemo_outputs",
@@ -71,6 +72,7 @@ def test_config() -> None:
     assert settings.whisper_model == "large-v2"
     assert settings.compute_type == "float16"
     assert settings.extra_languages == ["he"]
+    assert settings.extra_languages_model_paths == {"he": "path/to/model"}
 
     assert settings.nemo_domain_type == "telephonic"
     assert settings.nemo_storage_path == "nemo_storage"
