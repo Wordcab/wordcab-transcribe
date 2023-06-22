@@ -262,6 +262,7 @@ class TranscribeService:
         model_path: str,
         compute_type: str,
         device: str,
+        device_index: Union[int, List[int]],
         num_workers: int,
     ) -> None:
         """Initialize the Transcribe Service.
@@ -272,16 +273,19 @@ class TranscribeService:
             model_path (str): Path to the model checkpoint. This can be a local path or a URL.
             compute_type (str): Compute type to use for inference. Can be "int8", "int8_float16", "int16" or "float_16".
             device (str): Device to use for inference. Can be "cpu" or "cuda".
+            device_index (Union[int, List[int]]): Index of the device to use for inference.
             num_workers (int): Number of workers to use for inference.
         """
         self.compute_type = compute_type
         self.device = device
+        self.device_index = device_index
         self.model_path = model_path
         self.num_workers = num_workers
 
         self.model = WhisperModel(
             self.model_path,
             device=self.device,
+            device_index=self.device_index,
             compute_type=self.compute_type,
             num_workers=self.num_workers,
         )
@@ -349,6 +353,7 @@ class TranscribeService:
             self.model = WhisperModel(
                 self.extra_lang_models[source_lang],
                 device=self.device,
+                device_index=self.device_index,
                 compute_type=self.compute_type,
                 num_workers=self.num_workers,
             )
@@ -359,6 +364,7 @@ class TranscribeService:
             self.model = WhisperModel(
                 self.model_path,
                 device=self.device,
+                device_index=self.device_index,
                 compute_type=self.compute_type,
                 num_workers=self.num_workers,
             )
