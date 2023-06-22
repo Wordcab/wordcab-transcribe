@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 import aiofiles
 import aiohttp
 import filetype
+import huggingface_hub
 import pandas as pd
 import torch
 import torchaudio
@@ -330,6 +331,36 @@ async def download_audio_file(
                 raise Exception(f"Failed to download file. Status: {response.status}")
 
     return filename, extension
+
+
+# pragma: no cover
+def download_model(compute_type: str, language: str) -> Optional[str]:
+    """
+    Download the special models during the warmup phase.
+
+    Args:
+        compute_type (str): The target compute type.
+        language (str): The target language.
+
+    Returns:
+        Optional[str]: The path to the downloaded model.
+    """
+    if compute_type == "float16":
+        repo_id = f"wordcab/whisper-large-fp16-{language}"
+    elif compute_type == "int8_float16":
+        repo_id = f"wordcab/whisper-large-int8-fp16-{language}"
+    elif compute_type == "int8":
+        repo_id = f"wordcab/whisper-large-int8-{language}"
+    else:
+        # No other models are supported
+        return None
+
+    allow_patterns = ["config.json", "model.bin", "tokenizer.json", "vocabulary.*"]
+    snapshot_path = huggingface_hub.snapshot_download(
+        repo_id, local_files_only=False, allow_patterns=allow_patterns
+    )
+
+    return snapshot_path
 
 
 def delete_file(filepath: Union[str, Tuple[str, Optional[str]]]) -> None:

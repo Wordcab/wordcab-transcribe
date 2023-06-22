@@ -30,7 +30,7 @@ from wordcab_transcribe.router.v1.endpoints import (
     auth_router,
     cortex_router,
 )
-from wordcab_transcribe.utils import retrieve_user_platform
+from wordcab_transcribe.utils import download_model, retrieve_user_platform
 
 
 # Main application instance creation
@@ -68,6 +68,22 @@ async def startup_event():
             "The application was tested on Ubuntu 22.04, so we cannot guarantee that it will work on other OS.\n"
             "Report any issues with your env specs to: https://github.com/Wordcab/wordcab-transcribe/issues"
         )
+
+    if settings.extra_languages:
+        logger.info("Downloading models for extra languages...")
+        for model in settings.extra_languages:
+            try:
+                model_path = download_model(
+                    compute_type=settings.compute_type, language=model
+                )
+
+                if model_path is not None:
+                    settings.extra_languages_model_paths[model] = model_path
+                else:
+                    raise Exception(f"Coudn't download model for {model}")
+
+            except Exception as e:
+                logger.error(f"Error downloading model for {model}: {e}")
 
     if settings.asr_type == "async":
         task_names = asr.queues.keys()
