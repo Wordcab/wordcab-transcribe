@@ -398,6 +398,7 @@ class ASRAsyncService(ASRService):
             formatted_segments = format_segments(
                 segments=segments,
                 alignment=alignment,
+                use_batch=task["use_batch"],
                 word_timestamps=word_timestamps,
             )
 
