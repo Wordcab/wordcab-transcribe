@@ -14,7 +14,7 @@
 """Diarization Service for audio files."""
 
 from pathlib import Path
-from typing import List, Union
+from typing import List, NamedTuple, Union
 
 import librosa
 import soundfile as sf
@@ -25,11 +25,17 @@ from wordcab_transcribe.logging import time_and_tell
 from wordcab_transcribe.utils import load_nemo_config
 
 
+class NemoModel(NamedTuple):
+    model: NeuralDiarizer
+    output_path: str
+    temp_folder: Path
+    device: str
+
 class DiarizeService:
     """Diarize Service for audio files."""
 
     def __init__(
-        self, domain_type: str, storage_path: str, output_path: str, device: str
+        self, domain_type: str, storage_path: str, output_path: str, device: str, device_index: List[int]
     ) -> None:
         """Initialize the Diarize Service.
 
@@ -40,27 +46,42 @@ class DiarizeService:
             storage_path (str): Path where the diarization pipeline will save temporary files.
             output_path (str): Path where the diarization pipeline will save the final output files.
             device (str): Device to use for inference. Can be "cpu" or "cuda".
+            device_index (Union[int, List[int]]): Index of the device to use for inference.
         """
-        self.output_path = output_path
-        self.temp_folder = Path.cwd() / "temp_outputs"
-        if not self.temp_folder.exists():
-            self.temp_folder.mkdir(parents=True, exist_ok=True)
+        self.device = device
+        self.models = {}
 
-        self.model = NeuralDiarizer(
-            cfg=load_nemo_config(
-                domain_type=domain_type,
-                storage_path=storage_path,
-                output_path=self.output_path,
+        for idx in device_index:
+            _output_path = f"{output_path}_{idx}"
+            temp_folder = Path.cwd() / f"temp_outputs_{idx}"
+            if not temp_folder.exists():
+                temp_folder.mkdir(parents=True, exist_ok=True)
+
+            model = NeuralDiarizer(
+                cfg=load_nemo_config(
+                    domain_type=domain_type,
+                    storage_path=storage_path,
+                    output_path=_output_path,
+                    temp_folder=temp_folder,
+                )
             )
-        ).to(device)
+            _device = f"cuda:{idx}" if self.device == "cuda" else "cpu"
+            model = model.to(_device)
+            self.models[idx] = NemoModel(
+                model=model,
+                output_path=_output_path,
+                temp_folder=temp_folder,
+                device=_device,
+            )
 
     @time_and_tell
-    def __call__(self, filepath: Union[str, torch.Tensor]) -> List[dict]:
+    def __call__(self, filepath: Union[str, torch.Tensor], model_index: int) -> List[dict]:
         """
         Run inference with the diarization model.
 
         Args:
             filepath (Union[str, torch.Tensor]): Path to the audio file or waveform.
+            model_index (int): Index of the model to use for inference.
 
         Returns:
             List[dict]: List of segments with the following keys: "start", "end", "speaker".
@@ -75,9 +96,11 @@ class DiarizeService:
 
         sf.write(str(tmp_save_path), waveform, sample_rate, "PCM_16")
 
-        self.model.diarize()
+        self.models[model_index].model.diarize()
 
-        return self._format_timestamps(self.output_path)
+        outputs = self._format_timestamps(self.models[model_index].output_path)
+
+        return outputs
 
     @staticmethod
     def _format_timestamps(output_path: str) -> List[dict]:

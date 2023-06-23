@@ -27,6 +27,7 @@ from wordcab_transcribe.config import settings
 from wordcab_transcribe.logging import time_and_tell
 from wordcab_transcribe.services.align_service import AlignService
 from wordcab_transcribe.services.diarize_service import DiarizeService
+from wordcab_transcribe.services.gpu_service import GPUService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
 from wordcab_transcribe.services.vad_service import VadService
@@ -72,10 +73,10 @@ class ASRAsyncService(ASRService):
         super().__init__()
 
         self.task_threads: dict = {
-            "transcription": self.num_gpus,
-            "diarization": 1,
+            "transcription": self.num_gpus if self.num_gpus > 0 else 1,
+            "diarization": self.num_gpus if self.num_gpus > 0 else 1,
             "alignment": 1,
-            "post_processing": self.num_cpus,
+            "post_processing": self.num_cpus - (2 * self.num_gpus),
         }
         self.thread_executors: dict = {
             "transcription": ThreadPoolExecutor(
@@ -91,23 +92,25 @@ class ASRAsyncService(ASRService):
         }
 
         if self.num_gpus > 1 and self.device == "cuda":
-            transcription_device_index = list(range(self.num_gpus))[1:]
+            device_index = list(range(self.num_gpus))
         else:
-            transcription_device_index = 0
+            device_index = [0]
+
+        self.gpu_handler = GPUService(device=self.device, device_index=device_index)
 
         self.services: dict = {
             "transcription": TranscribeService(
                 model_path=settings.whisper_model,
                 compute_type=settings.compute_type,
                 device=self.device,
-                device_index=transcription_device_index,
-                num_workers=self.task_threads["transcription"],
+                device_index=device_index,
             ),
             "diarization": DiarizeService(
                 domain_type=settings.nemo_domain_type,
                 storage_path=settings.nemo_storage_path,
                 output_path=settings.nemo_output_path,
                 device=self.device,
+                device_index=device_index,
             ),
             "alignment": AlignService(self.device),
             "post_processing": PostProcessingService(),
@@ -254,9 +257,12 @@ class ASRAsyncService(ASRService):
             task (dict): The task and its parameters.
         """
         try:
+            model_index = self.gpu_handler.get_device() if self.device == "cuda" else 0
+
             segments = self.services["transcription"](
                 task["input"],
                 source_lang=task["source_lang"],
+                model_index=model_index,
                 suppress_blank=False,
                 vocab=None if task["vocab"] == [] else task["vocab"],
                 word_timestamps=True,
@@ -271,6 +277,7 @@ class ASRAsyncService(ASRService):
         finally:
             task["transcription_result"] = result
             task["transcription_done"].set()
+            self.gpu_handler.release_device(model_index)
 
     @time_and_tell
     def process_diarization(self, task: dict) -> None:
@@ -281,7 +288,9 @@ class ASRAsyncService(ASRService):
             task (dict): The task and its parameters.
         """
         try:
-            result = self.services["diarization"](task["input"])
+            model_index = self.gpu_handler.get_device() if self.device == "cuda" else 0
+
+            result = self.services["diarization"](task["input"], model_index=model_index)
 
         except Exception as e:
             result = Exception(f"Error in diarization: {e}\n{traceback.format_exc()}")
@@ -289,6 +298,7 @@ class ASRAsyncService(ASRService):
         finally:
             task["diarization_result"] = result
             task["diarization_done"].set()
+            self.gpu_handler.release_device(model_index)
 
     @time_and_tell
     def process_alignment(self, task: dict) -> None:

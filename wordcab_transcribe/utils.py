@@ -531,7 +531,7 @@ def interpolate_nans(x: pd.Series, method="nearest") -> pd.Series:
 
 
 def load_nemo_config(
-    domain_type: str, storage_path: str, output_path: str
+    domain_type: str, storage_path: str, output_path: str, temp_folder: Path
 ) -> Union[DictConfig, ListConfig]:
     """
     Load NeMo config file based on a domain type.
@@ -540,6 +540,7 @@ def load_nemo_config(
         domain_type (str): The domain type. Can be "general", "meeting" or "telephonic".
         storage_path (str): The path to the NeMo storage directory.
         output_path (str): The path to the NeMo output directory.
+        temp_folder (Path): The path to the temporary folder.
 
     Returns:
         DictConfig: The NeMo config loaded as a DictConfig.
@@ -558,7 +559,7 @@ def load_nemo_config(
         _storage_path.mkdir(parents=True, exist_ok=True)
 
     meta = {
-        "audio_filepath": "/app/temp_outputs/mono_file.wav",
+        "audio_filepath": f"/app/{str(temp_folder)}/mono_file.wav",
         "offset": 0,
         "duration": None,
         "label": "infer",
