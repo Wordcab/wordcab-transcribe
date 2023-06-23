@@ -550,7 +550,7 @@ def interpolate_nans(x: pd.Series, method="nearest") -> pd.Series:
 
 
 def load_nemo_config(
-    domain_type: str, storage_path: str, output_path: str, temp_folder: Path
+    domain_type: str, storage_path: str, output_path: str, temp_folder: Path, device: str
 ) -> Union[DictConfig, ListConfig]:
     """
     Load NeMo config file based on a domain type.
@@ -560,6 +560,7 @@ def load_nemo_config(
         storage_path (str): The path to the NeMo storage directory.
         output_path (str): The path to the NeMo output directory.
         temp_folder (Path): The path to the temporary folder.
+        device (str): The device to use for inference.
 
     Returns:
         DictConfig: The NeMo config loaded as a DictConfig.
@@ -597,6 +598,7 @@ def load_nemo_config(
         _output_path.mkdir(parents=True, exist_ok=True)
 
     cfg.num_workers = 0
+    cfg.device = device
     cfg.diarizer.manifest_filepath = str(manifest_path)
     cfg.diarizer.out_dir = str(output_path)
 

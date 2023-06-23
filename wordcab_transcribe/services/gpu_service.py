@@ -13,8 +13,7 @@
 # limitations under the License.
 """GPU service class to handle gpu availability for models."""
 
-import queue
-import threading
+import asyncio
 from typing import Any, Dict, List
 
 
@@ -34,21 +33,19 @@ class GPUService:
         # Initialize the models dictionary that will hold the models for each GPU.
         self.models: Dict[int, Any] = {}
 
-        self.queue_lock = threading.Lock()
-        self.queue = queue.Queue()
+        self.queue = asyncio.Queue(maxsize=len(self.device_index))
         for idx in self.device_index:
-            self.queue.put(idx)
+            self.queue.put_nowait(idx)
         
 
-    def get_device(self) -> int:
+    async def get_device(self) -> int:
         """
         Get the next available device.
 
         Returns:
             int: Index of the next available device.
         """
-        with self.queue_lock:
-            return self.queue.get()
+        return await self.queue.get()
 
     def release_device(self, device_index: int) -> None:
         """
@@ -57,5 +54,4 @@ class GPUService:
         Args:
             device_index (int): Index of the device to add to the available devices list.
         """
-        with self.queue_lock:
-            self.queue.put(device_index)
+        self.queue.put_nowait(device_index)
