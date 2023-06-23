@@ -196,13 +196,16 @@ class ASRAsyncService(ASRService):
             "time": asyncio.get_event_loop().time(),
         }
 
+        # Pick the first available GPU for the task
+        gpu_index = await self.gpu_handler.get_device() if self.device == "cuda" else 0
+
         asyncio.get_event_loop().run_in_executor(
-            self.thread_executors["transcription"], self.process_transcription, task
+            self.thread_executors["transcription"], self.process_transcription, task, gpu_index
         )
 
         if diarization and dual_channel is False:
             asyncio.get_event_loop().run_in_executor(
-                self.thread_executors["diarization"], self.process_diarization, task
+                self.thread_executors["diarization"], self.process_diarization, task, gpu_index
             )
         else:
             task["diarization_done"].set()
@@ -214,14 +217,16 @@ class ASRAsyncService(ASRService):
         )
 
         if isinstance(task["diarization_result"], Exception):
+            self.gpu_handler.release_device(gpu_index)
             return task["diarization_result"]
 
         if isinstance(task["transcription_result"], Exception):
+            self.gpu_handler.release_device(gpu_index)
             return task["transcription_result"]
         else:
             if alignment and dual_channel is False:
                 asyncio.get_event_loop().run_in_executor(
-                    self.thread_executors["alignment"], self.process_alignment, task
+                    self.thread_executors["alignment"], self.process_alignment, task, gpu_index
                 )
             else:
                 task["alignment_done"].set()
@@ -237,6 +242,8 @@ class ASRAsyncService(ASRService):
             # So we keep processing the request and return the transcription result
             # return task["alignment_result"]
 
+        self.gpu_handler.release_device(gpu_index)  # Release the GPU
+
         asyncio.get_event_loop().run_in_executor(
             self.thread_executors["post_processing"], self.process_post_processing, task
         )
@@ -249,20 +256,19 @@ class ASRAsyncService(ASRService):
         return result, duration
 
     @time_and_tell
-    def process_transcription(self, task: dict) -> None:
+    def process_transcription(self, task: dict, gpu_index: int) -> None:
         """
         Process a task of transcription and update the task with the result.
 
         Args:
             task (dict): The task and its parameters.
+            gpu_index (int): The GPU index to use for the transcription.
         """
         try:
-            model_index = self.gpu_handler.get_device() if self.device == "cuda" else 0
-
             segments = self.services["transcription"](
                 task["input"],
                 source_lang=task["source_lang"],
-                model_index=model_index,
+                model_index=gpu_index,
                 suppress_blank=False,
                 vocab=None if task["vocab"] == [] else task["vocab"],
                 word_timestamps=True,
@@ -277,20 +283,18 @@ class ASRAsyncService(ASRService):
         finally:
             task["transcription_result"] = result
             task["transcription_done"].set()
-            self.gpu_handler.release_device(model_index)
 
     @time_and_tell
-    def process_diarization(self, task: dict) -> None:
+    def process_diarization(self, task: dict, gpu_index: int) -> None:
         """
         Process a task of diarization.
 
         Args:
             task (dict): The task and its parameters.
+            gpu_index (int): The GPU index to use for the diarization.
         """
         try:
-            model_index = self.gpu_handler.get_device() if self.device == "cuda" else 0
-
-            result = self.services["diarization"](task["input"], model_index=model_index)
+            result = self.services["diarization"](task["input"], model_index=gpu_index)
 
         except Exception as e:
             result = Exception(f"Error in diarization: {e}\n{traceback.format_exc()}")
@@ -298,21 +302,22 @@ class ASRAsyncService(ASRService):
         finally:
             task["diarization_result"] = result
             task["diarization_done"].set()
-            self.gpu_handler.release_device(model_index)
 
     @time_and_tell
-    def process_alignment(self, task: dict) -> None:
+    def process_alignment(self, task: dict, gpu_index: int) -> None:
         """
         Process a task of alignment.
 
         Args:
             task (dict): The task and its parameters.
+            gpu_index (int): The GPU index to use for the alignment.
         """
         try:
             segments = self.services["alignment"](
                 task["input"],
                 transcript_segments=task["transcription_result"],
                 source_lang=task["source_lang"],
+                model_index=gpu_index,
             )
 
         except Exception as e:
