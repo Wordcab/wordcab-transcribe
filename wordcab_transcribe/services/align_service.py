@@ -140,7 +140,7 @@ class AlignService:
 
     @time_and_tell
     def __call__(
-        self, filepath: str, transcript_segments: List[dict], source_lang: str
+        self, filepath: str, transcript_segments: List[dict], source_lang: str, gpu_index: int
     ) -> List[SingleAlignedSegment]:
         """
         Run the alignment service on the given transcript segments and source language.
@@ -149,6 +149,7 @@ class AlignService:
             filepath (str): The path to the audio file.
             transcript_segments (List[dict]): The transcript segments to align.
             source_lang (str): The source language of the transcript segments.
+            gpu_index (int): The index of the GPU to use.
 
         Returns:
             List[SingleAlignedSegment]: The aligned transcript segments.
@@ -157,7 +158,7 @@ class AlignService:
             return transcript_segments
 
         model, metadata = self.load_model(source_lang)
-        model = model.to(self.device)
+        model = model.to(f"{self.device}:{gpu_index}")
 
         result_aligned = self.align(
             transcript_segments, model, metadata, filepath, self.device

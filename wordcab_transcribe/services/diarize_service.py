@@ -57,16 +57,16 @@ class DiarizeService:
             if not temp_folder.exists():
                 temp_folder.mkdir(parents=True, exist_ok=True)
 
+            _device = f"cuda:{idx}" if self.device == "cuda" else "cpu"
             model = NeuralDiarizer(
                 cfg=load_nemo_config(
                     domain_type=domain_type,
                     storage_path=storage_path,
                     output_path=_output_path,
                     temp_folder=temp_folder,
+                    device=_device,
                 )
             )
-            _device = f"cuda:{idx}" if self.device == "cuda" else "cpu"
-            model = model.to(_device)
             self.models[idx] = NemoModel(
                 model=model,
                 output_path=_output_path,
