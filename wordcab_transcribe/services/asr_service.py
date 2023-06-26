@@ -278,11 +278,13 @@ class ASRAsyncService(ASRService):
             result = segments
 
         except Exception as e:
-            result = Exception(f"Error in transcription: {e}\n{traceback.format_exc()}")
+            result = Exception(f"Error in transcription gpu {gpu_index}: {e}\n{traceback.format_exc()}")
 
         finally:
             task["transcription_result"] = result
             task["transcription_done"].set()
+
+        return None
 
     @time_and_tell
     def process_diarization(self, task: dict, gpu_index: int) -> None:
@@ -302,6 +304,8 @@ class ASRAsyncService(ASRService):
         finally:
             task["diarization_result"] = result
             task["diarization_done"].set()
+
+        return None
 
     @time_and_tell
     def process_alignment(self, task: dict, gpu_index: int) -> None:
@@ -326,6 +330,8 @@ class ASRAsyncService(ASRService):
         finally:
             task["alignment_result"] = segments
             task["alignment_done"].set()
+
+        return None
 
     @time_and_tell
     def process_post_processing(self, task: dict) -> None:
@@ -389,6 +395,8 @@ class ASRAsyncService(ASRService):
         finally:
             task["post_processing_result"] = final_utterances
             task["post_processing_done"].set()
+
+        return None
 
 
 class ASRLiveService:

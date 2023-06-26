@@ -531,7 +531,7 @@ def interpolate_nans(x: pd.Series, method="nearest") -> pd.Series:
 
 
 def load_nemo_config(
-    domain_type: str, storage_path: str, output_path: str, temp_folder: Path, device: str
+    domain_type: str, storage_path: str, output_path: Path, device: str, index: int,
 ) -> Union[DictConfig, ListConfig]:
     """
     Load NeMo config file based on a domain type.
@@ -539,12 +539,12 @@ def load_nemo_config(
     Args:
         domain_type (str): The domain type. Can be "general", "meeting" or "telephonic".
         storage_path (str): The path to the NeMo storage directory.
-        output_path (str): The path to the NeMo output directory.
-        temp_folder (Path): The path to the temporary folder.
+        output_path (Path): The path to the NeMo output directory.
         device (str): The device to use for inference.
+        index (int): The index of the model to use for inference. Used to create separate folders and files.
 
     Returns:
-        DictConfig: The NeMo config loaded as a DictConfig.
+        Tuple[DictConfig, str]: The NeMo config loaded as a DictConfig and the audio filepath.
     """
     cfg_path = (
         Path(__file__).parent.parent
@@ -559,8 +559,13 @@ def load_nemo_config(
     if not _storage_path.exists():
         _storage_path.mkdir(parents=True, exist_ok=True)
 
+    temp_folder = Path.cwd() / f"temp_outputs_{index}"
+    if not temp_folder.exists():
+        temp_folder.mkdir(parents=True, exist_ok=True)
+
+    audio_filepath = str(temp_folder / "mono_file.wav")
     meta = {
-        "audio_filepath": f"/app/{str(temp_folder)}/mono_file.wav",
+        "audio_filepath": audio_filepath,
         "offset": 0,
         "duration": None,
         "label": "infer",
@@ -569,7 +574,7 @@ def load_nemo_config(
         "uem_filepath": None,
     }
 
-    manifest_path = _storage_path / "infer_manifest.json"
+    manifest_path = _storage_path / f"infer_manifest_{index}.json"
     with open(manifest_path, "w") as fp:
         json.dump(meta, fp)
         fp.write("\n")
@@ -581,9 +586,9 @@ def load_nemo_config(
     cfg.num_workers = 0
     cfg.device = device
     cfg.diarizer.manifest_filepath = str(manifest_path)
-    cfg.diarizer.out_dir = str(output_path)
+    cfg.diarizer.out_dir = str(_output_path)
 
-    return cfg
+    return cfg, audio_filepath
 
 
 def read_audio(filepath: str, sample_rate: int = 16000) -> Tuple[torch.Tensor, float]:
