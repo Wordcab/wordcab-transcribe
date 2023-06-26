@@ -292,6 +292,7 @@ class TranscribeService:
                 compute_type=self.compute_type,
             )
             self.models[idx] = FasterWhisperModel(model=model, lang="multi")
+        logger.debug(f"Loaded {len(self.models)} models for transcription.")
 
         self.extra_lang = settings.extra_languages
         self.extra_lang_models = settings.extra_languages_model_paths

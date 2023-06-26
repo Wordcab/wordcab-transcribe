@@ -33,6 +33,7 @@ class GPUService:
         # Initialize the models dictionary that will hold the models for each GPU.
         self.models: Dict[int, Any] = {}
 
+        self.queue_lock = asyncio.Lock()
         self.queue = asyncio.Queue(maxsize=len(self.device_index))
         for idx in self.device_index:
             self.queue.put_nowait(idx)
@@ -45,7 +46,10 @@ class GPUService:
         Returns:
             int: Index of the next available device.
         """
-        return await self.queue.get()
+        async with self.queue_lock:
+            device_index = await self.queue.get()
+
+        return device_index
 
     def release_device(self, device_index: int) -> None:
         """

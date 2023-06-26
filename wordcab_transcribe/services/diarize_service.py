@@ -18,6 +18,7 @@ from typing import List, NamedTuple
 
 import librosa
 import soundfile as sf
+from loguru import logger
 from nemo.collections.asr.models.msdd_models import NeuralDiarizer
 
 from wordcab_transcribe.logging import time_and_tell
@@ -27,7 +28,7 @@ from wordcab_transcribe.utils import load_nemo_config
 class NemoModel(NamedTuple):
     model: NeuralDiarizer
     output_path: str
-    temp_folder: Path
+    tmp_audio_path: str
     device: str
 
 class DiarizeService:
@@ -51,25 +52,21 @@ class DiarizeService:
         self.models = {}
 
         for idx in device_index:
-            _output_path = f"{output_path}_{idx}"
-            temp_folder = Path.cwd() / f"temp_outputs_{idx}"
-            if not temp_folder.exists():
-                temp_folder.mkdir(parents=True, exist_ok=True)
+            _output_path = Path(output_path) / f"output_{idx}"
 
             _device = f"cuda:{idx}" if self.device == "cuda" else "cpu"
-            model = NeuralDiarizer(
-                cfg=load_nemo_config(
-                    domain_type=domain_type,
-                    storage_path=storage_path,
-                    output_path=_output_path,
-                    temp_folder=temp_folder,
-                    device=_device,
-                )
+            cfg, tmp_audio_path = load_nemo_config(
+                domain_type=domain_type,
+                storage_path=storage_path,
+                output_path=_output_path,
+                device=_device,
+                index=idx,
             )
+            model = NeuralDiarizer(cfg=cfg)
             self.models[idx] = NemoModel(
                 model=model,
                 output_path=_output_path,
-                temp_folder=temp_folder,
+                tmp_audio_path=tmp_audio_path,
                 device=_device,
             )
 
@@ -86,9 +83,8 @@ class DiarizeService:
             List[dict]: List of segments with the following keys: "start", "end", "speaker".
         """
         signal, sample_rate = librosa.load(filepath, sr=None)
-        
-        tmp_save_path = self.models[model_index].temp_folder / "mono_file.wav"
-        sf.write(str(tmp_save_path), signal, sample_rate, "PCM_16")
+
+        sf.write(self.models[model_index].tmp_audio_path, signal, sample_rate, "PCM_16")
 
         self.models[model_index].model.diarize()
 
