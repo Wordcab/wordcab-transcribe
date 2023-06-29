@@ -73,12 +73,16 @@ async def inference_with_audio(
             filepath = await split_dual_channel_file(filename)
         except Exception as e:
             logger.error(f"{e}\nFallback to single channel mode.")
-
             data.dual_channel = False
-            filepath = await convert_file_to_wav(filename)
 
-    else:
-        filepath = await convert_file_to_wav(filepath=filename)
+    try:
+        filepath = await convert_file_to_wav(filename)
+
+    except Exception as e:
+        raise HTTPException(  # noqa: B904
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Process failed: {e}",
+        )
 
     background_tasks.add_task(delete_file, filepath=filename)
 
