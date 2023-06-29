@@ -20,11 +20,9 @@ import subprocess  # noqa: S404
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
-from urllib.parse import urlparse
 
 import aiofiles
 import aiohttp
-import filetype
 import huggingface_hub
 import pandas as pd
 import torch
@@ -280,8 +278,7 @@ async def download_audio_file(
     url: str,
     filename: str,
     url_headers: Optional[Dict[str, str]] = None,
-    guess_extension: Optional[bool] = True,
-) -> Tuple[str, str]:
+) -> str:
     """
     Download an audio file from a URL.
 
@@ -289,8 +286,6 @@ async def download_audio_file(
         url (str): URL of the audio file.
         filename (str): Filename to save the file as.
         url_headers (Optional[Dict[str, str]]): Headers to send with the request. Defaults to None.
-        guess_extension (Optional[bool]): Whether to guess the file extension based on the
-            Content-Type header. Defaults to True.
 
     Raises:
         Exception: If the file failed to download.
@@ -304,21 +299,6 @@ async def download_audio_file(
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=url_headers) as response:
             if response.status == 200:
-                parsed_url = urlparse(url)
-                url_path = parsed_url.path
-                possible_filename = url_path.split("/")[-1]
-                logger.info(f"Possible filename: {possible_filename}")
-                if "." not in possible_filename:
-                    logger.info("No '.' found in path file, guessing file type")
-                    file_content = await response.read()
-                    extension = filetype.guess(file_content).extension
-                else:
-                    extension = possible_filename.split(".")[-1]
-                    logger.info(f"Extension detected: {extension}")
-
-                filename = f"{filename}.{extension}"
-
-                logger.info(f"New file name: {filename}")
                 async with aiofiles.open(filename, "wb") as f:
                     while True:
                         chunk = await response.content.read(1024)
@@ -330,7 +310,7 @@ async def download_audio_file(
             else:
                 raise Exception(f"Failed to download file. Status: {response.status}")
 
-    return filename, extension
+    return filename
 
 
 # pragma: no cover

@@ -45,21 +45,25 @@ async def inference_with_audio_url(
 
     data = AudioRequest() if data is None else AudioRequest(**data.dict())
 
-    _filepath, extension = await download_audio_file(url, filename)
+    _filepath = await download_audio_file(url, filename)
 
     if data.dual_channel:
         try:
             filepath = await split_dual_channel_file(_filepath)
         except Exception as e:
             logger.error(f"{e}\nFallback to single channel mode.")
-
             data.dual_channel = False
-            filepath = await convert_file_to_wav(_filepath)
 
-    else:
+    try:
         filepath = await convert_file_to_wav(_filepath)
 
-    background_tasks.add_task(delete_file, filepath=f"{filename}.{extension}")
+    except Exception as e:
+        raise HTTPException(  # noqa: B904
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Process failed: {e}",
+        )
+
+    background_tasks.add_task(delete_file, filepath=filename)
 
     task = asyncio.create_task(
         asr.process_input(
