@@ -43,6 +43,7 @@ def test_audio_request() -> None:
     assert request.source_lang == "en"
     assert request.timestamps == "s"
     assert request.use_batch is False
+    assert request.vocab == []
     assert request.word_timestamps is False
 
 
@@ -57,6 +58,7 @@ def test_audio_response() -> None:
         source_lang="en",
         timestamps="s",
         use_batch=False,
+        vocab=["custom company", "custom product"],
         word_timestamps=False,
     )
     assert response.utterances == []
@@ -67,6 +69,7 @@ def test_audio_response() -> None:
     assert response.source_lang == "en"
     assert response.timestamps == "s"
     assert response.use_batch is False
+    assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
 
     response = AudioResponse(
@@ -81,6 +84,7 @@ def test_audio_response() -> None:
         source_lang="en",
         timestamps="s",
         use_batch=False,
+        vocab=["custom company", "custom product"],
         word_timestamps=True,
     )
     assert response.utterances == [
@@ -94,6 +98,7 @@ def test_audio_response() -> None:
     assert response.source_lang == "en"
     assert response.timestamps == "s"
     assert response.use_batch is False
+    assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is True
 
 
@@ -140,6 +145,7 @@ def test_base_response() -> None:
         source_lang="en",
         timestamps="s",
         use_batch=False,
+        vocab=["custom company", "custom product"],
         word_timestamps=False,
     )
     assert response.utterances == [
@@ -152,6 +158,7 @@ def test_base_response() -> None:
     assert response.source_lang == "en"
     assert response.timestamps == "s"
     assert response.use_batch is False
+    assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
 
 
@@ -163,7 +170,7 @@ def test_cortex_error() -> None:
     assert error.message == "This is a test error"
 
 
-def test_corxet_payload() -> None:
+def test_cortex_payload() -> None:
     """Test the CortexPayload model."""
     payload = CortexPayload(
         url_type="youtube",
@@ -188,6 +195,7 @@ def test_corxet_payload() -> None:
     assert payload.source_lang == "en"
     assert payload.timestamps == "s"
     assert payload.use_batch is False
+    assert payload.vocab == []
     assert payload.word_timestamps is False
     assert payload.job_name == "test_job"
     assert payload.ping is False
@@ -206,6 +214,7 @@ def test_cortex_url_response() -> None:
         source_lang="en",
         timestamps="s",
         use_batch=False,
+        vocab=["custom company", "custom product"],
         word_timestamps=False,
         dual_channel=False,
         job_name="test_job",
@@ -221,6 +230,7 @@ def test_cortex_url_response() -> None:
     assert response.source_lang == "en"
     assert response.timestamps == "s"
     assert response.use_batch is False
+    assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
     assert response.dual_channel is False
     assert response.job_name == "test_job"
@@ -240,6 +250,7 @@ def test_cortex_youtube_response() -> None:
         source_lang="en",
         timestamps="s",
         use_batch=False,
+        vocab=["custom company", "custom product"],
         word_timestamps=False,
         video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         job_name="test_job",
@@ -255,6 +266,7 @@ def test_cortex_youtube_response() -> None:
     assert response.source_lang == "en"
     assert response.timestamps == "s"
     assert response.use_batch is False
+    assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
     assert response.video_url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     assert response.job_name == "test_job"
@@ -274,6 +286,7 @@ def test_youtube_response() -> None:
         source_lang="en",
         timestamps="s",
         use_batch=False,
+        vocab=["custom company", "custom product"],
         word_timestamps=False,
         video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     )
@@ -287,5 +300,6 @@ def test_youtube_response() -> None:
     assert response.source_lang == "en"
     assert response.timestamps == "s"
     assert response.use_batch is False
+    assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
     assert response.video_url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
