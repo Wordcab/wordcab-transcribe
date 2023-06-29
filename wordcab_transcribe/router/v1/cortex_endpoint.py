@@ -103,7 +103,13 @@ async def run_cortex(
         error_message = f"Error during transcription: {e}"
         logger.error(error_message)
 
-        await send_update_with_svix(payload.job_name, "error", {"error": error_message})
+        error_payload = {
+            "error": error_message,
+            "job_name": payload.job_name,
+            "request_id": request_id,
+        }
+
+        await send_update_with_svix(payload.job_name, "error", error_payload)
 
         return CortexError(message=error_message)
 
