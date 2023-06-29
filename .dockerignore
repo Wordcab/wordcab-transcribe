@@ -10,3 +10,4 @@ dist
 noxfile.py
 test.py
 whisper_model
+whisper_model_he
