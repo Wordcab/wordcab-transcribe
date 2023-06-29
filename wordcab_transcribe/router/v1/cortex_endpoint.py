@@ -71,6 +71,7 @@ async def run_cortex(
                 source_lang=payload.source_lang,
                 timestamps=payload.timestamps,
                 use_batch=payload.use_batch,
+                vocab=payload.vocab,
                 word_timestamps=payload.word_timestamps,
             )
             utterances: AudioResponse = await inference_with_audio_url(
@@ -86,6 +87,7 @@ async def run_cortex(
                 source_lang=payload.source_lang,
                 timestamps=payload.timestamps,
                 use_batch=payload.use_batch,
+                vocab=payload.vocab,
                 word_timestamps=payload.word_timestamps,
             )
             utterances: YouTubeResponse = await inference_with_youtube(

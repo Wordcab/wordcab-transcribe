@@ -172,6 +172,7 @@ class ASRAsyncService(ASRService):
         source_lang: str,
         timestamps_format: str,
         use_batch: bool,
+        vocab: List[str],
         word_timestamps: bool,
     ) -> Union[List[dict], Exception]:
         """Process the input request and return the results.
@@ -190,6 +191,7 @@ class ASRAsyncService(ASRService):
             source_lang (str): Source language of the audio file.
             timestamps_format (str): Timestamps format to use.
             use_batch (bool): Whether to use batch processing or not.
+            vocab (List[str]): List of words to use for the vocabulary.
             word_timestamps (bool): Whether to return word timestamps or not.
 
         Returns:
@@ -203,8 +205,8 @@ class ASRAsyncService(ASRService):
             "source_lang": source_lang,
             "timestamps_format": timestamps_format,
             "use_batch": use_batch,
+            "vocab": vocab,
             "word_timestamps": word_timestamps,
-            "post_processed": False,
             "transcription_result": None,
             "transcription_done": asyncio.Event(),
             "diarization_result": None,
@@ -324,6 +326,7 @@ class ASRAsyncService(ASRService):
             task["input"],
             source_lang=task["source_lang"],
             suppress_blank=False,
+            vocab=None if task["vocab"] == [] else task["vocab"],
             word_timestamps=True,
             vad_service=self.services["vad"] if task["dual_channel"] else None,
             use_batch=task["use_batch"],

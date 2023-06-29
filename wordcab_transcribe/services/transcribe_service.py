@@ -322,6 +322,7 @@ class TranscribeService:
         audio: Union[str, torch.Tensor, Tuple[str, str]],
         source_lang: str,
         suppress_blank: bool = False,
+        vocab: Optional[List[str]] = None,
         word_timestamps: bool = True,
         vad_service: Optional[VadService] = None,
         use_batch: bool = True,
@@ -335,6 +336,7 @@ class TranscribeService:
                 audio files.
             source_lang (str): Language of the audio file.
             suppress_blank (bool): Whether to suppress blank at the beginning of the sampling.
+            vocab (Optional[List[str]]): Vocabulary to use during generation if not None.
             word_timestamps (bool): Whether to return word timestamps.
             vad_service (Optional[VADService]): VADService to use for voice activity detection in the dual_channel case.
             use_batch (bool): Whether to use batch inference.
@@ -365,9 +367,11 @@ class TranscribeService:
             self.loaded_model_lang = "multi"
 
         if not use_batch:
+            prompt = ", ".join(vocab) if vocab else None
             segments, _ = self.model.transcribe(
                 audio,
                 language=source_lang,
+                initial_prompt=prompt,
                 suppress_blank=False,
                 word_timestamps=True,
             )
