@@ -140,7 +140,15 @@ class AudioDataset(IterableDataset):
             }
 
     def read_audio(self, filepath: str) -> torch.Tensor:
-        """Read an audio file and return the audio tensor."""
+        """
+        Read an audio file and return the audio tensor.
+
+        Args:
+            filepath (str): Path to the audio file.
+
+        Returns:
+            torch.Tensor: Audio tensor.
+        """
         wav, sr = torchaudio.load(filepath)
 
         if wav.size(0) > 1:
@@ -319,7 +327,9 @@ class TranscribeService:
 
     def __call__(
         self,
-        audio: Union[str, torch.Tensor, Tuple[str, str]],
+        audio: Union[
+            str, torch.Tensor, Tuple[str, str], Tuple[torch.Tensor, torch.Tensor]
+        ],
         source_lang: str,
         suppress_blank: bool = False,
         word_timestamps: bool = True,
@@ -330,9 +340,9 @@ class TranscribeService:
         Run inference with the transcribe model.
 
         Args:
-            audio (Union[str, torch.Tensor, Tuple[str, str]]): Audio file path or audio tensor. If a tuple is passed,
-                the task is assumed to be a dual_channel task and the tuple should contain the paths to the two
-                audio files.
+            audio (Union[str, torch.Tensor, Tuple[str, str], Tuple[torch.Tensor, torch.Tensor]]): Audio file path or
+                audio tensor. If a tuple is passed, the task is assumed to be a dual_channel task and the tuple should
+                contain the paths to the two audio files.
             source_lang (str): Language of the audio file.
             suppress_blank (bool): Whether to suppress blank at the beginning of the sampling.
             word_timestamps (bool): Whether to return word timestamps.
@@ -364,7 +374,10 @@ class TranscribeService:
             )
             self.loaded_model_lang = "multi"
 
-        if not use_batch:
+        if not use_batch and not isinstance(audio, tuple):
+            if isinstance(audio, torch.Tensor):
+                audio = audio.numpy()
+
             segments, _ = self.model.transcribe(
                 audio,
                 language=source_lang,

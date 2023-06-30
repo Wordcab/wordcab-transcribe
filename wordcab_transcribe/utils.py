@@ -376,12 +376,13 @@ def enhance_audio(
     """
     if isinstance(audio, str):
         waveform, sample_rate = torchaudio.load(audio)
+
+        if waveform.size(0) > 1:
+            waveform = waveform.mean(dim=0, keepdim=True)
+
     else:
         waveform = audio
         sample_rate = 16000
-
-    if waveform.size(0) > 1:
-        waveform = waveform.mean(dim=0, keepdim=True)
 
     if sample_rate != 16000:
         transform = torchaudio.transforms.Resample(
@@ -580,6 +581,32 @@ def load_nemo_config(
     cfg.diarizer.out_dir = str(output_path)
 
     return cfg
+
+
+def read_audio(filepath: str, sample_rate: int = 16000) -> Tuple[torch.Tensor, float]:
+    """
+    Read an audio file and return the audio tensor.
+
+    Args:
+        filepath (str): Path to the audio file.
+        sample_rate (int): The sample rate of the audio file. Defaults to 16000.
+
+    Returns:
+        Tuple[torch.Tensor, float]: The audio tensor and the audio duration.
+    """
+    wav, sr = torchaudio.load(filepath)
+
+    if wav.size(0) > 1:
+        wav = wav.mean(dim=0, keepdim=True)
+
+    if sr != sample_rate:
+        transform = torchaudio.transforms.Resample(orig_freq=sr, new_freq=sample_rate)
+        wav = transform(wav)
+        sr = sample_rate
+
+    audio_duration = float(wav.shape[1]) / sample_rate
+
+    return wav.squeeze(0), audio_duration
 
 
 def remove_words_for_svix(dict_payload: dict) -> dict:

@@ -55,7 +55,7 @@ async def inference_with_youtube(
             word_timestamps=data.word_timestamps,
         )
     )
-    utterances = await task
+    utterances, audio_duration = await task
 
     background_tasks.add_task(delete_file, filepath=filepath)
 
@@ -68,6 +68,7 @@ async def inference_with_youtube(
     else:
         return YouTubeResponse(
             utterances=utterances,
+            audio_duration=audio_duration,
             alignment=data.alignment,
             diarization=data.diarization,
             source_lang=data.source_lang,
