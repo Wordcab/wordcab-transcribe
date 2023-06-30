@@ -254,7 +254,7 @@ class AlignService:
         transcript: Iterator[SingleSegment],
         model: torch.nn.Module,
         align_model_metadata: dict,
-        audio_path: str,
+        audio_path: Union[str, torch.Tensor],
         device: str,
         interpolate_method: Optional[str] = "nearest",
         return_char_alignments: Optional[bool] = False,
@@ -278,7 +278,11 @@ class AlignService:
         Raises:
             NotImplementedError: If the model type is not implemented.
         """
-        audio, sample_rate = torchaudio.load(audio_path, normalize=True)
+        if isinstance(audio_path, str):
+            audio, sample_rate = torchaudio.load(audio_path, normalize=True)
+        else:
+            audio = audio_path
+            sample_rate = self.sample_rate
 
         if len(audio.shape) == 1:
             audio = audio.unsqueeze(0)

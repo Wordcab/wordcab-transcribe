@@ -74,7 +74,7 @@ async def run_cortex(
                 vocab=payload.vocab,
                 word_timestamps=payload.word_timestamps,
             )
-            utterances: AudioResponse = await inference_with_audio_url(
+            response: AudioResponse = await inference_with_audio_url(
                 background_tasks=BackgroundTasks(),
                 url=payload.url,
                 data=data,
@@ -90,7 +90,7 @@ async def run_cortex(
                 vocab=payload.vocab,
                 word_timestamps=payload.word_timestamps,
             )
-            utterances: YouTubeResponse = await inference_with_youtube(
+            response: YouTubeResponse = await inference_with_youtube(
                 background_tasks=BackgroundTasks(),
                 url=payload.url,
                 data=data,
@@ -116,7 +116,7 @@ async def run_cortex(
         return CortexError(message=error_message)
 
     _cortex_response = {
-        **utterances.dict(),
+        **response.dict(),
         "job_name": payload.job_name,
         "request_id": request_id,
     }

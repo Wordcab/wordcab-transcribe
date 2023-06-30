@@ -22,6 +22,7 @@ class BaseResponse(BaseModel):
     """Base response model, not meant to be used directly."""
 
     utterances: List[dict]
+    audio_duration: float
     alignment: bool
     diarization: bool
     source_lang: str
@@ -55,6 +56,7 @@ class AudioResponse(BaseResponse):
                         "speaker": 1,
                     },
                 ],
+                "audio_duration": 2.678,
                 "alignment": False,
                 "diarization": False,
                 "source_lang": "en",
@@ -95,6 +97,7 @@ class YouTubeResponse(BaseResponse):
                         "text": "Never gonna let you down!",
                     },
                 ],
+                "audio_duration": 2.0,
                 "alignment": False,
                 "diarization": False,
                 "source_lang": "en",
@@ -208,6 +211,7 @@ class CortexUrlResponse(AudioResponse):
                         "text": "Wordcab is awesome",
                     },
                 ],
+                "audio_duration": 2.0,
                 "alignment": False,
                 "diariation": False,
                 "source_lang": "en",
@@ -251,6 +255,7 @@ class CortexYoutubeResponse(YouTubeResponse):
                         "text": "Never gonna let you down!",
                     },
                 ],
+                "audio_duration": 2.0,
                 "alignment": False,
                 "diariation": False,
                 "source_lang": "en",

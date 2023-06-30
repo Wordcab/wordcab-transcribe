@@ -37,7 +37,7 @@ router = APIRouter()
 @router.post(
     "", response_model=Union[AudioResponse, str], status_code=http_status.HTTP_200_OK
 )
-async def inference_with_audio(
+async def inference_with_audio(  # noqa: C901
     background_tasks: BackgroundTasks,
     alignment: bool = Form(False),  # noqa: B008
     diarization: bool = Form(False),  # noqa: B008
@@ -75,12 +75,17 @@ async def inference_with_audio(
             filepath = await split_dual_channel_file(filename)
         except Exception as e:
             logger.error(f"{e}\nFallback to single channel mode.")
-
             data.dual_channel = False
+
+    if not data.dual_channel:
+        try:
             filepath = await convert_file_to_wav(filename)
 
-    else:
-        filepath = await convert_file_to_wav(filepath=filename)
+        except Exception as e:
+            raise HTTPException(  # noqa: B904
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Process failed: {e}",
+            )
 
     background_tasks.add_task(delete_file, filepath=filename)
 
@@ -97,7 +102,13 @@ async def inference_with_audio(
             word_timestamps=data.word_timestamps,
         )
     )
-    utterances = await task
+    try:
+        utterances, audio_duration = await task
+    except Exception:
+        raise HTTPException(  # noqa: B904
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Process failed, please check if the audio file is valid.",
+        )
 
     background_tasks.add_task(delete_file, filepath=filepath)
 
@@ -110,6 +121,7 @@ async def inference_with_audio(
     else:
         return AudioResponse(
             utterances=utterances,
+            audio_duration=audio_duration,
             alignment=data.alignment,
             diarization=data.diarization,
             dual_channel=data.dual_channel,
