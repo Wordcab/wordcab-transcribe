@@ -68,6 +68,7 @@ async def inference_with_youtube(
     else:
         return YouTubeResponse(
             utterances=utterances,
+            audio_duration=audio_duration,
             alignment=data.alignment,
             diarization=data.diarization,
             source_lang=data.source_lang,

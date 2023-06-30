@@ -112,6 +112,7 @@ async def inference_with_audio(
     else:
         return AudioResponse(
             utterances=utterances,
+            audio_duration=audio_duration,
             alignment=data.alignment,
             diarization=data.diarization,
             dual_channel=data.dual_channel,
