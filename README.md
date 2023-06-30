@@ -196,7 +196,7 @@ poetry run uvicorn wordcab_transcribe.main:app --reload
 
 ```bash
 git clone
-cd wordcab-ask
+cd wordcab-transcribe
 ```
 
 2. Install dependencies and start coding
