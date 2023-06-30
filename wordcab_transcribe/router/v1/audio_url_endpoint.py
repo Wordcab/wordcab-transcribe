@@ -54,14 +54,15 @@ async def inference_with_audio_url(
             logger.error(f"{e}\nFallback to single channel mode.")
             data.dual_channel = False
 
-    try:
-        filepath = await convert_file_to_wav(_filepath)
+    if not data.dual_channel:
+        try:
+            filepath = await convert_file_to_wav(_filepath)
 
-    except Exception as e:
-        raise HTTPException(  # noqa: B904
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Process failed: {e}",
-        )
+        except Exception as e:
+            raise HTTPException(  # noqa: B904
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Process failed: {e}",
+            )
 
     background_tasks.add_task(delete_file, filepath=filename)
 
@@ -77,7 +78,7 @@ async def inference_with_audio_url(
             word_timestamps=data.word_timestamps,
         )
     )
-    utterances = await task
+    utterances, audio_duration = await task
 
     background_tasks.add_task(delete_file, filepath=filepath)
 

@@ -14,10 +14,11 @@
 """Diarization Service for audio files."""
 
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
 import librosa
 import soundfile as sf
+import torch
 from nemo.collections.asr.models.msdd_models import NeuralDiarizer
 
 from wordcab_transcribe.logging import time_and_tell
@@ -54,21 +55,25 @@ class DiarizeService:
         ).to(device)
 
     @time_and_tell
-    def __call__(self, filepath: str) -> List[dict]:
+    def __call__(self, filepath: Union[str, torch.Tensor]) -> List[dict]:
         """
         Run inference with the diarization model.
 
         Args:
-            filepath (str): Path to the audio file to diarize.
+            filepath (Union[str, torch.Tensor]): Path to the audio file or waveform.
 
         Returns:
             List[dict]: List of segments with the following keys: "start", "end", "speaker".
         """
-        signal, sample_rate = librosa.load(filepath, sr=None)
+        if isinstance(filepath, str):
+            waveform, sample_rate = librosa.load(filepath, sr=None)
+        else:
+            waveform = filepath
+            sample_rate = 16000
 
         tmp_save_path = self.temp_folder / "mono_file.wav"
 
-        sf.write(str(tmp_save_path), signal, sample_rate, "PCM_16")
+        sf.write(str(tmp_save_path), waveform, sample_rate, "PCM_16")
 
         self.model.diarize()
 

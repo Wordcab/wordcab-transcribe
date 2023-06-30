@@ -29,7 +29,7 @@ from wordcab_transcribe.services.diarize_service import DiarizeService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
 from wordcab_transcribe.services.vad_service import VadService
-from wordcab_transcribe.utils import format_segments
+from wordcab_transcribe.utils import format_segments, read_audio
 
 
 class ASRService(ABC):
@@ -173,7 +173,7 @@ class ASRAsyncService(ASRService):
         timestamps_format: str,
         use_batch: bool,
         word_timestamps: bool,
-    ) -> Union[List[dict], Exception]:
+    ) -> Union[Tuple[List[dict], float], Exception]:
         """Process the input request and return the results.
 
         This method will create a task and add it to the appropriate queues.
@@ -193,10 +193,25 @@ class ASRAsyncService(ASRService):
             word_timestamps (bool): Whether to return word timestamps or not.
 
         Returns:
-            Union[List[dict], Exception]: The final transcription result or an exception.
+            Union[Tuple[List[dict], float], Exception]: The final transcription result associated with the audio
+                duration or an exception.
         """
+        if isinstance(filepath, tuple):
+            audio, duration = [], []
+            for path in filepath:
+                _audio, _duration = read_audio(path)
+
+                audio.append(_audio)
+                duration.append(_duration)
+
+            audio = tuple(audio)
+            duration = sum(duration) / len(duration)
+
+        else:
+            audio, duration = read_audio(filepath)
+
         task = {
-            "input": filepath,  # TODO: Should be the file tensors to be optimized (loaded via torchaudio)
+            "input": audio,
             "alignment": alignment,
             "diarization": diarization,
             "dual_channel": dual_channel,
@@ -265,7 +280,7 @@ class ASRAsyncService(ASRService):
         result = task.pop("post_processing_result")
         del task  # Delete the task to free up memory
 
-        return result
+        return result, duration
 
     async def runner(self, task_type: str) -> None:
         """
