@@ -55,7 +55,13 @@ async def inference_with_youtube(
             word_timestamps=data.word_timestamps,
         )
     )
-    utterances, audio_duration = await task
+    try:
+        utterances, audio_duration = await task
+    except Exception as e:
+        raise HTTPException(  # noqa: B904
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Process failed, please check if the audio file is valid.",
+        )
 
     background_tasks.add_task(delete_file, filepath=filepath)
 
