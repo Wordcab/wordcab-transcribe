@@ -37,7 +37,7 @@ router = APIRouter()
 @router.post(
     "", response_model=Union[AudioResponse, str], status_code=http_status.HTTP_200_OK
 )
-async def inference_with_audio(
+async def inference_with_audio(  # noqa: C901
     background_tasks: BackgroundTasks,
     alignment: bool = Form(False),  # noqa: B008
     diarization: bool = Form(False),  # noqa: B008
@@ -99,7 +99,13 @@ async def inference_with_audio(
             word_timestamps=data.word_timestamps,
         )
     )
-    utterances, audio_duration = await task
+    try:
+        utterances, audio_duration = await task
+    except Exception:
+        raise HTTPException(  # noqa: B904
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Process failed, please check if the audio file is valid.",
+        )
 
     background_tasks.add_task(delete_file, filepath=filepath)
 
