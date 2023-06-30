@@ -75,6 +75,7 @@ async def inference_with_audio_url(
             source_lang=data.source_lang,
             timestamps_format=data.timestamps,
             use_batch=data.use_batch,
+            vocab=data.vocab,
             word_timestamps=data.word_timestamps,
         )
     )
@@ -104,5 +105,6 @@ async def inference_with_audio_url(
             source_lang=data.source_lang,
             timestamps=data.timestamps,
             use_batch=data.use_batch,
+            vocab=data.vocab,
             word_timestamps=data.word_timestamps,
         )

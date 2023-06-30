@@ -28,6 +28,7 @@ class BaseResponse(BaseModel):
     source_lang: str
     timestamps: str
     use_batch: bool
+    vocab: List[str]
     word_timestamps: bool
 
 
@@ -61,6 +62,11 @@ class AudioResponse(BaseResponse):
                 "source_lang": "en",
                 "timestamps": "s",
                 "use_batch": False,
+                "vocab": [
+                    "custom company name",
+                    "custom product name",
+                    "custom co-worker name",
+                ],
                 "word_timestamps": False,
                 "dual_channel": False,
             }
@@ -97,6 +103,11 @@ class YouTubeResponse(BaseResponse):
                 "source_lang": "en",
                 "timestamps": "s",
                 "use_batch": False,
+                "vocab": [
+                    "custom company name",
+                    "custom product name",
+                    "custom co-worker name",
+                ],
                 "word_timestamps": False,
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             }
@@ -130,6 +141,7 @@ class CortexPayload(BaseModel):
     source_lang: Optional[str] = "en"
     timestamps: Optional[str] = "s"
     use_batch: Optional[bool] = False
+    vocab: Optional[List[str]] = []
     word_timestamps: Optional[bool] = False
     job_name: Optional[str] = None
     ping: Optional[bool] = False
@@ -162,6 +174,11 @@ class CortexPayload(BaseModel):
                 "source_lang": "en",
                 "timestamps": "s",
                 "use_batch": False,
+                "vocab": [
+                    "custom company name",
+                    "custom product name",
+                    "custom co-worker name",
+                ],
                 "word_timestamps": False,
                 "job_name": "job_abc123",
                 "ping": False,
@@ -200,6 +217,11 @@ class CortexUrlResponse(AudioResponse):
                 "source_lang": "en",
                 "timestamps": "s",
                 "use_batch": False,
+                "vocab": [
+                    "custom company name",
+                    "custom product name",
+                    "custom co-worker name",
+                ],
                 "word_timestamps": False,
                 "dual_channel": False,
                 "job_name": "job_name",
@@ -239,6 +261,11 @@ class CortexYoutubeResponse(YouTubeResponse):
                 "source_lang": "en",
                 "timestamps": "s",
                 "use_batch": False,
+                "vocab": [
+                    "custom company name",
+                    "custom product name",
+                    "custom co-worker name",
+                ],
                 "word_timestamps": False,
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 "job_name": "job_name",
@@ -255,6 +282,7 @@ class BaseRequest(BaseModel):
     source_lang: str = "en"
     timestamps: str = "s"
     use_batch: bool = False
+    vocab: List[str] = []
     word_timestamps: bool = False
 
     @validator("timestamps")
@@ -262,6 +290,15 @@ class BaseRequest(BaseModel):
         """Validate the value of the timestamps field."""
         if value not in ["hms", "ms", "s"]:
             raise ValueError("timestamps must be one of 'hms', 'ms', 's'.")
+        return value
+
+    @validator("vocab")
+    def validate_each_vocab_value(
+        cls, value: List[str]  # noqa: B902, N805
+    ) -> List[str]:
+        """Validate the value of each vocab field."""
+        if not all(isinstance(v, str) for v in value):
+            raise ValueError("vocab must be a list of strings.")
         return value
 
     class Config:
@@ -274,6 +311,11 @@ class BaseRequest(BaseModel):
                 "source_lang": "en",
                 "timestamps": "s",
                 "use_batch": False,
+                "vocab": [
+                    "custom company name",
+                    "custom product name",
+                    "custom co-worker name",
+                ],
                 "word_timestamps": False,
             }
         }
@@ -294,6 +336,11 @@ class AudioRequest(BaseRequest):
                 "source_lang": "en",
                 "timestamps": "s",
                 "use_batch": False,
+                "vocab": [
+                    "custom company name",
+                    "custom product name",
+                    "custom co-worker name",
+                ],
                 "word_timestamps": False,
                 "dual_channel": False,
             }
