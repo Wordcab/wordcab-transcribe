@@ -367,7 +367,12 @@ class TranscribeService:
             self.loaded_model_lang = "multi"
 
         if not use_batch:
-            prompt = ", ".join(vocab) if vocab else None
+            if vocab:
+                words = ", ".join(vocab)
+                prompt = f"Make sure these words are spelled correctly: {words[:-2]}"
+            else:
+                prompt = None
+
             segments, _ = self.model.transcribe(
                 audio,
                 language=source_lang,
