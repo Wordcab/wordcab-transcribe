@@ -292,15 +292,21 @@ class TranscribeService:
         self.model_path = model_path
         self.models = {}
 
-        for idx in device_index:
-            model = WhisperModel(
-                self.model_path,
-                device=self.device,
-                device_index=idx,
-                compute_type=self.compute_type,
-            )
-            self.models[idx] = FasterWhisperModel(model=model, lang="multi")
-        logger.debug(f"Loaded {len(self.models)} models for transcription.")
+        # for idx in device_index:
+        #     model = WhisperModel(
+        #         self.model_path,
+        #         device=self.device,
+        #         device_index=idx,
+        #         compute_type=self.compute_type,
+        #     )
+        #     self.models[idx] = FasterWhisperModel(model=model, lang="multi")
+        # logger.debug(f"Loaded {len(self.models)} models for transcription.")
+        self.model = WhisperModel(
+            self.model_path,
+            device=self.device,
+            device_index=device_index,
+            compute_type=self.compute_type,
+        )
 
         self.extra_lang = settings.extra_languages
         self.extra_lang_models = settings.extra_languages_model_paths
@@ -358,33 +364,34 @@ class TranscribeService:
             Union[List[dict], List[List[dict]]]: List of transcriptions. If the task is a dual_channel task,
                 a list of lists is returned.
         """
-        if (
-            source_lang in self.extra_lang
-            and self.models[model_index].lang != source_lang
-        ):
-            logger.debug(f"Loading model for language {source_lang} on GPU {model_index}.")
-            self.models[model_index] = FasterWhisperModel(
-                model=WhisperModel(
-                    self.extra_lang_models[source_lang],
-                    device=self.device,
-                    device_index=model_index,
-                    compute_type=self.compute_type,
-                ),
-                lang=source_lang,
-            )
-            self.loaded_model_lang = source_lang
+        # Extra language models are disabled until we can handle an index mapping
+        # if (
+        #     source_lang in self.extra_lang
+        #     and self.models[model_index].lang != source_lang
+        # ):
+        #     logger.debug(f"Loading model for language {source_lang} on GPU {model_index}.")
+        #     self.models[model_index] = FasterWhisperModel(
+        #         model=WhisperModel(
+        #             self.extra_lang_models[source_lang],
+        #             device=self.device,
+        #             device_index=model_index,
+        #             compute_type=self.compute_type,
+        #         ),
+        #         lang=source_lang,
+        #     )
+        #     self.loaded_model_lang = source_lang
 
-        elif source_lang not in self.extra_lang and self.models[model_index].lang != "multi":
-            logger.debug(f"Re-loading multi-language model on GPU {model_index}.")
-            self.models[model_index] = FasterWhisperModel(
-                model=WhisperModel(
-                    self.model_path,
-                    device=self.device,
-                    device_index=model_index,
-                    compute_type=self.compute_type,
-                ),
-                lang=source_lang,
-            )
+        # elif source_lang not in self.extra_lang and self.models[model_index].lang != "multi":
+        #     logger.debug(f"Re-loading multi-language model on GPU {model_index}.")
+        #     self.models[model_index] = FasterWhisperModel(
+        #         model=WhisperModel(
+        #             self.model_path,
+        #             device=self.device,
+        #             device_index=model_index,
+        #             compute_type=self.compute_type,
+        #         ),
+        #         lang=source_lang,
+        #     )
 
         if not use_batch and not isinstance(audio, tuple):
             if vocab:
@@ -408,8 +415,8 @@ class TranscribeService:
 
         else:
             tokenizer = Tokenizer(
-                self.models[model_index].model.hf_tokenizer,
-                self.models[model_index].model.model.is_multilingual,
+                self.model.model.hf_tokenizer,
+                self.model.model.model.is_multilingual,
                 task="transcribe",
                 language=source_lang,
             )
@@ -419,7 +426,7 @@ class TranscribeService:
                 for audio_index, audio_file in enumerate(audio):
                     outputs.append(
                         self._transcribe_dual_channel(
-                            self.models[model_index],
+                            self.model,
                             tokenizer,
                             audio_file,
                             audio_index,
@@ -429,7 +436,7 @@ class TranscribeService:
 
             else:
                 outputs = self.pipeline(
-                    self.models[model_index],
+                    self.model,
                     tokenizer,
                     audio,
                     self._batch_size,
