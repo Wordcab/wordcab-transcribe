@@ -321,7 +321,7 @@ class ASRAsyncService(ASRService):
                 task["input"],
                 transcript_segments=task["transcription_result"],
                 source_lang=task["source_lang"],
-                model_index=gpu_index,
+                gpu_index=gpu_index,
             )
 
         except Exception as e:

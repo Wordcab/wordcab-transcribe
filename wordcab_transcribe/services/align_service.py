@@ -157,11 +157,12 @@ class AlignService:
         if source_lang not in self.available_lang:
             return transcript_segments
 
+        device_index = f"{self.device}:{gpu_index}"
         model, metadata = self.load_model(source_lang)
-        model = model.to(f"{self.device}:{gpu_index}")
+        model = model.to(device_index)
 
         result_aligned = self.align(
-            transcript_segments, model, metadata, filepath, self.device
+            transcript_segments, model, metadata, filepath, device_index
         )
 
         del model
