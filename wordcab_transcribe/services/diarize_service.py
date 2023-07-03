@@ -88,9 +88,7 @@ class DiarizeService:
             waveform = filepath
             sample_rate = 16000
 
-        tmp_save_path = self.temp_folder / "mono_file.wav"
-
-        sf.write(str(tmp_save_path), waveform, sample_rate, "PCM_16")
+        sf.write(self.models[model_index].tmp_audio_path, waveform, sample_rate, "PCM_16")
 
         self.models[model_index].model.diarize()
 
