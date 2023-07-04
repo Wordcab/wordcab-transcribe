@@ -192,14 +192,19 @@ poetry run uvicorn wordcab_transcribe.main:app --reload
 
 ### Getting started
 
-1. Clone the repo
+1. Ensure you have the following tools :
+
+- [poetry](https://python-poetry.org/)
+- [nox](https://nox.thea.codes/) and [nox-poetry](https://nox-poetry.readthedocs.io/)
+
+2. Clone the repo
 
 ```bash
 git clone
 cd wordcab-transcribe
 ```
 
-2. Install dependencies and start coding
+3. Install dependencies and start coding
 
 ```bash
 poetry install
@@ -212,7 +217,7 @@ nox --session=pre-commit -- install
 code .
 ```
 
-3. Run tests
+4. Run tests
 
 ```bash
 # run all tests
