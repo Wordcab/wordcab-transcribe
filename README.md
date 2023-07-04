@@ -207,8 +207,8 @@ cd wordcab-transcribe
 3. Install dependencies and start coding
 
 ```bash
-poetry install
 poetry shell
+poetry install --no-cache
 
 # install pre-commit hooks
 nox --session=pre-commit -- install
