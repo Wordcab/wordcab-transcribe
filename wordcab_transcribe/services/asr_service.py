@@ -14,6 +14,7 @@
 """ASR Service module that handle all AI interactions."""
 
 import asyncio
+import functools
 import os
 import traceback
 from abc import ABC, abstractmethod
@@ -72,24 +73,24 @@ class ASRAsyncService(ASRService):
         """Initialize the ASRAsyncService class."""
         super().__init__()
 
-        self.task_threads: dict = {
-            "transcription": self.num_gpus if self.num_gpus > 0 else 1,
-            "diarization": self.num_gpus if self.num_gpus > 0 else 1,
-            "alignment": 1,
-            "post_processing": self.num_cpus - (2 * self.num_gpus),
-        }
-        self.thread_executors: dict = {
-            "transcription": ThreadPoolExecutor(
-                max_workers=self.task_threads["transcription"]
-            ),
-            "diarization": ThreadPoolExecutor(
-                max_workers=self.task_threads["diarization"]
-            ),
-            "alignment": ThreadPoolExecutor(max_workers=self.task_threads["alignment"]),
-            "post_processing": ThreadPoolExecutor(
-                max_workers=self.task_threads["post_processing"]
-            ),
-        }
+        # self.task_threads: dict = {
+        #     "transcription": self.num_gpus if self.num_gpus > 0 else 1,
+        #     "diarization": 2,
+        #     "alignment": 1,
+        #     "post_processing": self.num_cpus - (2 * self.num_gpus),
+        # }
+        # self.thread_executors: dict = {
+        #     "transcription": ThreadPoolExecutor(
+        #         max_workers=self.task_threads["transcription"]
+        #     ),
+        #     "diarization": ThreadPoolExecutor(
+        #         max_workers=self.task_threads["diarization"]
+        #     ),
+        #     "alignment": ThreadPoolExecutor(max_workers=self.task_threads["alignment"]),
+        #     "post_processing": ThreadPoolExecutor(
+        #         max_workers=self.task_threads["post_processing"]
+        #     ),
+        # }
 
         if self.num_gpus > 1 and self.device == "cuda":
             device_index = list(range(self.num_gpus))
@@ -199,22 +200,25 @@ class ASRAsyncService(ASRService):
         # Pick the first available GPU for the task
         gpu_index = await self.gpu_handler.get_device() if self.device == "cuda" else 0
 
+        # asyncio.get_event_loop().run_in_executor(
+        #     self.thread_executors["transcription"], self.process_transcription, task, gpu_index
+        # )
         asyncio.get_event_loop().run_in_executor(
-            self.thread_executors["transcription"], self.process_transcription, task, gpu_index
+            None, functools.partial(self.process_transcription, task, gpu_index)
         )
 
         if diarization and dual_channel is False:
+            # asyncio.get_event_loop().run_in_executor(
+            #     self.thread_executors["diarization"], self.process_diarization, task, gpu_index
+            # )
             asyncio.get_event_loop().run_in_executor(
-                self.thread_executors["diarization"], self.process_diarization, task, gpu_index
+                None, functools.partial(self.process_diarization, task, gpu_index)
             )
         else:
             task["diarization_done"].set()
 
-        await asyncio.gather(
-            task["transcription_done"].wait(),
-            task["diarization_done"].wait(),
-            return_exceptions=True,
-        )
+        await task["transcription_done"].wait()
+        await task["diarization_done"].wait()
 
         if isinstance(task["diarization_result"], Exception):
             self.gpu_handler.release_device(gpu_index)
@@ -225,16 +229,16 @@ class ASRAsyncService(ASRService):
             return task["transcription_result"]
         else:
             if alignment and dual_channel is False:
+                # asyncio.get_event_loop().run_in_executor(
+                #     self.thread_executors["alignment"], self.process_alignment, task, gpu_index
+                # )
                 asyncio.get_event_loop().run_in_executor(
-                    self.thread_executors["alignment"], self.process_alignment, task, gpu_index
+                    None, functools.partial(self.process_alignment, task, gpu_index)
                 )
             else:
                 task["alignment_done"].set()
 
-        await asyncio.gather(
-            task["alignment_done"].wait(),
-            return_exceptions=True,
-        )
+        await task["alignment_done"].wait()
 
         if isinstance(task["alignment_result"], Exception):
             logger.error(f"Alignment failed: {task['alignment_result']}")
@@ -244,8 +248,11 @@ class ASRAsyncService(ASRService):
 
         self.gpu_handler.release_device(gpu_index)  # Release the GPU
 
+        # asyncio.get_event_loop().run_in_executor(
+        #     self.thread_executors["post_processing"], self.process_post_processing, task
+        # )
         asyncio.get_event_loop().run_in_executor(
-            self.thread_executors["post_processing"], self.process_post_processing, task
+            None, functools.partial(self.process_post_processing, task)
         )
 
         await task["post_processing_done"].wait()

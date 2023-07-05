@@ -290,7 +290,7 @@ class TranscribeService:
         self.device = device
         self.compute_type = compute_type
         self.model_path = model_path
-        self.models = {}
+        # self.models = {}
 
         # for idx in device_index:
         #     model = WhisperModel(
@@ -393,13 +393,14 @@ class TranscribeService:
         #         lang=source_lang,
         #     )
 
-        if not use_batch and not isinstance(audio, tuple):
-            if vocab:
-                words = ", ".join(vocab)
-                prompt = f"Vocab: {words[:-2]}"
-            else:
-                prompt = None
+        # if not use_batch and not isinstance(audio, tuple):
+        if vocab:
+            words = ", ".join(vocab)
+            prompt = f"Vocab: {words[:-2]}"
+        else:
+            prompt = None
 
+        if not isinstance(audio, tuple):
             if isinstance(audio, torch.Tensor):
                 audio = audio.numpy()
 
@@ -410,39 +411,59 @@ class TranscribeService:
                 suppress_blank=False,
                 word_timestamps=True,
             )
+            # segments, _ = self.models[model_index].model.transcribe(
+            #     audio,
+            #     language=source_lang,
+            #     initial_prompt=prompt,
+            #     suppress_blank=False,
+            #     word_timestamps=True,
+            # )
 
             outputs = [segment._asdict() for segment in segments]
 
         else:
-            tokenizer = Tokenizer(
-                self.model.model.hf_tokenizer,
-                self.model.model.model.is_multilingual,
-                task="transcribe",
-                language=source_lang,
-            )
-
-            if isinstance(audio, tuple):
-                outputs = []
-                for audio_index, audio_file in enumerate(audio):
-                    outputs.append(
-                        self._transcribe_dual_channel(
-                            self.model,
-                            tokenizer,
-                            audio_file,
-                            audio_index,
-                            vad_service,
-                        )
+            outputs = []
+            for audio_index, audio_file in enumerate(audio):
+                outputs.append(
+                    self.dual_channel(
+                        audio_file,
+                        source_lang=source_lang,
+                        speaker_id=audio_index,
+                        vad_service=vad_service,
+                        prompt=prompt,
                     )
-
-            else:
-                outputs = self.pipeline(
-                    self.model,
-                    tokenizer,
-                    audio,
-                    self._batch_size,
-                    suppress_blank,
-                    word_timestamps,
                 )
+
+        # else:
+        #     tokenizer = Tokenizer(
+        #         self.model.hf_tokenizer,
+        #         self.model.model.is_multilingual,
+        #         task="transcribe",
+        #         language=source_lang,
+        #     )
+
+        #     if isinstance(audio, tuple):
+        #         outputs = []
+        #         for audio_index, audio_file in enumerate(audio):
+        #             outputs.append(
+        #                 self._transcribe_dual_channel(
+        #                     self.model,
+        #                     tokenizer,
+        #                     audio_file,
+        #                     audio_index,
+        #                     vad_service,
+        #                 )
+        #             )
+
+        #     else:
+        #         outputs = self.pipeline(
+        #             self.model,
+        #             tokenizer,
+        #             audio,
+        #             self._batch_size,
+        #             suppress_blank,
+        #             word_timestamps,
+        #         )
 
         return outputs
 
@@ -623,7 +644,7 @@ class TranscribeService:
             prefix=prefix,
         )
 
-        features = self._encode_batch(features, word_timestamps=word_timestamps)
+        features = self._encode_batch(self.model, features, word_timestamps=word_timestamps)
 
         # TODO: We access the inherited ctranslate2 model for generation here. This is not ideal.
         result: WhisperGenerationResult = model.model.generate(
@@ -800,6 +821,87 @@ class TranscribeService:
             out["text"] = text
 
         return outputs
+
+    def dual_channel(
+        self,
+        audio: Union[str, torch.Tensor],
+        source_lang: str,
+        speaker_id: int,
+        vad_service: VadService,
+        prompt: Optional[str] = None,
+    ) -> List[dict]:
+        """
+        Transcribe an audio file using the faster-whisper original pipeline.
+
+        Args:
+            audio (Union[str, torch.Tensor]): Audio file path or loaded audio.
+            source_lang (str): Language of the audio file.
+            speaker_id (int): Speaker ID used in the diarization.
+            vad_service (VadService): VAD service.
+            prompt (Optional[str]): Initial prompt to use for the generation.
+
+        Returns:
+            List[dict]: List of transcribed segments.
+        """
+        enhanced_audio = enhance_audio(audio, apply_agc=True, apply_bandpass=False)
+        grouped_segments, audio = vad_service(enhanced_audio)
+
+        final_transcript = []
+        silence_padding = np.zeros(int(3 * self.sample_rate), dtype=np.float32)
+
+        for group in grouped_segments:
+            audio_segments = []
+            for segment in group:
+                audio_segments.extend(
+                    [audio[segment["start"] : segment["end"]], silence_padding]
+                )
+
+            segments, _ = self.model.transcribe(
+                np.concatenate(audio_segments, axis=0),
+                language=source_lang,
+                initial_prompt=prompt,
+                suppress_blank=False,
+                word_timestamps=True,
+            )
+            segments = list(segments)
+
+            group_start = group[0]["start"]
+
+            for segment in segments:
+                segment_dict = {
+                    "start": None,
+                    "end": None,
+                    "text": segment.text,
+                    "words": [],
+                    "speaker": speaker_id,
+                }
+
+                for word in segment.words:
+                    word_start_adjusted = (group_start / self.sample_rate) + word.start
+                    word_end_adjusted = (group_start / self.sample_rate) + word.end
+                    segment_dict["words"].append(
+                        {
+                            "start": word_start_adjusted,
+                            "end": word_end_adjusted,
+                            "word": word.word,
+                        }
+                    )
+
+                    if (
+                        segment_dict["start"] is None
+                        or word_start_adjusted < segment_dict["start"]
+                    ):
+                        segment_dict["start"] = word_start_adjusted
+
+                    if (
+                        segment_dict["end"] is None
+                        or word_end_adjusted > segment_dict["end"]
+                    ):
+                        segment_dict["end"] = word_end_adjusted
+
+                final_transcript.append(segment_dict)
+
+        return final_transcript
 
     def _transcribe_dual_channel(
         self,
