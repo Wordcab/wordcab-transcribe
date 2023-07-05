@@ -29,7 +29,6 @@ from ctranslate2.models import WhisperGenerationResult
 from faster_whisper import WhisperModel
 from faster_whisper.tokenizer import Tokenizer
 from faster_whisper.transcribe import get_ctranslate2_storage
-from loguru import logger
 from torch.utils.data import DataLoader, IterableDataset
 
 from wordcab_transcribe.config import settings
@@ -262,6 +261,13 @@ class FallBackDataset(IterableDataset):
         yield from self.segments
 
 
+class FasterWhisperModel(NamedTuple):
+    """Faster Whisper Model."""
+
+    model: WhisperModel
+    lang: str
+
+
 class TranscribeService:
     """Transcribe Service for audio files."""
 
@@ -270,7 +276,7 @@ class TranscribeService:
         model_path: str,
         compute_type: str,
         device: str,
-        num_workers: int,
+        device_index: Union[int, List[int]],
     ) -> None:
         """Initialize the Transcribe Service.
 
@@ -280,27 +286,29 @@ class TranscribeService:
             model_path (str): Path to the model checkpoint. This can be a local path or a URL.
             compute_type (str): Compute type to use for inference. Can be "int8", "int8_float16", "int16" or "float_16".
             device (str): Device to use for inference. Can be "cpu" or "cuda".
-            num_workers (int): Number of workers to use for inference.
+            device_index (Union[int, List[int]]): Index of the device to use for inference.
         """
-        self.compute_type = compute_type
         self.device = device
+        self.compute_type = compute_type
         self.model_path = model_path
-        self.num_workers = num_workers
+        # self.models = {}
 
+        # for idx in device_index:
+        #     model = WhisperModel(
+        #         self.model_path,
+        #         device=self.device,
+        #         device_index=idx,
+        #         compute_type=self.compute_type,
+        #     )
+        #     self.models[idx] = FasterWhisperModel(model=model, lang="multi")
+        # logger.debug(f"Loaded {len(self.models)} models for transcription.")
         self.model = WhisperModel(
             self.model_path,
             device=self.device,
+            device_index=device_index,
             compute_type=self.compute_type,
-            num_workers=self.num_workers,
-        )
-        self.tokenizer = Tokenizer(
-            self.model.hf_tokenizer,
-            self.model.model.is_multilingual,
-            task="transcribe",
-            language="en",  # Default language, to gain some speed
         )
 
-        self.loaded_model_lang = "multi" if self.model.model.is_multilingual else "en"
         self.extra_lang = settings.extra_languages
         self.extra_lang_models = settings.extra_languages_model_paths
 
@@ -331,6 +339,7 @@ class TranscribeService:
             str, torch.Tensor, Tuple[str, str], Tuple[torch.Tensor, torch.Tensor]
         ],
         source_lang: str,
+        model_index: int,
         suppress_blank: bool = False,
         vocab: Optional[List[str]] = None,
         word_timestamps: bool = True,
@@ -345,6 +354,7 @@ class TranscribeService:
                 audio tensor. If a tuple is passed, the task is assumed to be a dual_channel task and the tuple should
                 contain the paths to the two audio files.
             source_lang (str): Language of the audio file.
+            model_index (int): Index of the model to use.
             suppress_blank (bool): Whether to suppress blank at the beginning of the sampling.
             vocab (Optional[List[str]]): Vocabulary to use during generation if not None.
             word_timestamps (bool): Whether to return word timestamps.
@@ -355,34 +365,43 @@ class TranscribeService:
             Union[List[dict], List[List[dict]]]: List of transcriptions. If the task is a dual_channel task,
                 a list of lists is returned.
         """
-        # Load the model for the correct language if extra languages are used
-        if source_lang in self.extra_lang and self.loaded_model_lang != source_lang:
-            logger.debug(f"Loading model for language {source_lang}")
-            self.model = WhisperModel(
-                self.extra_lang_models[source_lang],
-                device=self.device,
-                compute_type=self.compute_type,
-                num_workers=self.num_workers,
-            )
-            self.loaded_model_lang = source_lang
+        # Extra language models are disabled until we can handle an index mapping
+        # if (
+        #     source_lang in self.extra_lang
+        #     and self.models[model_index].lang != source_lang
+        # ):
+        #     logger.debug(f"Loading model for language {source_lang} on GPU {model_index}.")
+        #     self.models[model_index] = FasterWhisperModel(
+        #         model=WhisperModel(
+        #             self.extra_lang_models[source_lang],
+        #             device=self.device,
+        #             device_index=model_index,
+        #             compute_type=self.compute_type,
+        #         ),
+        #         lang=source_lang,
+        #     )
+        #     self.loaded_model_lang = source_lang
 
-        elif source_lang not in self.extra_lang and self.loaded_model_lang != "multi":
-            logger.debug("Re-loading multi-language model.")
-            self.model = WhisperModel(
-                self.model_path,
-                device=self.device,
-                compute_type=self.compute_type,
-                num_workers=self.num_workers,
-            )
-            self.loaded_model_lang = "multi"
+        # elif source_lang not in self.extra_lang and self.models[model_index].lang != "multi":
+        #     logger.debug(f"Re-loading multi-language model on GPU {model_index}.")
+        #     self.models[model_index] = FasterWhisperModel(
+        #         model=WhisperModel(
+        #             self.model_path,
+        #             device=self.device,
+        #             device_index=model_index,
+        #             compute_type=self.compute_type,
+        #         ),
+        #         lang=source_lang,
+        #     )
 
-        if not use_batch and not isinstance(audio, tuple):
-            if vocab:
-                words = ", ".join(vocab)
-                prompt = f"Vocab: {words[:-2]}"
-            else:
-                prompt = None
+        # if not use_batch and not isinstance(audio, tuple):
+        if vocab:
+            words = ", ".join(vocab)
+            prompt = f"Vocab: {words[:-2]}"
+        else:
+            prompt = None
 
+        if not isinstance(audio, tuple):
             if isinstance(audio, torch.Tensor):
                 audio = audio.numpy()
 
@@ -393,39 +412,67 @@ class TranscribeService:
                 suppress_blank=False,
                 word_timestamps=True,
             )
+            # segments, _ = self.models[model_index].model.transcribe(
+            #     audio,
+            #     language=source_lang,
+            #     initial_prompt=prompt,
+            #     suppress_blank=False,
+            #     word_timestamps=True,
+            # )
 
             outputs = [segment._asdict() for segment in segments]
 
         else:
-            if self.tokenizer.language_code != source_lang:
-                self.tokenizer = Tokenizer(
-                    self.model.hf_tokenizer,
-                    self.model.model.is_multilingual,
-                    task="transcribe",
-                    language=source_lang,
-                )
-
-            if isinstance(audio, tuple):
-                outputs = []
-                for audio_index, audio_file in enumerate(audio):
-                    outputs.append(
-                        self._transcribe_dual_channel(
-                            audio_file,
-                            audio_index,
-                            vad_service,
-                        )
+            outputs = []
+            for audio_index, audio_file in enumerate(audio):
+                outputs.append(
+                    self.dual_channel(
+                        audio_file,
+                        source_lang=source_lang,
+                        speaker_id=audio_index,
+                        vad_service=vad_service,
+                        prompt=prompt,
                     )
-
-            else:
-                outputs = self.pipeline(
-                    audio, self._batch_size, suppress_blank, word_timestamps
                 )
+
+        # else:
+        #     tokenizer = Tokenizer(
+        #         self.model.hf_tokenizer,
+        #         self.model.model.is_multilingual,
+        #         task="transcribe",
+        #         language=source_lang,
+        #     )
+
+        #     if isinstance(audio, tuple):
+        #         outputs = []
+        #         for audio_index, audio_file in enumerate(audio):
+        #             outputs.append(
+        #                 self._transcribe_dual_channel(
+        #                     self.model,
+        #                     tokenizer,
+        #                     audio_file,
+        #                     audio_index,
+        #                     vad_service,
+        #                 )
+        #             )
+
+        #     else:
+        #         outputs = self.pipeline(
+        #             self.model,
+        #             tokenizer,
+        #             audio,
+        #             self._batch_size,
+        #             suppress_blank,
+        #             word_timestamps,
+        #         )
 
         return outputs
 
     @time_and_tell
     def pipeline(
         self,
+        model: WhisperModel,
+        tokenizer: Tokenizer,
         audio: Union[str, torch.Tensor, List[DualChannelInput]],
         batch_size: int,
         suppress_blank: bool = True,
@@ -435,6 +482,8 @@ class TranscribeService:
         Transcription pipeline for audio chunks in batches.
 
         Args:
+            model (WhisperModel): Model to use for inference.
+            tokenizer (Tokenizer): Tokenizer to use for inference.
             audio (Union[str, torch.Tensor, List[DualChannelInput]]): Audio file path, audio tensor or list of
                 DualChannelInput objects.
             batch_size (int): Batch size to use for inference.
@@ -474,11 +523,12 @@ class TranscribeService:
 
             for batch in dataloader:
                 batch_outputs = self._generate_segment_batched(
+                    model=model,
                     features=batch["features"],
                     time_offsets=batch["time_offsets"],
                     segment_durations=batch["segment_durations"],
                     group_ids=batch["group_ids"],
-                    tokenizer=self.tokenizer,
+                    tokenizer=tokenizer,
                     beam_size=beam_size,
                     num_hypotheses=num_hypotheses,
                     patience=patience,
@@ -529,6 +579,7 @@ class TranscribeService:
     @time_and_tell
     def _generate_segment_batched(
         self,
+        model: WhisperModel,
         features: torch.Tensor,
         time_offsets: List[float],
         segment_durations: List[float],
@@ -551,6 +602,7 @@ class TranscribeService:
         Use the ctranslate2 Whisper model to generate text from audio chunks.
 
         Args:
+            model (WhisperModel): Model to use for inference.
             features (torch.Tensor): List of audio chunks.
             time_offsets (List[float]): Time offsets for the audio chunks.
             segment_durations (List[float]): Durations of the audio chunks.
@@ -586,17 +638,19 @@ class TranscribeService:
             all_tokens.extend(initial_prompt_tokens)
 
         previous_tokens = all_tokens[prompt_reset_since:]
-        prompt = self.model.get_prompt(
+        prompt = model.get_prompt(
             tokenizer,
             previous_tokens,
             without_timestamps=without_timestamps,
             prefix=prefix,
         )
 
-        features = self._encode_batch(features, word_timestamps=word_timestamps)
+        features = self._encode_batch(
+            self.model, features, word_timestamps=word_timestamps
+        )
 
         # TODO: We access the inherited ctranslate2 model for generation here. This is not ideal.
-        result: WhisperGenerationResult = self.model.model.generate(
+        result: WhisperGenerationResult = model.model.generate(
             features,
             [prompt] * batch_size,
             beam_size=beam_size,
@@ -720,7 +774,7 @@ class TranscribeService:
         return outputs
 
     def _encode_batch(
-        self, features: torch.Tensor, word_timestamps: bool
+        self, model: WhisperModel, features: torch.Tensor, word_timestamps: bool
     ) -> StorageView:
         """Encode the features using the model encoder.
 
@@ -728,6 +782,7 @@ class TranscribeService:
         Otherwise, we just return the features formatted as a StorageView.
 
         Args:
+            model (WhisperModel): Model to use to encode the features.
             features (torch.Tensor): Features to encode.
             word_timestamps (bool): Whether to encode the features or not.
 
@@ -739,7 +794,7 @@ class TranscribeService:
         if (
             word_timestamps
         ):  # We encode the features to re-use the encoder output later.
-            features = self.model.model.encode(features, to_cpu=False)
+            features = model.model.encode(features, to_cpu=False)
 
         return features
 
@@ -770,8 +825,91 @@ class TranscribeService:
 
         return outputs
 
+    def dual_channel(
+        self,
+        audio: Union[str, torch.Tensor],
+        source_lang: str,
+        speaker_id: int,
+        vad_service: VadService,
+        prompt: Optional[str] = None,
+    ) -> List[dict]:
+        """
+        Transcribe an audio file using the faster-whisper original pipeline.
+
+        Args:
+            audio (Union[str, torch.Tensor]): Audio file path or loaded audio.
+            source_lang (str): Language of the audio file.
+            speaker_id (int): Speaker ID used in the diarization.
+            vad_service (VadService): VAD service.
+            prompt (Optional[str]): Initial prompt to use for the generation.
+
+        Returns:
+            List[dict]: List of transcribed segments.
+        """
+        enhanced_audio = enhance_audio(audio, apply_agc=True, apply_bandpass=False)
+        grouped_segments, audio = vad_service(enhanced_audio)
+
+        final_transcript = []
+        silence_padding = np.zeros(int(3 * self.sample_rate), dtype=np.float32)
+
+        for group in grouped_segments:
+            audio_segments = []
+            for segment in group:
+                audio_segments.extend(
+                    [audio[segment["start"] : segment["end"]], silence_padding]
+                )
+
+            segments, _ = self.model.transcribe(
+                np.concatenate(audio_segments, axis=0),
+                language=source_lang,
+                initial_prompt=prompt,
+                suppress_blank=False,
+                word_timestamps=True,
+            )
+            segments = list(segments)
+
+            group_start = group[0]["start"]
+
+            for segment in segments:
+                segment_dict = {
+                    "start": None,
+                    "end": None,
+                    "text": segment.text,
+                    "words": [],
+                    "speaker": speaker_id,
+                }
+
+                for word in segment.words:
+                    word_start_adjusted = (group_start / self.sample_rate) + word.start
+                    word_end_adjusted = (group_start / self.sample_rate) + word.end
+                    segment_dict["words"].append(
+                        {
+                            "start": word_start_adjusted,
+                            "end": word_end_adjusted,
+                            "word": word.word,
+                        }
+                    )
+
+                    if (
+                        segment_dict["start"] is None
+                        or word_start_adjusted < segment_dict["start"]
+                    ):
+                        segment_dict["start"] = word_start_adjusted
+
+                    if (
+                        segment_dict["end"] is None
+                        or word_end_adjusted > segment_dict["end"]
+                    ):
+                        segment_dict["end"] = word_end_adjusted
+
+                final_transcript.append(segment_dict)
+
+        return final_transcript
+
     def _transcribe_dual_channel(
         self,
+        model: WhisperModel,
+        tokenizer: Tokenizer,
         audio: Union[str, torch.Tensor],
         speaker_id: int,
         vad_service: VadService,
@@ -780,6 +918,8 @@ class TranscribeService:
         Transcribe an audio file with two channels.
 
         Args:
+            model (WhisperModel): Model to use to transcribe the audio.
+            tokenizer (Tokenizer): Tokenizer to use to decode the token ids.
             audio (Union[str, torch.Tensor]): Audio file path or loaded audio.
             speaker_id (int): Speaker ID used in the diarization.
             vad_service (VadService): VAD service.
@@ -805,7 +945,9 @@ class TranscribeService:
                 DualChannelInput(group_id, torch.cat(audio_segments))
             )
 
-        segments = self.pipeline(prepared_groups, self._batch_size, False, True)
+        segments = self.pipeline(
+            model, tokenizer, prepared_groups, self._batch_size, False, True
+        )
 
         for segment in segments:
             group_timestamps_base = (

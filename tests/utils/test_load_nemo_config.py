@@ -24,7 +24,9 @@ from wordcab_transcribe.utils import load_nemo_config
 @pytest.mark.parametrize("domain_type", ["general", "meeting", "telephonic"])
 def test_load_nemo_config(domain_type: str):
     """Test the load_nemo_config function."""
-    cfg = load_nemo_config(domain_type, "storage/path", "output/path")
+    cfg, _ = load_nemo_config(
+        domain_type, "storage/path", "output/path", "cpu", 0,
+    )
 
     cfg_path = f"config/nemo/diar_infer_{domain_type}.yaml"
     with open(cfg_path) as f:
@@ -34,6 +36,6 @@ def test_load_nemo_config(domain_type: str):
 
     assert cfg.num_workers == 0
     assert cfg.diarizer.manifest_filepath == str(
-        Path.cwd() / "storage/path/infer_manifest.json"
+        Path.cwd() / "storage/path/infer_manifest_0.json"
     )
-    assert cfg.diarizer.out_dir == "output/path"
+    assert cfg.diarizer.out_dir == str(Path.cwd() / "output/path")

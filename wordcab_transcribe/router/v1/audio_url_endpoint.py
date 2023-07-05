@@ -79,23 +79,18 @@ async def inference_with_audio_url(
             word_timestamps=data.word_timestamps,
         )
     )
-    try:
-        utterances, audio_duration = await task
-    except Exception:
-        raise HTTPException(  # noqa: B904
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Process failed, please check if the audio file is valid.",
-        )
+    result = await task
 
     background_tasks.add_task(delete_file, filepath=filepath)
 
-    if isinstance(utterances, Exception):
-        logger.error(f"Error: {utterances}")
+    if isinstance(result, Exception):
+        logger.error(f"Error: {result}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(utterances),
+            detail=str(result),
         )
     else:
+        utterances, audio_duration = result
         return AudioResponse(
             utterances=utterances,
             audio_duration=audio_duration,

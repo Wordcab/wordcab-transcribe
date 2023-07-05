@@ -14,9 +14,10 @@
 """ASR Service module that handle all AI interactions."""
 
 import asyncio
+import functools
+import os
 import traceback
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor
 from typing import List, Tuple, Union
 
 import torch
@@ -26,6 +27,7 @@ from wordcab_transcribe.config import settings
 from wordcab_transcribe.logging import time_and_tell
 from wordcab_transcribe.services.align_service import AlignService
 from wordcab_transcribe.services.diarize_service import DiarizeService
+from wordcab_transcribe.services.gpu_service import GPUService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
 from wordcab_transcribe.services.vad_service import VadService
@@ -43,6 +45,9 @@ class ASRService(ABC):
         self.device = (
             "cuda" if torch.cuda.is_available() else "cpu"
         )  # Do we have a GPU? If so, use it!
+        self.num_gpus = torch.cuda.device_count() if self.device == "cuda" else 0
+        self.num_cpus = os.cpu_count()
+
         self.sample_rate = (
             16000  # The sample rate to use for inference for all audio files (Hz)
         )
@@ -55,18 +60,8 @@ class ASRService(ABC):
         self.needs_processing_timer = None  # the timer to schedule processing
 
     @abstractmethod
-    def schedule_processing_if_needed(self) -> None:
-        """Method to schedule processing if needed."""
-        raise NotImplementedError("This method should be implemented in subclasses.")
-
-    @abstractmethod
     async def process_input(self) -> None:
         """Process the input request by creating a task and adding it to the appropriate queues."""
-        raise NotImplementedError("This method should be implemented in subclasses.")
-
-    @abstractmethod
-    async def runner(self) -> None:
-        """Runner method to process the queue."""
         raise NotImplementedError("This method should be implemented in subclasses.")
 
 
@@ -77,64 +72,30 @@ class ASRAsyncService(ASRService):
         """Initialize the ASRAsyncService class."""
         super().__init__()
 
-        self.task_threads: dict = {
-            "transcription": 1,
-            "diarization": 1,
-            "alignment": 1,
-            "post_processing": 8,
-        }
-        self.thread_executors: dict = {
-            "transcription": ThreadPoolExecutor(
-                max_workers=self.task_threads["transcription"]
-            ),
-            "diarization": ThreadPoolExecutor(
-                max_workers=self.task_threads["diarization"]
-            ),
-            "alignment": ThreadPoolExecutor(max_workers=self.task_threads["alignment"]),
-            "post_processing": ThreadPoolExecutor(
-                max_workers=self.task_threads["post_processing"]
-            ),
-        }
+        if self.num_gpus > 1 and self.device == "cuda":
+            device_index = list(range(self.num_gpus))
+        else:
+            device_index = [0]
+
+        self.gpu_handler = GPUService(device=self.device, device_index=device_index)
+
         self.services: dict = {
             "transcription": TranscribeService(
                 model_path=settings.whisper_model,
                 compute_type=settings.compute_type,
                 device=self.device,
-                num_workers=self.task_threads["transcription"],
+                device_index=device_index,
             ),
             "diarization": DiarizeService(
                 domain_type=settings.nemo_domain_type,
                 storage_path=settings.nemo_storage_path,
                 output_path=settings.nemo_output_path,
                 device=self.device,
+                device_index=device_index,
             ),
             "alignment": AlignService(self.device),
             "post_processing": PostProcessingService(),
             "vad": VadService(),
-        }
-        self.queues: dict = {
-            "transcription": [],
-            "diarization": [],
-            "alignment": [],
-            "post_processing": [],
-        }
-        self.queue_locks: dict = {
-            "transcription": asyncio.Lock(),
-            "diarization": asyncio.Lock(),
-            "alignment": asyncio.Lock(),
-            "post_processing": asyncio.Lock(),
-        }
-        self.needs_processing: dict = {
-            "transcription": asyncio.Event(),
-            "diarization": asyncio.Event(),
-            "alignment": asyncio.Event(),
-            "post_processing": asyncio.Event(),
-        }
-        self.needs_processing_timer: dict = {
-            "transcription": None,
-            "diarization": None,
-            "alignment": None,
-            "post_processing": None,
         }
         self.dual_channel_transcribe_options: dict = {
             "beam_size": 5,
@@ -144,23 +105,6 @@ class ASRAsyncService(ASRService):
             "word_timestamps": True,
             "temperature": 0.0,
         }
-
-    def schedule_processing_if_needed(self, task_type: str) -> None:
-        """
-        Method to schedule processing if needed for a specific task queue.
-
-        Args:
-            task_type (str): The task type to schedule processing for.
-        """
-        if (
-            len(self.queues[task_type]) >= 1
-        ):  # We process the queue as soon as we have one request
-            self.needs_processing[task_type].set()
-        elif self.queues[task_type]:
-            self.needs_processing_timer[task_type] = asyncio.get_event_loop().call_at(
-                self.queues[task_type][0]["time"] + settings.max_wait,
-                self.needs_processing[task_type].set,
-            )
 
     @time_and_tell
     async def process_input(
@@ -233,40 +177,39 @@ class ASRAsyncService(ASRService):
             "time": asyncio.get_event_loop().time(),
         }
 
-        async with self.queue_locks["transcription"]:
-            self.queues["transcription"].append(task)
-            self.schedule_processing_if_needed("transcription")
+        # Pick the first available GPU for the task
+        gpu_index = await self.gpu_handler.get_device() if self.device == "cuda" else 0
+
+        asyncio.get_event_loop().run_in_executor(
+            None, functools.partial(self.process_transcription, task, gpu_index)
+        )
 
         if diarization and dual_channel is False:
-            async with self.queue_locks["diarization"]:
-                self.queues["diarization"].append(task)
-                self.schedule_processing_if_needed("diarization")
+            asyncio.get_event_loop().run_in_executor(
+                None, functools.partial(self.process_diarization, task, gpu_index)
+            )
         else:
             task["diarization_done"].set()
 
-        await asyncio.gather(
-            task["transcription_done"].wait(),
-            task["diarization_done"].wait(),
-            return_exceptions=True,
-        )
+        await task["transcription_done"].wait()
+        await task["diarization_done"].wait()
 
         if isinstance(task["diarization_result"], Exception):
+            self.gpu_handler.release_device(gpu_index)
             return task["diarization_result"]
 
         if isinstance(task["transcription_result"], Exception):
+            self.gpu_handler.release_device(gpu_index)
             return task["transcription_result"]
         else:
             if alignment and dual_channel is False:
-                async with self.queue_locks["alignment"]:
-                    self.queues["alignment"].append(task)
-                    self.schedule_processing_if_needed("alignment")
+                asyncio.get_event_loop().run_in_executor(
+                    None, functools.partial(self.process_alignment, task, gpu_index)
+                )
             else:
                 task["alignment_done"].set()
 
-        await asyncio.gather(
-            task["alignment_done"].wait(),
-            return_exceptions=True,
-        )
+        await task["alignment_done"].wait()
 
         if isinstance(task["alignment_result"], Exception):
             logger.error(f"Alignment failed: {task['alignment_result']}")
@@ -274,8 +217,11 @@ class ASRAsyncService(ASRService):
             # So we keep processing the request and return the transcription result
             # return task["alignment_result"]
 
-        self.queues["post_processing"].append(task)
-        self.schedule_processing_if_needed("post_processing")
+        self.gpu_handler.release_device(gpu_index)  # Release the GPU
+
+        asyncio.get_event_loop().run_in_executor(
+            None, functools.partial(self.process_post_processing, task)
+        )
 
         await task["post_processing_done"].wait()
 
@@ -284,107 +230,97 @@ class ASRAsyncService(ASRService):
 
         return result, duration
 
-    async def runner(self, task_type: str) -> None:
-        """
-        Runner generic method to process the queue for a specific task type.
-
-        Args:
-            task_type (str): The task type used by the runner.
-        """
-        while True:
-            await self.needs_processing[task_type].wait()
-            self.needs_processing[task_type].clear()
-
-            if self.needs_processing_timer[task_type] is not None:
-                self.needs_processing_timer[task_type].cancel()
-                self.needs_processing_timer[task_type] = None
-
-            async with self.queue_locks[task_type]:
-                task_to_run = self.queues[task_type][0]
-                del self.queues[task_type][0]
-
-            self.schedule_processing_if_needed(task_type)
-
-            func = getattr(self, f"process_{task_type}")
-
-            try:
-                results = await asyncio.get_event_loop().run_in_executor(
-                    self.thread_executors[task_type], func, task_to_run
-                )
-
-                task_to_run[f"{task_type}_result"] = results
-
-                del results
-
-            except Exception as e:
-                task_to_run[f"{task_type}_result"] = Exception(
-                    f"Error in {task_type}: {e}\n{traceback.format_exc()}"
-                )
-
-            finally:
-                task_to_run[f"{task_type}_done"].set()
-
     @time_and_tell
-    def process_transcription(
-        self, task: dict
-    ) -> Union[List[dict], Tuple[List[dict], List[dict]]]:
+    def process_transcription(self, task: dict, gpu_index: int) -> None:
         """
-        Process a task of transcription.
+        Process a task of transcription and update the task with the result.
 
         Args:
             task (dict): The task and its parameters.
+            gpu_index (int): The GPU index to use for the transcription.
 
         Returns:
-            List[dict]: List of transcribed segments.
+            None: The task is updated with the result.
         """
-        segments = self.services["transcription"](
-            task["input"],
-            source_lang=task["source_lang"],
-            suppress_blank=False,
-            vocab=None if task["vocab"] == [] else task["vocab"],
-            word_timestamps=True,
-            vad_service=self.services["vad"] if task["dual_channel"] else None,
-            use_batch=task["use_batch"],
-        )
+        try:
+            segments = self.services["transcription"](
+                task["input"],
+                source_lang=task["source_lang"],
+                model_index=gpu_index,
+                suppress_blank=False,
+                vocab=None if task["vocab"] == [] else task["vocab"],
+                word_timestamps=True,
+                vad_service=self.services["vad"] if task["dual_channel"] else None,
+                use_batch=task["use_batch"],
+            )
+            result = segments
 
-        return segments
+        except Exception as e:
+            result = Exception(
+                f"Error in transcription gpu {gpu_index}: {e}\n{traceback.format_exc()}"
+            )
+
+        finally:
+            task["transcription_result"] = result
+            task["transcription_done"].set()
+
+        return None
 
     @time_and_tell
-    def process_diarization(self, task: dict) -> List[dict]:
+    def process_diarization(self, task: dict, gpu_index: int) -> None:
         """
         Process a task of diarization.
 
         Args:
             task (dict): The task and its parameters.
+            gpu_index (int): The GPU index to use for the diarization.
 
         Returns:
-            List[dict]: List of speaker turns.
+            None: The task is updated with the result.
         """
-        utterances = self.services["diarization"](task["input"])
+        try:
+            result = self.services["diarization"](task["input"], model_index=gpu_index)
 
-        return utterances
+        except Exception as e:
+            result = Exception(f"Error in diarization: {e}\n{traceback.format_exc()}")
+
+        finally:
+            task["diarization_result"] = result
+            task["diarization_done"].set()
+
+        return None
 
     @time_and_tell
-    def process_alignment(self, task: dict) -> List[dict]:
+    def process_alignment(self, task: dict, gpu_index: int) -> None:
         """
         Process a task of alignment.
 
         Args:
             task (dict): The task and its parameters.
+            gpu_index (int): The GPU index to use for the alignment.
 
         Returns:
-            List[dict]: List of aligned segments.
+            None: The task is updated with the result.
         """
-        segments = self.services["alignment"](
-            task["input"],
-            transcript_segments=task["transcription_result"],
-            source_lang=task["source_lang"],
-        )
+        try:
+            segments = self.services["alignment"](
+                task["input"],
+                transcript_segments=task["transcription_result"],
+                source_lang=task["source_lang"],
+                gpu_index=gpu_index,
+            )
 
-        return segments
+        except Exception as e:
+            segments = Exception(f"Error in alignment: {e}\n{traceback.format_exc()}")
+
+        finally:
+            task["alignment_result"] = segments
+            task["alignment_done"].set()
+
+        return None
 
     @time_and_tell
-    def process_post_processing(self, task: dict) -> List[dict]:
+    def process_post_processing(self, task: dict) -> None:
         """
         Process a task of post processing.
 
@@ -392,56 +328,68 @@ class ASRAsyncService(ASRService):
             task (dict): The task and its parameters.
 
         Returns:
-            List[dict]: List of post processed segments.
+            None: The task is updated with the result.
         """
-        alignment = task["alignment"]
-        diarization = task["diarization"]
-        dual_channel = task["dual_channel"]
-        word_timestamps = task["word_timestamps"]
+        try:
+            alignment = task["alignment"]
+            diarization = task["diarization"]
+            dual_channel = task["dual_channel"]
+            word_timestamps = task["word_timestamps"]
 
-        if dual_channel:
-            left_segments, right_segments = task["transcription_result"]
-            utterances = self.services["post_processing"].dual_channel_speaker_mapping(
-                left_segments=left_segments,
-                right_segments=right_segments,
-                word_timestamps=word_timestamps,
-            )
-        else:
-            segments = (
-                task["alignment_result"]
-                if alignment and not isinstance(task["alignment_result"], Exception)
-                else task["transcription_result"]
-            )
-
-            formatted_segments = format_segments(
-                segments=segments,
-                alignment=alignment,
-                use_batch=task["use_batch"],
-                word_timestamps=word_timestamps,
-            )
-
-            if diarization:
+            if dual_channel:
+                left_segments, right_segments = task["transcription_result"]
                 utterances = self.services[
                     "post_processing"
-                ].single_channel_speaker_mapping(
-                    transcript_segments=formatted_segments,
-                    speaker_timestamps=task["diarization_result"],
+                ].dual_channel_speaker_mapping(
+                    left_segments=left_segments,
+                    right_segments=right_segments,
                     word_timestamps=word_timestamps,
                 )
             else:
-                utterances = formatted_segments
+                segments = (
+                    task["alignment_result"]
+                    if alignment and not isinstance(task["alignment_result"], Exception)
+                    else task["transcription_result"]
+                )
 
-        final_utterances = self.services[
-            "post_processing"
-        ].final_processing_before_returning(
-            utterances=utterances,
-            diarization=diarization,
-            dual_channel=task["dual_channel"],
-            timestamps_format=task["timestamps_format"],
-            word_timestamps=word_timestamps,
-        )
+                formatted_segments = format_segments(
+                    segments=segments,
+                    alignment=alignment,
+                    use_batch=task["use_batch"],
+                    word_timestamps=word_timestamps,
+                )
 
-        return final_utterances
+                if diarization:
+                    utterances = self.services[
+                        "post_processing"
+                    ].single_channel_speaker_mapping(
+                        transcript_segments=formatted_segments,
+                        speaker_timestamps=task["diarization_result"],
+                        word_timestamps=word_timestamps,
+                    )
+                else:
+                    utterances = formatted_segments
+
+            final_utterances = self.services[
+                "post_processing"
+            ].final_processing_before_returning(
+                utterances=utterances,
+                diarization=diarization,
+                dual_channel=task["dual_channel"],
+                timestamps_format=task["timestamps_format"],
+                word_timestamps=word_timestamps,
+            )
+
+        except Exception as e:
+            final_utterances = Exception(
+                f"Error in post-processing: {e}\n{traceback.format_exc()}"
+            )
+
+        finally:
+            task["post_processing_result"] = final_utterances
+            task["post_processing_done"].set()
+
+        return None
 
 
 class ASRLiveService:
