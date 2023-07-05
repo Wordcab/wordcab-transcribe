@@ -36,6 +36,6 @@ def test_load_nemo_config(domain_type: str):
 
     assert cfg.num_workers == 0
     assert cfg.diarizer.manifest_filepath == str(
-        Path.cwd() / f"storage/path/infer_manifest_0.json"
+        Path.cwd() / "storage/path/infer_manifest_0.json"
     )
     assert cfg.diarizer.out_dir == str(Path.cwd() / "output/path")
