@@ -18,7 +18,6 @@ import functools
 import os
 import traceback
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor
 from typing import List, Tuple, Union
 
 import torch
@@ -72,25 +71,6 @@ class ASRAsyncService(ASRService):
     def __init__(self) -> None:
         """Initialize the ASRAsyncService class."""
         super().__init__()
-
-        # self.task_threads: dict = {
-        #     "transcription": self.num_gpus if self.num_gpus > 0 else 1,
-        #     "diarization": 2,
-        #     "alignment": 1,
-        #     "post_processing": self.num_cpus - (2 * self.num_gpus),
-        # }
-        # self.thread_executors: dict = {
-        #     "transcription": ThreadPoolExecutor(
-        #         max_workers=self.task_threads["transcription"]
-        #     ),
-        #     "diarization": ThreadPoolExecutor(
-        #         max_workers=self.task_threads["diarization"]
-        #     ),
-        #     "alignment": ThreadPoolExecutor(max_workers=self.task_threads["alignment"]),
-        #     "post_processing": ThreadPoolExecutor(
-        #         max_workers=self.task_threads["post_processing"]
-        #     ),
-        # }
 
         if self.num_gpus > 1 and self.device == "cuda":
             device_index = list(range(self.num_gpus))
@@ -200,17 +180,11 @@ class ASRAsyncService(ASRService):
         # Pick the first available GPU for the task
         gpu_index = await self.gpu_handler.get_device() if self.device == "cuda" else 0
 
-        # asyncio.get_event_loop().run_in_executor(
-        #     self.thread_executors["transcription"], self.process_transcription, task, gpu_index
-        # )
         asyncio.get_event_loop().run_in_executor(
             None, functools.partial(self.process_transcription, task, gpu_index)
         )
 
         if diarization and dual_channel is False:
-            # asyncio.get_event_loop().run_in_executor(
-            #     self.thread_executors["diarization"], self.process_diarization, task, gpu_index
-            # )
             asyncio.get_event_loop().run_in_executor(
                 None, functools.partial(self.process_diarization, task, gpu_index)
             )
@@ -229,9 +203,6 @@ class ASRAsyncService(ASRService):
             return task["transcription_result"]
         else:
             if alignment and dual_channel is False:
-                # asyncio.get_event_loop().run_in_executor(
-                #     self.thread_executors["alignment"], self.process_alignment, task, gpu_index
-                # )
                 asyncio.get_event_loop().run_in_executor(
                     None, functools.partial(self.process_alignment, task, gpu_index)
                 )
@@ -248,9 +219,6 @@ class ASRAsyncService(ASRService):
 
         self.gpu_handler.release_device(gpu_index)  # Release the GPU
 
-        # asyncio.get_event_loop().run_in_executor(
-        #     self.thread_executors["post_processing"], self.process_post_processing, task
-        # )
         asyncio.get_event_loop().run_in_executor(
             None, functools.partial(self.process_post_processing, task)
         )
@@ -270,6 +238,9 @@ class ASRAsyncService(ASRService):
         Args:
             task (dict): The task and its parameters.
             gpu_index (int): The GPU index to use for the transcription.
+
+        Returns:
+            None: The task is updated with the result.
         """
         try:
             segments = self.services["transcription"](
@@ -301,6 +272,9 @@ class ASRAsyncService(ASRService):
         Args:
             task (dict): The task and its parameters.
             gpu_index (int): The GPU index to use for the diarization.
+
+        Returns:
+            None: The task is updated with the result.
         """
         try:
             result = self.services["diarization"](task["input"], model_index=gpu_index)
@@ -322,6 +296,9 @@ class ASRAsyncService(ASRService):
         Args:
             task (dict): The task and its parameters.
             gpu_index (int): The GPU index to use for the alignment.
+
+        Returns:
+            None: The task is updated with the result.
         """
         try:
             segments = self.services["alignment"](
@@ -347,6 +324,9 @@ class ASRAsyncService(ASRService):
 
         Args:
             task (dict): The task and its parameters.
+
+        Returns:
+            None: The task is updated with the result.
         """
         try:
             alignment = task["alignment"]

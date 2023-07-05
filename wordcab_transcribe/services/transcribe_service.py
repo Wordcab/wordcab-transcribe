@@ -29,7 +29,6 @@ from ctranslate2.models import WhisperGenerationResult
 from faster_whisper import WhisperModel
 from faster_whisper.tokenizer import Tokenizer
 from faster_whisper.transcribe import get_ctranslate2_storage
-from loguru import logger
 from torch.utils.data import DataLoader, IterableDataset
 
 from wordcab_transcribe.config import settings
@@ -263,6 +262,7 @@ class FallBackDataset(IterableDataset):
 
 
 class FasterWhisperModel(NamedTuple):
+    """Faster Whisper Model."""
     model: WhisperModel
     lang: str
     

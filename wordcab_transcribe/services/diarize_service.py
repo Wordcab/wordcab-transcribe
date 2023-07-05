@@ -26,6 +26,7 @@ from wordcab_transcribe.utils import load_nemo_config
 
 
 class NemoModel(NamedTuple):
+    """NeMo Model."""
     model: NeuralDiarizer
     output_path: str
     tmp_audio_path: str
