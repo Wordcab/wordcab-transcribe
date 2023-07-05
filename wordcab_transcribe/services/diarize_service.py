@@ -27,16 +27,23 @@ from wordcab_transcribe.utils import load_nemo_config
 
 class NemoModel(NamedTuple):
     """NeMo Model."""
+
     model: NeuralDiarizer
     output_path: str
     tmp_audio_path: str
     device: str
 
+
 class DiarizeService:
     """Diarize Service for audio files."""
 
     def __init__(
-        self, domain_type: str, storage_path: str, output_path: str, device: str, device_index: List[int]
+        self,
+        domain_type: str,
+        storage_path: str,
+        output_path: str,
+        device: str,
+        device_index: List[int],
     ) -> None:
         """Initialize the Diarize Service.
 
@@ -72,7 +79,9 @@ class DiarizeService:
             )
 
     @time_and_tell
-    def __call__(self, filepath: Union[str, torch.Tensor], model_index: int) -> List[dict]:
+    def __call__(
+        self, filepath: Union[str, torch.Tensor], model_index: int
+    ) -> List[dict]:
         """
         Run inference with the diarization model.
 
@@ -89,7 +98,9 @@ class DiarizeService:
             waveform = filepath
             sample_rate = 16000
 
-        sf.write(self.models[model_index].tmp_audio_path, waveform, sample_rate, "PCM_16")
+        sf.write(
+            self.models[model_index].tmp_audio_path, waveform, sample_rate, "PCM_16"
+        )
 
         self.models[model_index].model.diarize()
 

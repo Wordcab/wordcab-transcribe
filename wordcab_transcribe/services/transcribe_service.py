@@ -263,9 +263,10 @@ class FallBackDataset(IterableDataset):
 
 class FasterWhisperModel(NamedTuple):
     """Faster Whisper Model."""
+
     model: WhisperModel
     lang: str
-    
+
 
 class TranscribeService:
     """Transcribe Service for audio files."""
@@ -644,7 +645,9 @@ class TranscribeService:
             prefix=prefix,
         )
 
-        features = self._encode_batch(self.model, features, word_timestamps=word_timestamps)
+        features = self._encode_batch(
+            self.model, features, word_timestamps=word_timestamps
+        )
 
         # TODO: We access the inherited ctranslate2 model for generation here. This is not ideal.
         result: WhisperGenerationResult = model.model.generate(
@@ -942,7 +945,9 @@ class TranscribeService:
                 DualChannelInput(group_id, torch.cat(audio_segments))
             )
 
-        segments = self.pipeline(model, tokenizer, prepared_groups, self._batch_size, False, True)
+        segments = self.pipeline(
+            model, tokenizer, prepared_groups, self._batch_size, False, True
+        )
 
         for segment in segments:
             group_timestamps_base = (

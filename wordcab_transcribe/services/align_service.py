@@ -140,7 +140,11 @@ class AlignService:
 
     @time_and_tell
     def __call__(
-        self, filepath: str, transcript_segments: List[dict], source_lang: str, gpu_index: int
+        self,
+        filepath: str,
+        transcript_segments: List[dict],
+        source_lang: str,
+        gpu_index: int,
     ) -> List[SingleAlignedSegment]:
         """
         Run the alignment service on the given transcript segments and source language.

@@ -19,6 +19,7 @@ from typing import Any, Dict, List
 
 class GPUService:
     """GPU service class to handle gpu availability for models."""
+
     def __init__(self, device: str, device_index: List[int]) -> None:
         """
         Initialize the GPU service.
@@ -36,7 +37,6 @@ class GPUService:
         self.queue = asyncio.Queue(maxsize=len(self.device_index))
         for idx in self.device_index:
             self.queue.put_nowait(idx)
-        
 
     async def get_device(self) -> int:
         """

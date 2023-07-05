@@ -256,7 +256,9 @@ class ASRAsyncService(ASRService):
             result = segments
 
         except Exception as e:
-            result = Exception(f"Error in transcription gpu {gpu_index}: {e}\n{traceback.format_exc()}")
+            result = Exception(
+                f"Error in transcription gpu {gpu_index}: {e}\n{traceback.format_exc()}"
+            )
 
         finally:
             task["transcription_result"] = result
@@ -336,7 +338,9 @@ class ASRAsyncService(ASRService):
 
             if dual_channel:
                 left_segments, right_segments = task["transcription_result"]
-                utterances = self.services["post_processing"].dual_channel_speaker_mapping(
+                utterances = self.services[
+                    "post_processing"
+                ].dual_channel_speaker_mapping(
                     left_segments=left_segments,
                     right_segments=right_segments,
                     word_timestamps=word_timestamps,
@@ -377,7 +381,9 @@ class ASRAsyncService(ASRService):
             )
 
         except Exception as e:
-            final_utterances = Exception(f"Error in post-processing: {e}\n{traceback.format_exc()}")
+            final_utterances = Exception(
+                f"Error in post-processing: {e}\n{traceback.format_exc()}"
+            )
 
         finally:
             task["post_processing_result"] = final_utterances

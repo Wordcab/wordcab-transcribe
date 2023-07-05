@@ -531,7 +531,11 @@ def interpolate_nans(x: pd.Series, method="nearest") -> pd.Series:
 
 
 def load_nemo_config(
-    domain_type: str, storage_path: str, output_path: Path, device: str, index: int,
+    domain_type: str,
+    storage_path: str,
+    output_path: Path,
+    device: str,
+    index: int,
 ) -> Union[DictConfig, ListConfig]:
     """
     Load NeMo config file based on a domain type.
