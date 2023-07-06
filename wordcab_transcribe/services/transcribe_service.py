@@ -425,15 +425,21 @@ class TranscribeService:
         else:
             outputs = []
             for audio_index, audio_file in enumerate(audio):
-                outputs.append(
-                    self.dual_channel(
-                        audio_file,
-                        source_lang=source_lang,
-                        speaker_id=audio_index,
-                        vad_service=vad_service,
-                        prompt=prompt,
-                    )
+                if isinstance(audio_file, torch.Tensor):
+                    audio_file = audio_file.numpy()
+
+                segments, _ = self.model.transcribe(
+                    audio_file,
+                    language=source_lang,
+                    initial_prompt=prompt,
+                    suppress_blank=False,
+                    word_timestamps=True,
                 )
+                
+                segments = [segment._asdict() for segment in segments]
+                segments = [{**segment, "speaker": audio_index} for segment in segments]
+                
+                outputs.append(segments)
 
         # else:
         #     tokenizer = Tokenizer(
