@@ -225,6 +225,9 @@ class ASRAsyncService(ASRService):
 
         await task["post_processing_done"].wait()
 
+        if isinstance(task["post_processing_result"], Exception):
+            return task["post_processing_result"]
+
         result = task.pop("post_processing_result")
         del task  # Delete the task to free up memory
 
