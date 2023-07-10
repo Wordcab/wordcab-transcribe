@@ -25,7 +25,11 @@ from wordcab_transcribe.utils import load_nemo_config
 def test_load_nemo_config(domain_type: str):
     """Test the load_nemo_config function."""
     cfg, _ = load_nemo_config(
-        domain_type, "storage/path", "output/path", "cpu", 0,
+        domain_type,
+        "storage/path",
+        "output/path",
+        "cpu",
+        0,
     )
 
     cfg_path = f"config/nemo/diar_infer_{domain_type}.yaml"

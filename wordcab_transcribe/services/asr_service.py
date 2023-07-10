@@ -156,6 +156,7 @@ class ASRAsyncService(ASRService):
         else:
             audio, duration = read_audio(filepath)
 
+        alignment = False  # New strategy doesn't require alignment for now
         task = {
             "input": audio,
             "alignment": alignment,
@@ -224,6 +225,9 @@ class ASRAsyncService(ASRService):
         )
 
         await task["post_processing_done"].wait()
+
+        if isinstance(task["post_processing_result"], Exception):
+            return task["post_processing_result"]
 
         result = task.pop("post_processing_result")
         del task  # Delete the task to free up memory
@@ -356,7 +360,7 @@ class ASRAsyncService(ASRService):
                     segments=segments,
                     alignment=alignment,
                     use_batch=task["use_batch"],
-                    word_timestamps=word_timestamps,
+                    word_timestamps=True,
                 )
 
                 if diarization:
