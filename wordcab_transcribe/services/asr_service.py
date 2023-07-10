@@ -46,6 +46,7 @@ class ASRService(ABC):
             "cuda" if torch.cuda.is_available() else "cpu"
         )  # Do we have a GPU? If so, use it!
         self.num_gpus = torch.cuda.device_count() if self.device == "cuda" else 0
+        logger.info(f"NVIDIA GPUs available: {self.num_gpus}")
         self.num_cpus = os.cpu_count()
 
         self.sample_rate = (
@@ -180,6 +181,7 @@ class ASRAsyncService(ASRService):
 
         # Pick the first available GPU for the task
         gpu_index = await self.gpu_handler.get_device() if self.device == "cuda" else 0
+        logger.info(f"Using GPU {gpu_index} for the task")
 
         asyncio.get_event_loop().run_in_executor(
             None, functools.partial(self.process_transcription, task, gpu_index)
