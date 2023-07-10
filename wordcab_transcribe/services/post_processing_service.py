@@ -84,7 +84,7 @@ class PostProcessingService:
             List[dict]: List of sentences with speaker mapping.
         """
         utterances = self.merge_segments(left_segments, right_segments)
-        utterances = self.utterances_speaker_mapping(utterances, word_timestamps)
+        utterances = self.reconstruct_utterances(utterances, word_timestamps)
 
         return utterances
 

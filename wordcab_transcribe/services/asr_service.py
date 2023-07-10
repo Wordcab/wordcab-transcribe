@@ -156,6 +156,7 @@ class ASRAsyncService(ASRService):
         else:
             audio, duration = read_audio(filepath)
 
+        alignment = False  # New strategy doesn't require alignment for now
         task = {
             "input": audio,
             "alignment": alignment,
@@ -359,7 +360,7 @@ class ASRAsyncService(ASRService):
                     segments=segments,
                     alignment=alignment,
                     use_batch=task["use_batch"],
-                    word_timestamps=word_timestamps,
+                    word_timestamps=True,
                 )
 
                 if diarization:
