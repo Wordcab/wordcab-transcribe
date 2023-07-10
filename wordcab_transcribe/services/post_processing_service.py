@@ -14,11 +14,10 @@
 """Post-Processing Service for audio files."""
 
 from typing import Any, Dict, List
-from loguru import logger
 
 from wordcab_transcribe.utils import (
-    _convert_s_to_ms,
     _convert_ms_to_s,
+    _convert_s_to_ms,
     convert_timestamp,
     format_punct,
     get_segment_timestamp_anchor,
@@ -54,7 +53,8 @@ class PostProcessingService:
             List[dict]: List of sentences with speaker mapping.
         """
         words_with_speaker_mapping = self.words_speaker_mapping(
-            transcript_segments, speaker_timestamps,
+            transcript_segments,
+            speaker_timestamps,
         )
 
         utterances = self.reconstruct_utterances(
@@ -112,7 +112,9 @@ class PostProcessingService:
 
         mapped_words = []
         for word in all_words:
-            word_start, word_end = _convert_s_to_ms(word["start"]), _convert_s_to_ms(word["end"])
+            word_start, word_end = _convert_s_to_ms(word["start"]), _convert_s_to_ms(
+                word["end"]
+            )
             while word_start > float(end):
                 turn_idx += 1
                 turn_idx = min(turn_idx, len(speaker_timestamps) - 1)
