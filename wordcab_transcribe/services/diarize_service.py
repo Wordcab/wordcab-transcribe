@@ -70,7 +70,7 @@ class DiarizeService:
                 device=_device,
                 index=idx,
             )
-            model = NeuralDiarizer(cfg=cfg)
+            model = NeuralDiarizer(cfg=cfg).to(_device)
             self.models[idx] = NemoModel(
                 model=model,
                 output_path=_output_path,
