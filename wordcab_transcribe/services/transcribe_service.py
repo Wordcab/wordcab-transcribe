@@ -871,7 +871,7 @@ class TranscribeService:
                 initial_prompt=prompt,
                 suppress_blank=False,
                 word_timestamps=True,
-                vad_filter=internal_vad,
+                vad_filter=False,
             )
             segments = list(segments)
 
