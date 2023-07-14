@@ -45,6 +45,7 @@ def test_audio_request() -> None:
     assert request.use_batch is False
     assert request.vocab == []
     assert request.word_timestamps is False
+    assert request.internal_vad is False
 
 
 def test_audio_response() -> None:
@@ -60,6 +61,7 @@ def test_audio_response() -> None:
         use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=False,
+        internal_vad=False,
     )
     assert response.utterances == []
     assert response.audio_duration == 0.0
@@ -71,6 +73,7 @@ def test_audio_response() -> None:
     assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
+    assert response.internal_vad is False
 
     response = AudioResponse(
         utterances=[
@@ -86,6 +89,7 @@ def test_audio_response() -> None:
         use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=True,
+        internal_vad=False,
     )
     assert response.utterances == [
         {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
@@ -100,6 +104,7 @@ def test_audio_response() -> None:
     assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is True
+    assert response.internal_vad is False
 
 
 def test_base_request_valid() -> None:
@@ -124,6 +129,7 @@ def test_base_request_default() -> None:
     assert req.timestamps == "s"
     assert req.use_batch is False
     assert req.word_timestamps is False
+    assert req.internal_vad is False
 
 
 def test_base_request_invalid() -> None:
@@ -147,6 +153,7 @@ def test_base_response() -> None:
         use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=False,
+        internal_vad=False,
     )
     assert response.utterances == [
         {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
@@ -160,6 +167,7 @@ def test_base_response() -> None:
     assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
+    assert response.internal_vad is False
 
 
 def test_cortex_error() -> None:
@@ -183,6 +191,7 @@ def test_cortex_payload() -> None:
         timestamps="s",
         use_batch=False,
         word_timestamps=False,
+        internal_vad=False,
         job_name="test_job",
         ping=False,
     )
@@ -197,6 +206,7 @@ def test_cortex_payload() -> None:
     assert payload.use_batch is False
     assert payload.vocab == []
     assert payload.word_timestamps is False
+    assert payload.internal_vad is False
     assert payload.job_name == "test_job"
     assert payload.ping is False
 
@@ -216,6 +226,7 @@ def test_cortex_url_response() -> None:
         use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=False,
+        internal_vad=False,
         dual_channel=False,
         job_name="test_job",
         request_id="test_request_id",
@@ -232,6 +243,7 @@ def test_cortex_url_response() -> None:
     assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
+    assert response.internal_vad is False
     assert response.dual_channel is False
     assert response.job_name == "test_job"
     assert response.request_id == "test_request_id"
@@ -252,6 +264,7 @@ def test_cortex_youtube_response() -> None:
         use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=False,
+        internal_vad=False,
         video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         job_name="test_job",
         request_id="test_request_id",
@@ -268,6 +281,7 @@ def test_cortex_youtube_response() -> None:
     assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
+    assert response.internal_vad is False
     assert response.video_url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     assert response.job_name == "test_job"
     assert response.request_id == "test_request_id"
@@ -288,6 +302,7 @@ def test_youtube_response() -> None:
         use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=False,
+        internal_vad=False,
         video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     )
     assert response.utterances == [
@@ -302,4 +317,5 @@ def test_youtube_response() -> None:
     assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
+    assert response.internal_vad is False
     assert response.video_url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
