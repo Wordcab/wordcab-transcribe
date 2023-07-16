@@ -35,7 +35,6 @@ from wordcab_transcribe.models import (
 )
 from wordcab_transcribe.router.v1.audio_url_endpoint import inference_with_audio_url
 from wordcab_transcribe.router.v1.youtube_endpoint import inference_with_youtube
-from wordcab_transcribe.utils import remove_words_for_svix
 
 
 router = APIRouter()
@@ -121,9 +120,12 @@ async def run_cortex(
         "request_id": request_id,
     }
 
-    await send_update_with_svix(
-        payload.job_name, "finished", remove_words_for_svix(_cortex_response)
-    )
+    _svix_response = {
+        "job_name": payload.job_name,
+        "request_id": request_id,
+    }
+
+    await send_update_with_svix(payload.job_name, "finished", _svix_response)
 
     if payload.url_type == "youtube":
         return CortexYoutubeResponse(**_cortex_response)
