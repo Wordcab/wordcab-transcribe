@@ -74,8 +74,14 @@ You can run the API behind a reverse proxy like Nginx. We have included a `nginx
 docker network create transcribe
 docker network connect transcribe wordcab-transcribe
 
-# Replace /absolute/path/to/nginx.conf with the absolute path to the nginx.conf file on your machine
-docker run -d --name nginx --network transcribe -p 80:80 -v /absolute/path/to/nginx.conf:/etc/nginx/nginx.conf:ro nginx
+# Replace /absolute/path/to/nginx.conf with the absolute path to the nginx.conf 
+# file on your machine (e.g. /home/user/wordcab-transcribe/nginx.conf).
+docker run -d \
+    --name nginx \
+    --network transcribe \
+    -p 80:80 \
+    -v /absolute/path/to/nginx.conf:/etc/nginx/nginx.conf:ro \
+    nginx
 
 # Check everything is working as expected
 docker logs nginx
