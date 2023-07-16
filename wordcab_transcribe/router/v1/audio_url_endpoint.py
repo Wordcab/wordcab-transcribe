@@ -77,6 +77,7 @@ async def inference_with_audio_url(
             use_batch=data.use_batch,
             vocab=data.vocab,
             word_timestamps=data.word_timestamps,
+            internal_vad=data.internal_vad,
         )
     )
     result = await task
@@ -102,4 +103,5 @@ async def inference_with_audio_url(
             use_batch=data.use_batch,
             vocab=data.vocab,
             word_timestamps=data.word_timestamps,
+            internal_vad=data.internal_vad,
         )

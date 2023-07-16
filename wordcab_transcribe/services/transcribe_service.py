@@ -343,6 +343,7 @@ class TranscribeService:
         suppress_blank: bool = False,
         vocab: Optional[List[str]] = None,
         word_timestamps: bool = True,
+        internal_vad: bool = False,
         vad_service: Optional[VadService] = None,
         use_batch: bool = True,
     ) -> Union[List[dict], List[List[dict]]]:
@@ -358,6 +359,7 @@ class TranscribeService:
             suppress_blank (bool): Whether to suppress blank at the beginning of the sampling.
             vocab (Optional[List[str]]): Vocabulary to use during generation if not None.
             word_timestamps (bool): Whether to return word timestamps.
+            internal_vad (bool): Whether to use faster-whisper's VAD or not.
             vad_service (Optional[VADService]): VADService to use for voice activity detection in the dual_channel case.
             use_batch (bool): Whether to use batch inference.
 
@@ -411,6 +413,7 @@ class TranscribeService:
                 initial_prompt=prompt,
                 suppress_blank=False,
                 word_timestamps=True,
+                vad_filter=internal_vad,
             )
             # segments, _ = self.models[model_index].model.transcribe(
             #     audio,
@@ -431,6 +434,7 @@ class TranscribeService:
                         source_lang=source_lang,
                         speaker_id=audio_index,
                         vad_service=vad_service,
+                        internal_vad=internal_vad,
                         prompt=prompt,
                     )
                 )
@@ -831,6 +835,7 @@ class TranscribeService:
         source_lang: str,
         speaker_id: int,
         vad_service: VadService,
+        internal_vad: bool,
         prompt: Optional[str] = None,
     ) -> List[dict]:
         """
@@ -841,6 +846,7 @@ class TranscribeService:
             source_lang (str): Language of the audio file.
             speaker_id (int): Speaker ID used in the diarization.
             vad_service (VadService): VAD service.
+            internal_vad (bool): Whether to use faster-whisper's VAD or not.
             prompt (Optional[str]): Initial prompt to use for the generation.
 
         Returns:
@@ -865,6 +871,7 @@ class TranscribeService:
                 initial_prompt=prompt,
                 suppress_blank=False,
                 word_timestamps=True,
+                vad_filter=False,
             )
             segments = list(segments)
 

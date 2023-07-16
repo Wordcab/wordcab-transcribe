@@ -30,6 +30,7 @@ class BaseResponse(BaseModel):
     use_batch: bool
     vocab: List[str]
     word_timestamps: bool
+    internal_vad: bool
 
 
 class AudioResponse(BaseResponse):
@@ -68,6 +69,7 @@ class AudioResponse(BaseResponse):
                     "custom co-worker name",
                 ],
                 "word_timestamps": False,
+                "internal_vad": False,
                 "dual_channel": False,
             }
         }
@@ -109,6 +111,7 @@ class YouTubeResponse(BaseResponse):
                     "custom co-worker name",
                 ],
                 "word_timestamps": False,
+                "internal_vad": False,
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             }
         }
@@ -143,6 +146,7 @@ class CortexPayload(BaseModel):
     use_batch: Optional[bool] = False
     vocab: Optional[List[str]] = []
     word_timestamps: Optional[bool] = False
+    internal_vad: Optional[bool] = False
     job_name: Optional[str] = None
     ping: Optional[bool] = False
 
@@ -180,6 +184,7 @@ class CortexPayload(BaseModel):
                     "custom co-worker name",
                 ],
                 "word_timestamps": False,
+                "internal_vad": False,
                 "job_name": "job_abc123",
                 "ping": False,
             }
@@ -223,6 +228,7 @@ class CortexUrlResponse(AudioResponse):
                     "custom co-worker name",
                 ],
                 "word_timestamps": False,
+                "internal_vad": False,
                 "dual_channel": False,
                 "job_name": "job_name",
                 "request_id": "request_id",
@@ -231,7 +237,7 @@ class CortexUrlResponse(AudioResponse):
 
 
 class CortexYoutubeResponse(YouTubeResponse):
-    """Response model for the youtube type of the Cortex endpoint."""
+    """Response model for the YouTube type of the Cortex endpoint."""
 
     job_name: str
     request_id: Optional[str] = None
@@ -267,6 +273,7 @@ class CortexYoutubeResponse(YouTubeResponse):
                     "custom co-worker name",
                 ],
                 "word_timestamps": False,
+                "internal_vad": False,
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 "job_name": "job_name",
                 "request_id": "request_id",
@@ -284,6 +291,7 @@ class BaseRequest(BaseModel):
     use_batch: bool = False
     vocab: List[str] = []
     word_timestamps: bool = False
+    internal_vad: bool = False
 
     @validator("timestamps")
     def validate_timestamps_values(cls, value: str) -> str:  # noqa: B902, N805
@@ -317,6 +325,7 @@ class BaseRequest(BaseModel):
                     "custom co-worker name",
                 ],
                 "word_timestamps": False,
+                "internal_vad": False,
             }
         }
 
@@ -343,6 +352,7 @@ class AudioRequest(BaseRequest):
                 ],
                 "word_timestamps": False,
                 "dual_channel": False,
+                "internal_vad": False,
             }
         }
 

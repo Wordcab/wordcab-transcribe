@@ -72,6 +72,7 @@ async def run_cortex(
                 use_batch=payload.use_batch,
                 vocab=payload.vocab,
                 word_timestamps=payload.word_timestamps,
+                internal_vad=payload.internal_vad,
             )
             response: AudioResponse = await inference_with_audio_url(
                 background_tasks=BackgroundTasks(),
@@ -88,6 +89,7 @@ async def run_cortex(
                 use_batch=payload.use_batch,
                 vocab=payload.vocab,
                 word_timestamps=payload.word_timestamps,
+                internal_vad=payload.internal_vad,
             )
             response: YouTubeResponse = await inference_with_youtube(
                 background_tasks=BackgroundTasks(),
