@@ -79,5 +79,6 @@ async def inference_with_youtube(
             use_batch=data.use_batch,
             vocab=data.vocab,
             word_timestamps=data.word_timestamps,
+            internal_vad=data.internal_vad,
             video_url=url,
         )

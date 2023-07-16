@@ -111,6 +111,7 @@ class YouTubeResponse(BaseResponse):
                     "custom co-worker name",
                 ],
                 "word_timestamps": False,
+                "internal_vad": False,
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             }
         }
@@ -183,6 +184,7 @@ class CortexPayload(BaseModel):
                     "custom co-worker name",
                 ],
                 "word_timestamps": False,
+                "internal_vad": False,
                 "job_name": "job_abc123",
                 "ping": False,
             }
