@@ -65,6 +65,23 @@ docker exec -it wordcab-transcribe /bin/bash
 
 This is useful to check everything is working as expected.
 
+### Run the API behind a reverse proxy
+
+You can run the API behind a reverse proxy like Nginx. We have included a `nginx.conf` file to help you get started.
+
+```bash
+# Create a docker network and connect the api container to it
+docker network create transcribe
+docker network connect transcribe wordcab-transcribe
+
+# Replace /absolute/path/to/nginx.conf with the absolute path to the nginx.conf file on your machine
+docker run -d --name nginx --network transcribe -p 80:80 -v /absolute/path/to/nginx.conf:/etc/nginx/nginx.conf:ro nginx
+
+# Check everything is working as expected
+docker logs nginx
+```
+
+
 ---
 
 <details open>
