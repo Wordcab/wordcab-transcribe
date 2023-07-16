@@ -29,6 +29,7 @@ from ctranslate2.models import WhisperGenerationResult
 from faster_whisper import WhisperModel
 from faster_whisper.tokenizer import Tokenizer
 from faster_whisper.transcribe import get_ctranslate2_storage
+from loguru import logger
 from torch.utils.data import DataLoader, IterableDataset
 
 from wordcab_transcribe.config import settings
@@ -425,6 +426,9 @@ class TranscribeService:
 
             segments = list(segments)
             if not segments and not internal_vad:
+                logger.warning(
+                    "Empty transcription result. Trying with vad_filter=True."
+                )
                 segments, _ = self.model.transcribe(
                     audio,
                     language=source_lang,
