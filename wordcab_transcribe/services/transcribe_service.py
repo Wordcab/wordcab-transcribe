@@ -423,6 +423,17 @@ class TranscribeService:
             #     word_timestamps=True,
             # )
 
+            segments = list(segments)
+            if not segments and not internal_vad:
+                segments, _ = self.model.transcribe(
+                    audio,
+                    language=source_lang,
+                    initial_prompt=prompt,
+                    suppress_blank=False,
+                    word_timestamps=True,
+                    vad_filter=True,
+                )
+
             outputs = [segment._asdict() for segment in segments]
 
         else:
