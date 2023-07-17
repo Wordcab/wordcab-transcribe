@@ -67,24 +67,18 @@ class PostProcessingService:
         self,
         left_segments: List[dict],
         right_segments: List[dict],
-        word_timestamps: bool,
     ) -> List[dict]:
-        """Run the dual channel post-processing functions on the inputs.
-
-        The postprocessing pipeline is as follows:
-        1. Reconstruct proper timestamps for each segment.
-        2. Merge the left and right segments together and sort them by timestamp.
+        """
+        Run the dual channel post-processing functions on the inputs by merging the segments based on the timestamps.
 
         Args:
             left_segments (List[dict]): List of left channel segments.
             right_segments (List[dict]): List of right channel segments.
-            word_timestamps (bool): Whether to include word timestamps.
 
         Returns:
             List[dict]: List of sentences with speaker mapping.
         """
         utterances = self.merge_segments(left_segments, right_segments)
-        utterances = self.reconstruct_utterances(utterances, word_timestamps)
 
         return utterances
 

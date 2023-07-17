@@ -889,7 +889,7 @@ class TranscribeService:
             group_start = group[0]["start"]
 
             for segment in segments:
-                segment_dict = {
+                segment_dict: dict = {
                     "start": None,
                     "end": None,
                     "text": segment.text,
@@ -901,11 +901,11 @@ class TranscribeService:
                     word_start_adjusted = (group_start / self.sample_rate) + word.start
                     word_end_adjusted = (group_start / self.sample_rate) + word.end
                     segment_dict["words"].append(
-                        {
-                            "start": word_start_adjusted,
-                            "end": word_end_adjusted,
-                            "word": word.word,
-                        }
+                        dict(
+                            start=word_start_adjusted,
+                            end=word_end_adjusted,
+                            word=word.word,
+                        )
                     )
 
                     if (
