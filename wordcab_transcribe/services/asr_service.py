@@ -353,7 +353,6 @@ class ASRAsyncService(ASRService):
                 ].dual_channel_speaker_mapping(
                     left_segments=left_segments,
                     right_segments=right_segments,
-                    word_timestamps=word_timestamps,
                 )
             else:
                 segments = (

@@ -449,7 +449,6 @@ class TranscribeService:
                         source_lang=source_lang,
                         speaker_id=audio_index,
                         vad_service=vad_service,
-                        internal_vad=internal_vad,
                         prompt=prompt,
                     )
                 )
@@ -850,7 +849,6 @@ class TranscribeService:
         source_lang: str,
         speaker_id: int,
         vad_service: VadService,
-        internal_vad: bool,
         prompt: Optional[str] = None,
     ) -> List[dict]:
         """
@@ -861,7 +859,6 @@ class TranscribeService:
             source_lang (str): Language of the audio file.
             speaker_id (int): Speaker ID used in the diarization.
             vad_service (VadService): VAD service.
-            internal_vad (bool): Whether to use faster-whisper's VAD or not.
             prompt (Optional[str]): Initial prompt to use for the generation.
 
         Returns:
@@ -886,14 +883,13 @@ class TranscribeService:
                 initial_prompt=prompt,
                 suppress_blank=False,
                 word_timestamps=True,
-                vad_filter=False,
             )
             segments = list(segments)
 
             group_start = group[0]["start"]
 
             for segment in segments:
-                segment_dict = {
+                segment_dict: dict = {
                     "start": None,
                     "end": None,
                     "text": segment.text,
@@ -905,11 +901,11 @@ class TranscribeService:
                     word_start_adjusted = (group_start / self.sample_rate) + word.start
                     word_end_adjusted = (group_start / self.sample_rate) + word.end
                     segment_dict["words"].append(
-                        {
-                            "start": word_start_adjusted,
-                            "end": word_end_adjusted,
-                            "word": word.word,
-                        }
+                        dict(
+                            start=word_start_adjusted,
+                            end=word_end_adjusted,
+                            word=word.word,
+                        )
                     )
 
                     if (
