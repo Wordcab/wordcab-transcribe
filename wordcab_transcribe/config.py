@@ -68,124 +68,124 @@ class Settings:
     svix_app_id: str
 
     @field_validator("project_name")
-    def project_name_must_not_be_none(cls, v):  # noqa: B902, N805
+    def project_name_must_not_be_none(cls, value: str):  # noqa: B902, N805
         """Check that the project_name is not None."""
-        if v is None:
+        if value is None:
             raise ValueError(
                 "`project_name` must not be None, please verify the `.env` file."
             )
 
-        return v
+        return value
 
     @field_validator("version")
-    def version_must_not_be_none(cls, v):  # noqa: B902, N805
+    def version_must_not_be_none(cls, value: str):  # noqa: B902, N805
         """Check that the version is not None."""
-        if v is None:
+        if value is None:
             raise ValueError("`version` must not be None, please verify the `.env` file.")
 
-        return v
+        return value
 
     @field_validator("description")
-    def description_must_not_be_none(cls, v):  # noqa: B902, N805
+    def description_must_not_be_none(cls, value: str):  # noqa: B902, N805
         """Check that the description is not None."""
-        if v is None:
+        if value is None:
             raise ValueError(
                 "`description` must not be None, please verify the `.env` file."
             )
 
-        return v
+        return value
 
     @field_validator("api_prefix")
-    def api_prefix_must_not_be_none(cls, v):  # noqa: B902, N805
+    def api_prefix_must_not_be_none(cls, value: str):  # noqa: B902, N805
         """Check that the api_prefix is not None."""
-        if v is None:
+        if value is None:
             raise ValueError(
                 "`api_prefix` must not be None, please verify the `.env` file."
             )
 
-        return v
+        return value
 
     @field_validator("batch_size")
-    def batch_size_must_be_positive(cls, v):  # noqa: B902, N805
+    def batch_size_must_be_positive(cls, value: int):  # noqa: B902, N805
         """Check that the batch_size is positive."""
-        if v <= 0:
+        if value <= 0:
             raise ValueError("`batch_size` must be positive, please verify the `.env` file.")
 
-        return v
+        return value
 
     @field_validator("max_wait")
-    def max_wait_must_be_positive(cls, v):  # noqa: B902, N805
+    def max_wait_must_be_positive(cls, value: float):  # noqa: B902, N805
         """Check that the max_wait is positive."""
-        if v <= 0:
+        if value <= 0:
             raise ValueError("`max_wait` must be positive, please verify the `.env` file.")
 
-        return v
+        return value
 
     @field_validator("whisper_model")
-    def whisper_model_must_be_valid(cls, v):  # noqa: B902, N805
+    def whisper_model_must_be_valid(cls, value: str):  # noqa: B902, N805
         """Check that the model name is valid. It can be a local path or a model name."""
-        model_path = Path(v)
+        model_path = Path(value)
 
         if model_path.exists() is False:
-            if v not in _MODELS:
+            if value not in _MODELS:
                 raise ValueError(
-                    f"{v} is not a valid model name. Choose one of {_MODELS}."
+                    f"{value} is not a valid model name. Choose one of {_MODELS}."
                     "If you want to use a local model, please provide a valid path."
                 )
 
-        return v
+        return value
 
     @field_validator("compute_type")
-    def compute_type_must_be_valid(cls, v):  # noqa: B902, N805
+    def compute_type_must_be_valid(cls, value: str):  # noqa: B902, N805
         """Check that the model precision is valid."""
-        if v not in {"int8", "int8_float16", "int16", "float16", "float32"}:
+        if value not in {"int8", "int8_float16", "int16", "float16", "float32"}:
             raise ValueError(
-                f"{v} is not a valid compute type. "
+                f"{value} is not a valid compute type. "
                 "Choose one of int8, int8_float16, int16, float16, float32."
             )
 
-        return v
+        return value
 
     @field_validator("nemo_domain_type")
-    def nemo_domain_type_must_be_valid(cls, v):  # noqa: B902, N805
+    def nemo_domain_type_must_be_valid(cls, value: str):  # noqa: B902, N805
         """Check that the model precision is valid."""
-        if v not in {"general", "telephonic", "meeting"}:
+        if value not in {"general", "telephonic", "meeting"}:
             raise ValueError(
-                f"{v} is not a valid domain type. "
+                f"{value} is not a valid domain type. "
                 "Choose one of general, telephonic, meeting."
             )
 
-        return v
+        return value
 
     @field_validator("asr_type")
-    def asr_type_must_be_valid(cls, v):  # noqa: B902, N805
+    def asr_type_must_be_valid(cls, value: str):  # noqa: B902, N805
         """Check that the ASR type is valid."""
-        if v not in {"async", "live"}:
+        if value not in {"async", "live"}:
             raise ValueError(
-                f"{v} is not a valid ASR type. Choose between `async` or `live`."
+                f"{value} is not a valid ASR type. Choose between `async` or `live`."
             )
 
-        return v
+        return value
 
     @field_validator("openssl_algorithm")
-    def openssl_algorithm_must_be_valid(cls, v):  # noqa: B902, N805
+    def openssl_algorithm_must_be_valid(cls, value: str):  # noqa: B902, N805
         """Check that the OpenSSL algorithm is valid."""
-        if v not in {"HS256", "HS384", "HS512"}:
+        if value not in {"HS256", "HS384", "HS512"}:
             raise ValueError(
                 "openssl_algorithm must be a valid algorithm, please verify the `.env` file."
             )
 
-        return v
+        return value
 
     @field_validator("access_token_expire_minutes")
-    def access_token_expire_minutes_must_be_valid(cls, v):  # noqa: B902, N805
+    def access_token_expire_minutes_must_be_valid(cls, value: int):  # noqa: B902, N805
         """Check that the access token expiration is valid. Only if debug is False."""
-        if v <= 0:
+        if value <= 0:
             raise ValueError(
                 "access_token_expire_minutes must be positive, please verify the `.env` file."
             )
 
-        return v
+        return value
 
     def __post_init__(self):
         """Post initialization checks."""
