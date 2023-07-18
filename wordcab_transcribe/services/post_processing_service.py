@@ -117,7 +117,7 @@ class PostProcessingService:
                 segment["text"],
             )
 
-            while segment_start > float(end) or abs(segment_start - float(end)) < 50:
+            while segment_start > float(end) or abs(segment_start - float(end)) < 300:
                 turn_idx += 1
                 turn_idx = min(turn_idx, len(speaker_timestamps) - 1)
                 s, end, speaker = speaker_timestamps[turn_idx]
@@ -127,6 +127,7 @@ class PostProcessingService:
 
             logger.debug(f"Segment {segment_index}: {segment_text}")
             logger.debug(f"Speaker {speaker} from {segment_start}/{s} to {segment_end}/{end}")
+            logger.debug(f"Words: {segment['words']}")
 
             if segment_end > float(end):
                 words = segment["words"]
@@ -136,6 +137,7 @@ class PostProcessingService:
                         i
                         for i, word in enumerate(words)
                         if _convert_s_to_ms(word["start"]) > float(end)
+                        or abs(_convert_s_to_ms(word["start"]) - float(end)) < 300
                     ),
                     None,
                 )
@@ -174,8 +176,8 @@ class PostProcessingService:
                 else:
                     segment_speaker_mapping.append(
                         dict(
-                            start=segment_start,
-                            end=segment_end,
+                            start=_convert_ms_to_s(segment_start),
+                            end=_convert_ms_to_s(segment_end),
                             text=segment_text,
                             speaker=speaker,
                             words=words,
@@ -184,8 +186,8 @@ class PostProcessingService:
             else:
                 segment_speaker_mapping.append(
                     dict(
-                        start=segment_start,
-                        end=segment_end,
+                        start=_convert_ms_to_s(segment_start),
+                        end=_convert_ms_to_s(segment_end),
                         text=segment_text,
                         speaker=speaker,
                         words=segment["words"],
@@ -277,9 +279,9 @@ class PostProcessingService:
             current_sentence["words"] = []
 
         sentences = []
-        for word in transcript_words:
-            text, speaker = word["text"], word["speaker"]
-            start_t, end_t = word["start"], word["end"]
+        for segment in transcript_words:
+            text, speaker = segment["text"], segment["speaker"]
+            start_t, end_t = segment["start"], segment["end"]
 
             if speaker != previous_speaker:
                 sentences.append(current_sentence)
@@ -297,13 +299,7 @@ class PostProcessingService:
             current_sentence["text"] += text + " "
             previous_speaker = speaker
             if word_timestamps:
-                current_sentence["words"].append(
-                    dict(
-                        word=text,
-                        start=start_t,
-                        end=end_t,
-                    )
-                )
+                current_sentence["words"].extend(segment["words"])
 
         # Catch the last sentence
         sentences.append(current_sentence)
