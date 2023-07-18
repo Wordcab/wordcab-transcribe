@@ -15,14 +15,11 @@
 
 from typing import Any, Dict, List
 
-from loguru import logger
-
 from wordcab_transcribe.utils import (
     _convert_ms_to_s,
     _convert_s_to_ms,
     convert_timestamp,
     format_punct,
-    get_segment_timestamp_anchor,
     is_empty_string,
 )
 
@@ -54,17 +51,13 @@ class PostProcessingService:
         Returns:
             List[dict]: List of sentences with speaker mapping.
         """
-        # words_with_speaker_mapping = self.words_speaker_mapping(
-        #     transcript_segments,
-        #     speaker_timestamps,
-        # )
-        words_with_speaker_mapping = self.segments_speaker_mapping(
+        segments_with_speaker_mapping = self.segments_speaker_mapping(
             transcript_segments,
             speaker_timestamps,
         )
 
         utterances = self.reconstruct_utterances(
-            words_with_speaker_mapping, word_timestamps
+            segments_with_speaker_mapping, word_timestamps
         )
 
         return utterances
@@ -105,7 +98,7 @@ class PostProcessingService:
             List[dict]: List of sentences with speaker mapping.
         """
         turn_idx = 0
-        s, end, speaker = speaker_timestamps[turn_idx]
+        _, end, speaker = speaker_timestamps[turn_idx]
 
         segment_index = 0
         segment_speaker_mapping = []
@@ -120,14 +113,10 @@ class PostProcessingService:
             while segment_start > float(end) or abs(segment_start - float(end)) < 300:
                 turn_idx += 1
                 turn_idx = min(turn_idx, len(speaker_timestamps) - 1)
-                s, end, speaker = speaker_timestamps[turn_idx]
+                _, end, speaker = speaker_timestamps[turn_idx]
                 if turn_idx == len(speaker_timestamps) - 1:
                     end = segment_end
                     break
-
-            logger.debug(f"Segment {segment_index}: {segment_text}")
-            logger.debug(f"Speaker {speaker} from {segment_start}/{s} to {segment_end}/{end}")
-            logger.debug(f"Words: {segment['words']}")
 
             if segment_end > float(end):
                 words = segment["words"]
@@ -197,55 +186,6 @@ class PostProcessingService:
             segment_index += 1
 
         return segment_speaker_mapping
-
-
-    def words_speaker_mapping(
-        self,
-        transcript_segments: List[dict],
-        speaker_timestamps: List[str],
-    ) -> List[dict]:
-        """
-        Map each word to its corresponding speaker based on the speaker timestamps.
-
-        Args:
-            transcript_segments (List[dict]): List of transcript segments.
-            speaker_timestamps (List[str]): List of speaker timestamps.
-
-        Returns:
-            List[dict]: List of words with speaker mapping.
-        """
-        _, end, speaker = speaker_timestamps[0]
-        turn_idx = 0
-
-        all_words = []
-        for segment in transcript_segments:
-            all_words.extend(segment["words"])
-
-        mapped_words = []
-        for word in all_words:
-            word_start, word_end = _convert_s_to_ms(word["start"]), _convert_s_to_ms(
-                word["end"]
-            )
-            while word_start > float(end):
-                turn_idx += 1
-                turn_idx = min(turn_idx, len(speaker_timestamps) - 1)
-                _, end, speaker = speaker_timestamps[turn_idx]
-                if turn_idx == len(speaker_timestamps) - 1:
-                    end = get_segment_timestamp_anchor(
-                        word_start, word_end, option="end"
-                    )
-                    break
-
-            mapped_words.append(
-                {
-                    "start": _convert_ms_to_s(word_start),
-                    "end": _convert_ms_to_s(word_end),
-                    "text": word["word"],
-                    "speaker": speaker,
-                }
-            )
-
-        return mapped_words
 
     def reconstruct_utterances(
         self,
