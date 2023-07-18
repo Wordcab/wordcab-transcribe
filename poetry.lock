@@ -1441,29 +1441,25 @@ all = ["email-validator (>=2.0.0)", "httpx (>=0.23.0)", "itsdangerous (>=1.1.0)"
 
 [[package]]
 name = "faster-whisper"
-version = "0.6.0"
+version = "0.7.0"
 description = "Faster Whisper transcription with CTranslate2"
 optional = false
 python-versions = ">=3.8"
-files = []
-develop = false
+files = [
+    {file = "faster-whisper-0.7.0.tar.gz", hash = "sha256:e420f1d6680ff8e468a6dba17a9fd4f16fdae6122dad294c3a023a8a7735e749"},
+    {file = "faster_whisper-0.7.0-py3-none-any.whl", hash = "sha256:eb646a307bb43c994699e8a488866a2875b7b8aecb87ce57f16bdf91f759b409"},
+]
 
 [package.dependencies]
 av = "==10.*"
-ctranslate2 = ">=3.10,<4"
-huggingface_hub = ">=0.13"
+ctranslate2 = ">=3.17,<4"
+huggingface-hub = ">=0.13"
 onnxruntime = ">=1.14,<2"
 tokenizers = "==0.13.*"
 
 [package.extras]
 conversion = ["transformers[torch] (>=4.23)"]
 dev = ["black (==23.*)", "flake8 (==6.*)", "isort (==5.*)", "pytest (==7.*)"]
-
-[package.source]
-type = "git"
-url = "https://github.com/guillaumekln/faster-whisper"
-reference = "3b4a6aa1c22d293ddde9f08bdd31fc842086a6ea"
-resolved_reference = "3b4a6aa1c22d293ddde9f08bdd31fc842086a6ea"
 
 [[package]]
 name = "ffmpeg-python"
@@ -6653,7 +6649,7 @@ multidict = ">=4.0"
 [[package]]
 name = "youtokentome"
 version = "1.0.6"
-description = ""
+description = "Unsupervised text tokenizer focused on computational efficiency"
 optional = false
 python-versions = ">=3.5.0"
 files = []
@@ -6705,4 +6701,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8.1,<3.10"
-content-hash = "d4de920d131eef516b9c60f71bba7805e841dcb86a246f4c1e25d43a73a134cc"
+content-hash = "316822f161acb00d229d070fcc53f3e962ad4b4ddd08ded727d562207365a9f4"

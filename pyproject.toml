@@ -10,10 +10,9 @@ python = ">=3.8.1,<3.10"
 aiohttp = ">=3.8.4"
 aiofiles = ">=23.1.0"
 argon2-cffi = ">=21.3.0"
-ctranslate2 = ">=3.17,<4"
 cython = ">=0.29.24"
 fastapi = ">=0.96.0"
-faster-whisper = { git = "https://github.com/guillaumekln/faster-whisper", rev = "3b4a6aa1c22d293ddde9f08bdd31fc842086a6ea" }
+faster-whisper = ">=0.7"
 ffmpeg-python = ">=0.2.0"
 loguru = ">=0.6.0"
 nemo-toolkit = { version = ">=1.17.0", extras = ["asr"] }
