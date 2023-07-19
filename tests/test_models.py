@@ -174,7 +174,7 @@ def test_audio_response() -> None:
                 end=6.0,
                 speaker=1,
                 words=[],
-            )
+            ),
         ],
         audio_duration=6.0,
         alignment=True,
@@ -201,7 +201,7 @@ def test_audio_response() -> None:
             end=6.0,
             speaker=1,
             words=[],
-        )
+        ),
     ]
     assert response.audio_duration == 6.0
     assert response.alignment is True
@@ -263,7 +263,7 @@ def test_base_response() -> None:
                 end=6.0,
                 speaker=1,
                 words=[],
-            )
+            ),
         ],
         audio_duration=6.0,
         alignment=True,
@@ -289,7 +289,7 @@ def test_base_response() -> None:
             end=6.0,
             speaker=1,
             words=[],
-        )
+        ),
     ]
     assert response.audio_duration == 6.0
     assert response.alignment is True
@@ -360,7 +360,7 @@ def test_cortex_url_response() -> None:
                 end=6.0,
                 speaker=1,
                 words=[],
-            )
+            ),
         ],
         audio_duration=6.0,
         alignment=True,
@@ -389,7 +389,7 @@ def test_cortex_url_response() -> None:
             end=6.0,
             speaker=1,
             words=[],
-        )
+        ),
     ]
     assert response.audio_duration == 6.0
     assert response.alignment is True
@@ -422,7 +422,7 @@ def test_cortex_youtube_response() -> None:
                 end=6.0,
                 speaker=1,
                 words=[],
-            )
+            ),
         ],
         audio_duration=6.0,
         alignment=True,
@@ -451,7 +451,7 @@ def test_cortex_youtube_response() -> None:
             end=6.0,
             speaker=1,
             words=[],
-        )
+        ),
     ]
     assert response.audio_duration == 6.0
     assert response.alignment is True
@@ -484,7 +484,7 @@ def test_youtube_response() -> None:
                 end=6.0,
                 speaker=1,
                 words=[],
-            )
+            ),
         ],
         audio_duration=6.0,
         alignment=True,
@@ -511,7 +511,7 @@ def test_youtube_response() -> None:
             end=6.0,
             speaker=1,
             words=[],
-        )
+        ),
     ]
     assert response.audio_duration == 6.0
     assert response.alignment is True
