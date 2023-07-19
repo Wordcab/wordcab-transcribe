@@ -242,7 +242,9 @@ def test_base_request_default() -> None:
 
 def test_base_request_invalid() -> None:
     """Test the BaseRequest model with invalid data."""
-    with pytest.raises(ValueError, match="`timestamps` must be one of 'hms', 'ms', 's'."):
+    with pytest.raises(
+        ValueError, match="`timestamps` must be one of 'hms', 'ms', 's'."
+    ):
         BaseRequest(timestamps="invalid")
 
 
