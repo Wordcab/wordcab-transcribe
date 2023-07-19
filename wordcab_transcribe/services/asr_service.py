@@ -159,7 +159,6 @@ class ASRAsyncService(ASRService):
         else:
             audio, duration = read_audio(filepath)
 
-        alignment = False  # New strategy doesn't require alignment for now
         task = {
             "input": audio,
             "alignment": alignment,
