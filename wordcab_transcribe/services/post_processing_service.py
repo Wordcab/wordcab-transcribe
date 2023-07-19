@@ -86,7 +86,8 @@ class PostProcessingService:
         transcript_segments: List[dict],
         speaker_timestamps: List[dict],
     ) -> List[dict]:
-        """
+        """Function to map transcription and diarization results.
+
         Map each segment to its corresponding speaker based on the speaker timestamps and reconstruct the utterances
         when the speaker changes in the middle of a segment.
 
@@ -160,7 +161,7 @@ class PostProcessingService:
                             end=_convert_ms_to_s(segment_end),
                             text=" ".join(_splitted_segment[word_index:]),
                             words=words[word_index:],
-                        )
+                        ),
                     )
                 else:
                     segment_speaker_mapping.append(

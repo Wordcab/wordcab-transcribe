@@ -24,8 +24,92 @@ from wordcab_transcribe.models import (
     CortexPayload,
     CortexUrlResponse,
     CortexYoutubeResponse,
+    Utterance,
+    Word,
     YouTubeResponse,
 )
+
+
+def test_word() -> None:
+    """Test the Word model."""
+    word = Word(
+        word="test",
+        start=0.0,
+        end=1.0,
+        score=0.9,
+    )
+    assert word.word == "test"
+    assert word.start == 0.0
+    assert word.end == 1.0
+    assert word.score == 0.9
+
+
+def test_utterance() -> None:
+    """Test the Utterance model."""
+    utterance = Utterance(
+        text="This is a test.",
+        start=0.0,
+        end=4.0,
+        speaker=0,
+        words=[
+            Word(
+                word="This",
+                start=0.0,
+                end=1.0,
+                score=0.9,
+            ),
+            Word(
+                word="is",
+                start=1.0,
+                end=2.0,
+                score=0.75,
+            ),
+            Word(
+                word="a",
+                start=2.0,
+                end=3.0,
+                score=0.8,
+            ),
+            Word(
+                word="test.",
+                start=3.0,
+                end=4.0,
+                score=0.85,
+            ),
+        ],
+    )
+    assert utterance.text == "This is a test."
+    assert utterance.start == 0.0
+    assert utterance.end == 4.0
+    assert utterance.speaker == 0
+    assert utterance.words is not None
+    assert utterance.words == [
+        Word(
+            word="This",
+            start=0.0,
+            end=1.0,
+            score=0.9,
+        ),
+        Word(
+            word="is",
+            start=1.0,
+            end=2.0,
+            score=0.75,
+        ),
+        Word(
+            word="a",
+            start=2.0,
+            end=3.0,
+            score=0.8,
+        ),
+        Word(
+            word="test.",
+            start=3.0,
+            end=4.0,
+            score=0.85,
+        ),
+    ]
+    assert isinstance(utterance.words[0], Word)
 
 
 def test_audio_request() -> None:

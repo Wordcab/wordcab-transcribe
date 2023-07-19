@@ -81,7 +81,9 @@ class Settings:
     def version_must_not_be_none(cls, value: str):  # noqa: B902, N805
         """Check that the version is not None."""
         if value is None:
-            raise ValueError("`version` must not be None, please verify the `.env` file.")
+            raise ValueError(
+                "`version` must not be None, please verify the `.env` file."
+            )
 
         return value
 
@@ -109,7 +111,9 @@ class Settings:
     def batch_size_must_be_positive(cls, value: int):  # noqa: B902, N805
         """Check that the batch_size is positive."""
         if value <= 0:
-            raise ValueError("`batch_size` must be positive, please verify the `.env` file.")
+            raise ValueError(
+                "`batch_size` must be positive, please verify the `.env` file."
+            )
 
         return value
 
@@ -117,7 +121,9 @@ class Settings:
     def max_wait_must_be_positive(cls, value: float):  # noqa: B902, N805
         """Check that the max_wait is positive."""
         if value <= 0:
-            raise ValueError("`max_wait` must be positive, please verify the `.env` file.")
+            raise ValueError(
+                "`max_wait` must be positive, please verify the `.env` file."
+            )
 
         return value
 

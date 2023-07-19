@@ -18,10 +18,29 @@ from typing import List, Optional
 from pydantic import BaseModel, field_validator
 
 
+class Word(BaseModel):
+    """Word model for the API."""
+
+    word: str
+    start: float
+    end: float
+    score: float
+
+
+class Utterance(BaseModel):
+    """Utterance model for the API."""
+
+    text: str
+    start: float
+    end: float
+    speaker: Optional[int]
+    words: Optional[List[Word]]
+
+
 class BaseResponse(BaseModel):
     """Base response model, not meant to be used directly."""
 
-    utterances: List[dict]
+    utterances: List[Utterance]
     audio_duration: float
     alignment: bool
     diarization: bool
