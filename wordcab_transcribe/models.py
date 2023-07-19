@@ -15,13 +15,32 @@
 
 from typing import List, Optional
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
+
+
+class Word(BaseModel):
+    """Word model for the API."""
+
+    word: str
+    start: float
+    end: float
+    score: float
+
+
+class Utterance(BaseModel):
+    """Utterance model for the API."""
+
+    text: str
+    start: float
+    end: float
+    speaker: Optional[int]
+    words: Optional[List[Word]]
 
 
 class BaseResponse(BaseModel):
     """Base response model, not meant to be used directly."""
 
-    utterances: List[dict]
+    utterances: List[Utterance]
     audio_duration: float
     alignment: bool
     diarization: bool
@@ -41,7 +60,7 @@ class AudioResponse(BaseResponse):
     class Config:
         """Pydantic config class."""
 
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "utterances": [
                     {
@@ -83,7 +102,7 @@ class YouTubeResponse(BaseResponse):
     class Config:
         """Pydantic config class."""
 
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "utterances": [
                     {
@@ -125,7 +144,7 @@ class CortexError(BaseModel):
     class Config:
         """Pydantic config class."""
 
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "message": "Error message here",
             }
@@ -150,24 +169,26 @@ class CortexPayload(BaseModel):
     job_name: Optional[str] = None
     ping: Optional[bool] = False
 
-    @validator("timestamps")
+    @field_validator("timestamps")
     def validate_timestamps_values(cls, value: str) -> str:  # noqa: B902, N805
         """Validate the value of the timestamps field."""
         if value not in ["hms", "ms", "s"]:
-            raise ValueError("timestamps must be one of 'hms', 'ms', 's'.")
+            raise ValueError("`timestamps` must be one of 'hms', 'ms', 's'.")
+
         return value
 
-    @validator("url_type")
+    @field_validator("url_type")
     def validate_url_type(cls, value: str) -> str:  # noqa: B902, N805
         """Validate the value of the url_type field."""
         if value not in ["audio_url", "youtube"]:
-            raise ValueError("Url must be one of 'audio_url', 'youtube'.")
+            raise ValueError("`url_type` must be one of 'audio_url', 'youtube'.")
+
         return value
 
     class Config:
         """Pydantic config class."""
 
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "url_type": "youtube",
                 "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
@@ -200,7 +221,7 @@ class CortexUrlResponse(AudioResponse):
     class Config:
         """Pydantic config class."""
 
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "utterances": [
                     {
@@ -245,7 +266,7 @@ class CortexYoutubeResponse(YouTubeResponse):
     class Config:
         """Pydantic config class."""
 
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "utterances": [
                     {
@@ -293,26 +314,28 @@ class BaseRequest(BaseModel):
     word_timestamps: bool = False
     internal_vad: bool = False
 
-    @validator("timestamps")
+    @field_validator("timestamps")
     def validate_timestamps_values(cls, value: str) -> str:  # noqa: B902, N805
         """Validate the value of the timestamps field."""
         if value not in ["hms", "ms", "s"]:
-            raise ValueError("timestamps must be one of 'hms', 'ms', 's'.")
+            raise ValueError("`timestamps` must be one of 'hms', 'ms', 's'.")
+
         return value
 
-    @validator("vocab")
+    @field_validator("vocab")
     def validate_each_vocab_value(
         cls, value: List[str]  # noqa: B902, N805
     ) -> List[str]:
         """Validate the value of each vocab field."""
         if not all(isinstance(v, str) for v in value):
-            raise ValueError("vocab must be a list of strings.")
+            raise ValueError("`vocab` must be a list of strings.")
+
         return value
 
     class Config:
         """Pydantic config class."""
 
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "alignment": False,
                 "diarization": False,
@@ -338,7 +361,7 @@ class AudioRequest(BaseRequest):
     class Config:
         """Pydantic config class."""
 
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "alignment": False,
                 "diarization": False,
@@ -365,7 +388,7 @@ class PongResponse(BaseModel):
     class Config:
         """Pydantic config class."""
 
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "message": "pong",
             },

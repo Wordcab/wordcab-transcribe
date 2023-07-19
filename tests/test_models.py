@@ -24,8 +24,92 @@ from wordcab_transcribe.models import (
     CortexPayload,
     CortexUrlResponse,
     CortexYoutubeResponse,
+    Utterance,
+    Word,
     YouTubeResponse,
 )
+
+
+def test_word() -> None:
+    """Test the Word model."""
+    word = Word(
+        word="test",
+        start=0.0,
+        end=1.0,
+        score=0.9,
+    )
+    assert word.word == "test"
+    assert word.start == 0.0
+    assert word.end == 1.0
+    assert word.score == 0.9
+
+
+def test_utterance() -> None:
+    """Test the Utterance model."""
+    utterance = Utterance(
+        text="This is a test.",
+        start=0.0,
+        end=4.0,
+        speaker=0,
+        words=[
+            Word(
+                word="This",
+                start=0.0,
+                end=1.0,
+                score=0.9,
+            ),
+            Word(
+                word="is",
+                start=1.0,
+                end=2.0,
+                score=0.75,
+            ),
+            Word(
+                word="a",
+                start=2.0,
+                end=3.0,
+                score=0.8,
+            ),
+            Word(
+                word="test.",
+                start=3.0,
+                end=4.0,
+                score=0.85,
+            ),
+        ],
+    )
+    assert utterance.text == "This is a test."
+    assert utterance.start == 0.0
+    assert utterance.end == 4.0
+    assert utterance.speaker == 0
+    assert utterance.words is not None
+    assert utterance.words == [
+        Word(
+            word="This",
+            start=0.0,
+            end=1.0,
+            score=0.9,
+        ),
+        Word(
+            word="is",
+            start=1.0,
+            end=2.0,
+            score=0.75,
+        ),
+        Word(
+            word="a",
+            start=2.0,
+            end=3.0,
+            score=0.8,
+        ),
+        Word(
+            word="test.",
+            start=3.0,
+            end=4.0,
+            score=0.85,
+        ),
+    ]
+    assert isinstance(utterance.words[0], Word)
 
 
 def test_audio_request() -> None:
@@ -77,8 +161,20 @@ def test_audio_response() -> None:
 
     response = AudioResponse(
         utterances=[
-            {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
-            {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+            Utterance(
+                text="Never gonna give you up",
+                start=0.0,
+                end=3.0,
+                speaker=0,
+                words=[],
+            ),
+            Utterance(
+                text="Never gonna let you down",
+                start=3.0,
+                end=6.0,
+                speaker=1,
+                words=[],
+            ),
         ],
         audio_duration=6.0,
         alignment=True,
@@ -92,8 +188,20 @@ def test_audio_response() -> None:
         internal_vad=False,
     )
     assert response.utterances == [
-        {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
-        {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+        Utterance(
+            text="Never gonna give you up",
+            start=0.0,
+            end=3.0,
+            speaker=0,
+            words=[],
+        ),
+        Utterance(
+            text="Never gonna let you down",
+            start=3.0,
+            end=6.0,
+            speaker=1,
+            words=[],
+        ),
     ]
     assert response.audio_duration == 6.0
     assert response.alignment is True
@@ -134,7 +242,9 @@ def test_base_request_default() -> None:
 
 def test_base_request_invalid() -> None:
     """Test the BaseRequest model with invalid data."""
-    with pytest.raises(ValueError, match="timestamps must be one of 'hms', 'ms', 's'."):
+    with pytest.raises(
+        ValueError, match="`timestamps` must be one of 'hms', 'ms', 's'."
+    ):
         BaseRequest(timestamps="invalid")
 
 
@@ -142,8 +252,20 @@ def test_base_response() -> None:
     """Test the BaseResponse model."""
     response = BaseResponse(
         utterances=[
-            {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
-            {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+            Utterance(
+                text="Never gonna give you up",
+                start=0.0,
+                end=3.0,
+                speaker=0,
+                words=[],
+            ),
+            Utterance(
+                text="Never gonna let you down",
+                start=3.0,
+                end=6.0,
+                speaker=1,
+                words=[],
+            ),
         ],
         audio_duration=6.0,
         alignment=True,
@@ -156,8 +278,20 @@ def test_base_response() -> None:
         internal_vad=False,
     )
     assert response.utterances == [
-        {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
-        {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+        Utterance(
+            text="Never gonna give you up",
+            start=0.0,
+            end=3.0,
+            speaker=0,
+            words=[],
+        ),
+        Utterance(
+            text="Never gonna let you down",
+            start=3.0,
+            end=6.0,
+            speaker=1,
+            words=[],
+        ),
     ]
     assert response.audio_duration == 6.0
     assert response.alignment is True
@@ -215,8 +349,20 @@ def test_cortex_url_response() -> None:
     """Test the CortexUrlResponse model."""
     response = CortexUrlResponse(
         utterances=[
-            {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
-            {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+            Utterance(
+                text="Never gonna give you up",
+                start=0.0,
+                end=3.0,
+                speaker=0,
+                words=[],
+            ),
+            Utterance(
+                text="Never gonna let you down",
+                start=3.0,
+                end=6.0,
+                speaker=1,
+                words=[],
+            ),
         ],
         audio_duration=6.0,
         alignment=True,
@@ -232,8 +378,20 @@ def test_cortex_url_response() -> None:
         request_id="test_request_id",
     )
     assert response.utterances == [
-        {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
-        {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+        Utterance(
+            text="Never gonna give you up",
+            start=0.0,
+            end=3.0,
+            speaker=0,
+            words=[],
+        ),
+        Utterance(
+            text="Never gonna let you down",
+            start=3.0,
+            end=6.0,
+            speaker=1,
+            words=[],
+        ),
     ]
     assert response.audio_duration == 6.0
     assert response.alignment is True
@@ -253,8 +411,20 @@ def test_cortex_youtube_response() -> None:
     """Test the CortexYoutubeResponse model."""
     response = CortexYoutubeResponse(
         utterances=[
-            {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
-            {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+            Utterance(
+                text="Never gonna give you up",
+                start=0.0,
+                end=3.0,
+                speaker=0,
+                words=[],
+            ),
+            Utterance(
+                text="Never gonna let you down",
+                start=3.0,
+                end=6.0,
+                speaker=1,
+                words=[],
+            ),
         ],
         audio_duration=6.0,
         alignment=True,
@@ -270,8 +440,20 @@ def test_cortex_youtube_response() -> None:
         request_id="test_request_id",
     )
     assert response.utterances == [
-        {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
-        {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+        Utterance(
+            text="Never gonna give you up",
+            start=0.0,
+            end=3.0,
+            speaker=0,
+            words=[],
+        ),
+        Utterance(
+            text="Never gonna let you down",
+            start=3.0,
+            end=6.0,
+            speaker=1,
+            words=[],
+        ),
     ]
     assert response.audio_duration == 6.0
     assert response.alignment is True
@@ -291,8 +473,20 @@ def test_youtube_response() -> None:
     """Test the YouTubeResponse model."""
     response = YouTubeResponse(
         utterances=[
-            {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
-            {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+            Utterance(
+                text="Never gonna give you up",
+                start=0.0,
+                end=3.0,
+                speaker=0,
+                words=[],
+            ),
+            Utterance(
+                text="Never gonna let you down",
+                start=3.0,
+                end=6.0,
+                speaker=1,
+                words=[],
+            ),
         ],
         audio_duration=6.0,
         alignment=True,
@@ -306,8 +500,20 @@ def test_youtube_response() -> None:
         video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     )
     assert response.utterances == [
-        {"text": "Never gonna give you up", "start": 0.0, "end": 3.0},
-        {"text": "Never gonna let you down", "start": 3.0, "end": 6.0},
+        Utterance(
+            text="Never gonna give you up",
+            start=0.0,
+            end=3.0,
+            speaker=0,
+            words=[],
+        ),
+        Utterance(
+            text="Never gonna let you down",
+            start=3.0,
+            end=6.0,
+            speaker=1,
+            words=[],
+        ),
     ]
     assert response.audio_duration == 6.0
     assert response.alignment is True

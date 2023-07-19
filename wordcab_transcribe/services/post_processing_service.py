@@ -20,7 +20,6 @@ from wordcab_transcribe.utils import (
     _convert_s_to_ms,
     convert_timestamp,
     format_punct,
-    get_segment_timestamp_anchor,
     is_empty_string,
 )
 
@@ -52,13 +51,13 @@ class PostProcessingService:
         Returns:
             List[dict]: List of sentences with speaker mapping.
         """
-        words_with_speaker_mapping = self.words_speaker_mapping(
+        segments_with_speaker_mapping = self.segments_speaker_mapping(
             transcript_segments,
             speaker_timestamps,
         )
 
         utterances = self.reconstruct_utterances(
-            words_with_speaker_mapping, word_timestamps
+            segments_with_speaker_mapping, word_timestamps
         )
 
         return utterances
@@ -82,53 +81,112 @@ class PostProcessingService:
 
         return utterances
 
-    def words_speaker_mapping(
+    def segments_speaker_mapping(
         self,
         transcript_segments: List[dict],
-        speaker_timestamps: List[str],
+        speaker_timestamps: List[dict],
     ) -> List[dict]:
-        """
-        Map each word to its corresponding speaker based on the speaker timestamps.
+        """Function to map transcription and diarization results.
+
+        Map each segment to its corresponding speaker based on the speaker timestamps and reconstruct the utterances
+        when the speaker changes in the middle of a segment.
 
         Args:
             transcript_segments (List[dict]): List of transcript segments.
-            speaker_timestamps (List[str]): List of speaker timestamps.
+            speaker_timestamps (List[dict]): List of speaker timestamps.
 
         Returns:
-            List[dict]: List of words with speaker mapping.
+            List[dict]: List of sentences with speaker mapping.
         """
-        _, end, speaker = speaker_timestamps[0]
         turn_idx = 0
+        _, end, speaker = speaker_timestamps[turn_idx]
 
-        all_words = []
-        for segment in transcript_segments:
-            all_words.extend(segment["words"])
-
-        mapped_words = []
-        for word in all_words:
-            word_start, word_end = _convert_s_to_ms(word["start"]), _convert_s_to_ms(
-                word["end"]
+        segment_index = 0
+        segment_speaker_mapping = []
+        while segment_index < len(transcript_segments):
+            segment = transcript_segments[segment_index]
+            segment_start, segment_end, segment_text = (
+                _convert_s_to_ms(segment["start"]),
+                _convert_s_to_ms(segment["end"]),
+                segment["text"],
             )
-            while word_start > float(end):
+
+            while segment_start > float(end) or abs(segment_start - float(end)) < 300:
                 turn_idx += 1
                 turn_idx = min(turn_idx, len(speaker_timestamps) - 1)
                 _, end, speaker = speaker_timestamps[turn_idx]
                 if turn_idx == len(speaker_timestamps) - 1:
-                    end = get_segment_timestamp_anchor(
-                        word_start, word_end, option="end"
-                    )
+                    end = segment_end
                     break
 
-            mapped_words.append(
-                {
-                    "start": _convert_ms_to_s(word_start),
-                    "end": _convert_ms_to_s(word_end),
-                    "text": word["word"],
-                    "speaker": speaker,
-                }
-            )
+            if segment_end > float(end):
+                words = segment["words"]
 
-        return mapped_words
+                word_index = next(
+                    (
+                        i
+                        for i, word in enumerate(words)
+                        if _convert_s_to_ms(word["start"]) > float(end)
+                        or abs(_convert_s_to_ms(word["start"]) - float(end)) < 300
+                    ),
+                    None,
+                )
+
+                if word_index is not None:
+                    _splitted_segment = segment_text.split()
+
+                    if word_index > 0:
+                        _segment_to_add = dict(
+                            start=words[0]["start"],
+                            end=words[word_index - 1]["end"],
+                            text=" ".join(_splitted_segment[:word_index]),
+                            speaker=speaker,
+                            words=words[:word_index],
+                        )
+
+                    else:
+                        _segment_to_add = dict(
+                            start=words[0]["start"],
+                            end=words[0]["end"],
+                            text=_splitted_segment[0],
+                            speaker=speaker,
+                            words=words[:1],
+                        )
+
+                    segment_speaker_mapping.append(_segment_to_add)
+                    transcript_segments.insert(
+                        segment_index + 1,
+                        dict(
+                            start=words[word_index]["start"],
+                            end=_convert_ms_to_s(segment_end),
+                            text=" ".join(_splitted_segment[word_index:]),
+                            words=words[word_index:],
+                        ),
+                    )
+                else:
+                    segment_speaker_mapping.append(
+                        dict(
+                            start=_convert_ms_to_s(segment_start),
+                            end=_convert_ms_to_s(segment_end),
+                            text=segment_text,
+                            speaker=speaker,
+                            words=words,
+                        )
+                    )
+            else:
+                segment_speaker_mapping.append(
+                    dict(
+                        start=_convert_ms_to_s(segment_start),
+                        end=_convert_ms_to_s(segment_end),
+                        text=segment_text,
+                        speaker=speaker,
+                        words=segment["words"],
+                    )
+                )
+
+            segment_index += 1
+
+        return segment_speaker_mapping
 
     def reconstruct_utterances(
         self,
@@ -162,9 +220,9 @@ class PostProcessingService:
             current_sentence["words"] = []
 
         sentences = []
-        for word in transcript_words:
-            text, speaker = word["text"], word["speaker"]
-            start_t, end_t = word["start"], word["end"]
+        for segment in transcript_words:
+            text, speaker = segment["text"], segment["speaker"]
+            start_t, end_t = segment["start"], segment["end"]
 
             if speaker != previous_speaker:
                 sentences.append(current_sentence)
@@ -182,13 +240,7 @@ class PostProcessingService:
             current_sentence["text"] += text + " "
             previous_speaker = speaker
             if word_timestamps:
-                current_sentence["words"].append(
-                    dict(
-                        word=text,
-                        start=start_t,
-                        end=end_t,
-                    )
-                )
+                current_sentence["words"].extend(segment["words"])
 
         # Catch the last sentence
         sentences.append(current_sentence)

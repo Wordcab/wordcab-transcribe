@@ -15,12 +15,12 @@
 
 from os import getenv
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List
 
 from dotenv import load_dotenv
 from faster_whisper.utils import _MODELS
 from loguru import logger
-from pydantic import validator
+from pydantic import field_validator
 from pydantic.dataclasses import dataclass
 
 
@@ -67,79 +67,130 @@ class Settings:
     svix_api_key: str
     svix_app_id: str
 
-    @validator("project_name", "version", "description", "api_prefix")
-    def basic_parameters_must_not_be_none(
-        cls, value: str, field: str  # noqa: B902, N805
-    ):
-        """Check that the authentication parameters are not None."""
+    @field_validator("project_name")
+    def project_name_must_not_be_none(cls, value: str):  # noqa: B902, N805
+        """Check that the project_name is not None."""
         if value is None:
             raise ValueError(
-                f"{field.name} must not be None, please verify the `.env` file."
+                "`project_name` must not be None, please verify the `.env` file."
             )
+
         return value
 
-    @validator("batch_size", "max_wait")
-    def batch_request_parameters_must_be_positive(
-        cls, value: Union[int, float], field: str  # noqa: B902, N805
-    ):
-        """Check that the model parameters are positive."""
+    @field_validator("version")
+    def version_must_not_be_none(cls, value: str):  # noqa: B902, N805
+        """Check that the version is not None."""
+        if value is None:
+            raise ValueError(
+                "`version` must not be None, please verify the `.env` file."
+            )
+
+        return value
+
+    @field_validator("description")
+    def description_must_not_be_none(cls, value: str):  # noqa: B902, N805
+        """Check that the description is not None."""
+        if value is None:
+            raise ValueError(
+                "`description` must not be None, please verify the `.env` file."
+            )
+
+        return value
+
+    @field_validator("api_prefix")
+    def api_prefix_must_not_be_none(cls, value: str):  # noqa: B902, N805
+        """Check that the api_prefix is not None."""
+        if value is None:
+            raise ValueError(
+                "`api_prefix` must not be None, please verify the `.env` file."
+            )
+
+        return value
+
+    @field_validator("batch_size")
+    def batch_size_must_be_positive(cls, value: int):  # noqa: B902, N805
+        """Check that the batch_size is positive."""
         if value <= 0:
-            raise ValueError(f"{field.name} must be positive.")
+            raise ValueError(
+                "`batch_size` must be positive, please verify the `.env` file."
+            )
+
         return value
 
-    @validator("whisper_model")
+    @field_validator("max_wait")
+    def max_wait_must_be_positive(cls, value: float):  # noqa: B902, N805
+        """Check that the max_wait is positive."""
+        if value <= 0:
+            raise ValueError(
+                "`max_wait` must be positive, please verify the `.env` file."
+            )
+
+        return value
+
+    @field_validator("whisper_model")
     def whisper_model_must_be_valid(cls, value: str):  # noqa: B902, N805
         """Check that the model name is valid. It can be a local path or a model name."""
         model_path = Path(value)
+
         if model_path.exists() is False:
             if value not in _MODELS:
                 raise ValueError(
                     f"{value} is not a valid model name. Choose one of {_MODELS}."
                     "If you want to use a local model, please provide a valid path."
                 )
+
         return value
 
-    @validator("compute_type")
+    @field_validator("compute_type")
     def compute_type_must_be_valid(cls, value: str):  # noqa: B902, N805
         """Check that the model precision is valid."""
-        if value not in {"int8", "int8_float16", "int16", "float16"}:
+        if value not in {"int8", "int8_float16", "int16", "float16", "float32"}:
             raise ValueError(
-                f"{value} is not a valid compute type. Choose one of int8, int8_float16, int16, float16."
+                f"{value} is not a valid compute type. "
+                "Choose one of int8, int8_float16, int16, float16, float32."
             )
+
         return value
 
-    @validator("nemo_domain_type")
+    @field_validator("nemo_domain_type")
     def nemo_domain_type_must_be_valid(cls, value: str):  # noqa: B902, N805
         """Check that the model precision is valid."""
         if value not in {"general", "telephonic", "meeting"}:
-            raise ValueError(f"{value} is not a valid domain type.")
+            raise ValueError(
+                f"{value} is not a valid domain type. "
+                "Choose one of general, telephonic, meeting."
+            )
+
         return value
 
-    @validator("asr_type")
+    @field_validator("asr_type")
     def asr_type_must_be_valid(cls, value: str):  # noqa: B902, N805
         """Check that the ASR type is valid."""
         if value not in {"async", "live"}:
             raise ValueError(
                 f"{value} is not a valid ASR type. Choose between `async` or `live`."
             )
+
         return value
 
-    @validator("openssl_algorithm")
+    @field_validator("openssl_algorithm")
     def openssl_algorithm_must_be_valid(cls, value: str):  # noqa: B902, N805
         """Check that the OpenSSL algorithm is valid."""
         if value not in {"HS256", "HS384", "HS512"}:
             raise ValueError(
                 "openssl_algorithm must be a valid algorithm, please verify the `.env` file."
             )
+
         return value
 
-    @validator("access_token_expire_minutes")
+    @field_validator("access_token_expire_minutes")
     def access_token_expire_minutes_must_be_valid(cls, value: int):  # noqa: B902, N805
         """Check that the access token expiration is valid. Only if debug is False."""
         if value <= 0:
             raise ValueError(
                 "access_token_expire_minutes must be positive, please verify the `.env` file."
             )
+
         return value
 
     def __post_init__(self):

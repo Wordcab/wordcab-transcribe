@@ -12,10 +12,10 @@ aiofiles = ">=23.1.0"
 argon2-cffi = ">=21.3.0"
 cython = ">=0.29.24"
 fastapi = ">=0.96.0"
-faster-whisper = ">=0.3.0"
+faster-whisper = ">=0.7"
 ffmpeg-python = ">=0.2.0"
 loguru = ">=0.6.0"
-nemo-toolkit = { version = ">=1.17.0", extras = ["asr"] }
+nemo-toolkit = { version = "1.19.1", extras = ["asr"] }
 numpy = "==1.23.1"
 num2words = ">=0.5.12"
 onnxruntime = ">=1.15.0"
