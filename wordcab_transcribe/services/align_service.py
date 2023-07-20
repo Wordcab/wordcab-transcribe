@@ -33,6 +33,7 @@ MODEL_MAPPING = OrderedDict(
     # (language, model_name, source)
     [
         ("ar", ("jonatasgrosman/wav2vec2-large-xlsr-53-arabic", "huggingface")),
+        ("cs", ("comodoro/wav2vec2-xls-r-300m-cs-250", "huggingface")),
         ("da", ("saattrupdan/wav2vec2-xls-r-300m-ftspeech", "huggingface")),
         ("de", ("VOXPOPULI_ASR_BASE_10K_DE", "torchaudio")),
         ("el", ("jonatasgrosman/wav2vec2-large-xlsr-53-greek", "huggingface")),
@@ -43,12 +44,18 @@ MODEL_MAPPING = OrderedDict(
         ("fr", ("VOXPOPULI_ASR_BASE_10K_FR", "torchaudio")),
         ("he", ("imvladikon/wav2vec2-xls-r-300m-hebrew", "huggingface")),
         ("hu", ("jonatasgrosman/wav2vec2-large-xlsr-53-hungarian", "huggingface")),
+        (
+            "in",
+            ("indonesian-nlp/wav2vec2-indonesian-javanese-sundanese", "huggingface"),
+        ),
         ("it", ("VOXPOPULI_ASR_BASE_10K_IT", "torchaudio")),
         ("ja", ("jonatasgrosman/wav2vec2-large-xlsr-53-japanese", "huggingface")),
         ("nl", ("jonatasgrosman/wav2vec2-large-xlsr-53-dutch", "huggingface")),
         ("pl", ("jonatasgrosman/wav2vec2-large-xlsr-53-polish", "huggingface")),
         ("pt", ("jonatasgrosman/wav2vec2-large-xlsr-53-portuguese", "huggingface")),
         ("ru", ("jonatasgrosman/wav2vec2-large-xlsr-53-russian", "huggingface")),
+        ("sl", ("anton-l/wav2vec2-large-xlsr-53-slovenian", "huggingface")),
+        ("th", ("airesearch/wav2vec2-large-xlsr-53-th", "huggingface")),
         ("tr", ("mpoyraz/wav2vec2-xls-r-300m-cv7-turkish", "huggingface")),
         ("uk", ("Yehor/wav2vec2-xls-r-300m-uk-with-small-lm", "huggingface")),
         ("zh", ("jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn", "huggingface")),
