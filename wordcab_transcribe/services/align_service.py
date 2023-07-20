@@ -485,18 +485,24 @@ class AlignService:
 
                     if not np.isnan(word_start):
                         word_segment["start"] = word_start
+                    else:
+                        word_segment["start"] = segment["words"][word_idx].start
                     if not np.isnan(word_end):
                         word_segment["end"] = word_end
+                    else:
+                        word_segment["end"] = segment["words"][word_idx].end
                     if not np.isnan(word_score):
                         word_segment["score"] = word_score
+                    else:
+                        word_segment["score"] = segment["words"][word_idx].probability
 
                     sentence_words.append(word_segment)
 
                 aligned_subsegments.append(
                     {
                         "text": sentence_text,
-                        "start": sentence_start,
-                        "end": sentence_end,
+                        "start": sentence_words[0]["start"],
+                        "end": sentence_words[-1]["end"],
                         "words": sentence_words,
                     }
                 )
