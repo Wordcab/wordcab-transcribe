@@ -149,7 +149,7 @@ def run_audio_url(
     else:
         raise ValueError("Unexpected JSON response")
 
-    url_name = url.split("https://")[1]
+    url_name = url.split("https://")[-1]
 
     with open(f"{url_name}.json", "w", encoding="utf-8") as f:
         json.dump(r_json, f, indent=4, ensure_ascii=False)
