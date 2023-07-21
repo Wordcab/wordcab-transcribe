@@ -40,6 +40,7 @@ def run_api_youtube(
         word_timestamps: associated words and their timestamps (defaulted to False)
         alignment: re-align timestamps (defaulted to False)
         diarization: speaker labels for utterances (defaulted to False)
+        server_url: the URL used to reach out the API.
 
     Returns:
         YouTubeResponse
