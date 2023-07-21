@@ -163,7 +163,7 @@ def run_api_audio_file(
     alignment: bool = False,
     diarization: bool = False,
     dual_channel: bool = False,
-    server_url: str = "None",
+    server_url: Optional[str] = None,
     vocab: Optional[List[str]] = None,
     timeout: int = 900,
 ):
