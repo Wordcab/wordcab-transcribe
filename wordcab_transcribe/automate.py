@@ -55,7 +55,7 @@ def run_api_youtube(
         "word_timestamps": word_timestamps,
     }
 
-    if server_url == "None":
+    if server_url is None:
         response = requests.post(
             "http://localhost:5001/api/v1/youtube",
             headers=headers,
