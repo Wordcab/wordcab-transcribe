@@ -199,7 +199,7 @@ def run_api_audio_file(
 
     with open(filepath, "rb") as f:
         files = {"file": f}
-        if server_url == "None":
+        if server_url is None:
             response = requests.post(
                 "http://localhost:5001/api/v1/audio",
                 files=files,
