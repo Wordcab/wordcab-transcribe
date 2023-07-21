@@ -186,25 +186,16 @@ def run_api_audio_file(
         AudioResponse
     """
     filepath = file  # or any other convertible format by ffmpeg
+    data = {
+        "alignment": alignment,
+        "diarization": diarization,
+        "source_lang": source_lang,
+        "timestamps": timestamps,
+        "word_timestamps": word_timestamps,
+        "dual_channel": dual_channel,
+    }
     if vocab:
-        data = {
-            "alignment": alignment,  # Longer processing time but better timestamps
-            "diarization": diarization,  # Longer processing time but speaker segment attribution
-            "dual_channel": dual_channel,  # Only for stereo audio files with one speaker per channel
-            "source_lang": source_lang,  # optional, default is "en"
-            "timestamps": timestamps,  # optional, default is "s". Can be "s", "ms" or "hms".
-            "word_timestamps": word_timestamps,  # optional, default is False
-            "vocab": vocab,
-        }
-    else:
-        data = {
-            "alignment": alignment,  # Longer processing time but better timestamps
-            "diarization": diarization,  # Longer processing time but speaker segment attribution
-            "dual_channel": dual_channel,  # Only for stereo audio files with one speaker per channel
-            "source_lang": source_lang,  # optional, default is "en"
-            "timestamps": timestamps,  # optional, default is "s". Can be "s", "ms" or "hms".
-            "word_timestamps": word_timestamps,  # optional, default is False
-        }
+        data["vocab"] = vocab
 
     with open(filepath, "rb") as f:
         files = {"file": f}
