@@ -208,7 +208,7 @@ def run_api_audio_file(
             )
         else:
             response = requests.post(
-                f"http://localhost:5001/api/{server_url}",
+                f"{server_url}/api/v1/audio",
                 files=files,
                 data=data,
                 timeout=timeout,
