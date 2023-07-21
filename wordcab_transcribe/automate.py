@@ -90,7 +90,7 @@ def run_audio_url(
     alignment: bool = False,
     diarization: bool = False,
     dual_channel: bool = False,
-    server_url: str = "None",
+    server_url: Optional[str] = None,
     vocab: Optional[List[str]] = None,
     timeout: int = 900,
 ):
