@@ -137,7 +137,7 @@ def run_audio_url(
         )
     else:
         response = requests.post(
-            f"https://wordcab.com/api/{server_url}",
+            f"{server_url}/api/v1/audio-url",
             headers=headers,
             params=params,
             data=data,
