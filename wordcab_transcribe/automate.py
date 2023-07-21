@@ -27,7 +27,7 @@ def run_api_youtube(
     word_timestamps: bool = False,
     alignment: bool = False,
     diarization: bool = False,
-    server_url: str = "None",
+    server_url: Optional[str] = None,
     timeout: int = 900,
 ):
     """
