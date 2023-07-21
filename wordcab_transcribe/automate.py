@@ -116,25 +116,16 @@ def run_audio_url(
 
     params = {"url": url}
 
+    data = {
+        "alignment": alignment,
+        "diarization": diarization,
+        "source_lang": source_lang,
+        "timestamps": timestamps,
+        "word_timestamps": word_timestamps,
+        "dual_channel": dual_channel,
+    }
     if vocab:
-        data = {
-            "alignment": alignment,  # Longer processing time but better timestamps
-            "diarization": diarization,  # Longer processing time but speaker segment attribution
-            "source_lang": source_lang,  # optional, default is "en"
-            "timestamps": timestamps,  # optional, default is "s". Can be "s", "ms" or "hms".
-            "word_timestamps": word_timestamps,  # optional, default is False
-            "dual_channel": dual_channel,
-            "vocab": vocab,
-        }
-    else:
-        data = {
-            "alignment": alignment,  # Longer processing time but better timestamps
-            "diarization": diarization,  # Longer processing time but speaker segment attribution
-            "source_lang": source_lang,  # optional, default is "en"
-            "timestamps": timestamps,  # optional, default is "s". Can be "s", "ms" or "hms".
-            "word_timestamps": word_timestamps,  # optional, default is False
-            "dual_channel": dual_channel,
-        }
+        data["vocab"] = vocab
 
     if server_url == "None":
         response = requests.post(
