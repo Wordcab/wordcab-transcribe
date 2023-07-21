@@ -48,11 +48,11 @@ def run_api_youtube(
     headers = {"accept": "application/json", "Content-Type": "application/json"}
     params = {"url": url}
     data = {
-        "alignment": alignment,  # Longer processing time but better timestamps
-        "diarization": diarization,  # Longer processing time but speaker segment attribution
-        "source_lang": source_lang,  # optional, default is "en"
-        "timestamps": timestamps,  # optional, default is "s". Can be "s", "ms" or "hms".
-        "word_timestamps": word_timestamps,  # optional, default is False
+        "alignment": alignment,
+        "diarization": diarization,
+        "source_lang": source_lang,
+        "timestamps": timestamps,
+        "word_timestamps": word_timestamps,
     }
 
     if server_url == "None":
