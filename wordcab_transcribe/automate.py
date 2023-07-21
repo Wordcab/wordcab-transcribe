@@ -278,7 +278,7 @@ def run_api(
             server_url,
             vocab,
         )
-    elif endpoint == "audioURL":
+    elif endpoint == "audio_url":
         run_audio_url(
             source,
             source_lang,
