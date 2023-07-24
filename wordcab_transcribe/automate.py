@@ -127,7 +127,7 @@ def run_audio_url(
     if vocab:
         data["vocab"] = vocab
 
-    if server_url == "None":
+    if server_url is None:
         response = requests.post(
             "https://wordcab.com/api/v1/audio-url",
             headers=headers,
