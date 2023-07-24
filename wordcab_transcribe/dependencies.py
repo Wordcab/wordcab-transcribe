@@ -13,6 +13,8 @@
 # limitations under the License.
 """Dependencies for the API."""
 
+import asyncio
+
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.services.asr_service import ASRAsyncService, ASRLiveService
 
@@ -24,3 +26,7 @@ elif settings.asr_type == "async":
     asr = ASRAsyncService()
 else:
     raise ValueError(f"Invalid ASR type: {settings.asr_type}")
+
+
+# Define the maximum number of files to pre-download for the async ASR service
+download_limit = asyncio.Semaphore(10)

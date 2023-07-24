@@ -21,7 +21,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi import status as http_status
 from loguru import logger
 
-from wordcab_transcribe.dependencies import asr
+from wordcab_transcribe.dependencies import asr, download_limit
 from wordcab_transcribe.models import BaseRequest, YouTubeResponse
 from wordcab_transcribe.utils import delete_file, download_audio_file
 
@@ -37,25 +37,27 @@ async def inference_with_youtube(
 ) -> YouTubeResponse:
     """Inference endpoint with YouTube url."""
     filename = f"yt_{shortuuid.ShortUUID().random(length=32)}"
-    filepath = await download_audio_file("youtube", url, filename)
 
-    data = BaseRequest() if data is None else BaseRequest(**data.dict())
+    async with download_limit:
+        filepath = await download_audio_file("youtube", url, filename)
 
-    task = asyncio.create_task(
-        asr.process_input(
-            filepath=filepath,
-            alignment=data.alignment,
-            diarization=data.diarization,
-            dual_channel=False,
-            source_lang=data.source_lang,
-            timestamps_format=data.timestamps,
-            use_batch=data.use_batch,
-            vocab=data.vocab,
-            word_timestamps=data.word_timestamps,
-            internal_vad=data.internal_vad,
+        data = BaseRequest() if data is None else BaseRequest(**data.dict())
+
+        task = asyncio.create_task(
+            asr.process_input(
+                filepath=filepath,
+                alignment=data.alignment,
+                diarization=data.diarization,
+                dual_channel=False,
+                source_lang=data.source_lang,
+                timestamps_format=data.timestamps,
+                use_batch=data.use_batch,
+                vocab=data.vocab,
+                word_timestamps=data.word_timestamps,
+                internal_vad=data.internal_vad,
+            )
         )
-    )
-    result = await task
+        result = await task
 
     background_tasks.add_task(delete_file, filepath=filepath)
 

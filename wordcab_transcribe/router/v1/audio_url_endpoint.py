@@ -21,7 +21,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi import status as http_status
 from loguru import logger
 
-from wordcab_transcribe.dependencies import asr
+from wordcab_transcribe.dependencies import asr, download_limit
 from wordcab_transcribe.models import AudioRequest, AudioResponse
 from wordcab_transcribe.utils import (
     convert_file_to_wav,
@@ -45,42 +45,43 @@ async def inference_with_audio_url(
 
     data = AudioRequest() if data is None else AudioRequest(**data.dict())
 
-    _filepath = await download_audio_file("url", url, filename)
+    async with download_limit:
+        _filepath = await download_audio_file("url", url, filename)
 
-    if data.dual_channel:
-        try:
-            filepath = await split_dual_channel_file(_filepath)
-        except Exception as e:
-            logger.error(f"{e}\nFallback to single channel mode.")
-            data.dual_channel = False
+        if data.dual_channel:
+            try:
+                filepath = await split_dual_channel_file(_filepath)
+            except Exception as e:
+                logger.error(f"{e}\nFallback to single channel mode.")
+                data.dual_channel = False
 
-    if not data.dual_channel:
-        try:
-            filepath = await convert_file_to_wav(_filepath)
+        if not data.dual_channel:
+            try:
+                filepath = await convert_file_to_wav(_filepath)
 
-        except Exception as e:
-            raise HTTPException(  # noqa: B904
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Process failed: {e}",
+            except Exception as e:
+                raise HTTPException(  # noqa: B904
+                    status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Process failed: {e}",
+                )
+
+        background_tasks.add_task(delete_file, filepath=filename)
+
+        task = asyncio.create_task(
+            asr.process_input(
+                filepath=filepath,
+                alignment=data.alignment,
+                diarization=data.diarization,
+                dual_channel=data.dual_channel,
+                source_lang=data.source_lang,
+                timestamps_format=data.timestamps,
+                use_batch=data.use_batch,
+                vocab=data.vocab,
+                word_timestamps=data.word_timestamps,
+                internal_vad=data.internal_vad,
             )
-
-    background_tasks.add_task(delete_file, filepath=filename)
-
-    task = asyncio.create_task(
-        asr.process_input(
-            filepath=filepath,
-            alignment=data.alignment,
-            diarization=data.diarization,
-            dual_channel=data.dual_channel,
-            source_lang=data.source_lang,
-            timestamps_format=data.timestamps,
-            use_batch=data.use_batch,
-            vocab=data.vocab,
-            word_timestamps=data.word_timestamps,
-            internal_vad=data.internal_vad,
         )
-    )
-    result = await task
+        result = await task
 
     background_tasks.add_task(delete_file, filepath=filepath)
 

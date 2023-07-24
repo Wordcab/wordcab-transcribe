@@ -59,9 +59,6 @@ CURRENCIES_CHARACTERS = [
     "₿",
 ]
 
-# Define the maximum number of files to pre-download for the async ASR service
-download_limit = asyncio.Semaphore(10)
-
 
 # pragma: no cover
 async def async_run_subprocess(command: List[str]) -> tuple:
@@ -274,15 +271,14 @@ async def download_audio_file(
     Returns:
         Union[str, Awaitable[str]]: Path to the downloaded file.
     """
-    async with download_limit:
-        if source == "youtube":
-            filename = await asyncio.get_running_loop().run_in_executor(
-                None, _download_file_from_youtube, url, filename
-            )
-        elif source == "url":
-            filename = await _download_file_from_url(url, filename, url_headers)
-        else:
-            raise ValueError(f"Invalid source: {source}. Valid sources are: youtube, url.")
+    if source == "youtube":
+        filename = await asyncio.get_running_loop().run_in_executor(
+            None, _download_file_from_youtube, url, filename
+        )
+    elif source == "url":
+        filename = await _download_file_from_url(url, filename, url_headers)
+    else:
+        raise ValueError(f"Invalid source: {source}. Valid sources are: youtube, url.")
     
     return filename
 
