@@ -185,7 +185,6 @@ def run_api_audio_file(
     Returns:
         AudioResponse
     """
-    filepath = file  # or any other convertible format by ffmpeg
     data = {
         "alignment": alignment,
         "diarization": diarization,
@@ -197,7 +196,7 @@ def run_api_audio_file(
     if vocab:
         data["vocab"] = vocab
 
-    with open(filepath, "rb") as f:
+    with open(file, "rb") as f:
         files = {"file": f}
         if server_url is None:
             response = requests.post(
