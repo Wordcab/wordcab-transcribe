@@ -14,7 +14,6 @@
 """Utils module of the Wordcab Transcribe."""
 import asyncio
 import json
-import requests
 import math
 import re
 import subprocess  # noqa: S404
