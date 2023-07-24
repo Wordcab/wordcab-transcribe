@@ -19,7 +19,7 @@ import re
 import subprocess  # noqa: S404
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Awaitable, Dict, List, Optional, Tuple, Union
 
 import aiofiles
 import aiohttp
@@ -58,6 +58,9 @@ CURRENCIES_CHARACTERS = [
     "₾",
     "₿",
 ]
+
+# Define the maximum number of files to pre-download for the async ASR service
+download_limit = asyncio.Semaphore(10)
 
 
 # pragma: no cover
@@ -250,7 +253,42 @@ async def convert_file_to_wav(filepath: str) -> str:
 
 
 # pragma: no cover
-def download_file_from_youtube(url: str, filename: str) -> str:
+async def download_audio_file(
+    source: str,
+    url: str,
+    filename: str,
+    url_headers: Optional[Dict[str, str]] = None,
+) -> Union[str, Awaitable[str]]:
+    """
+    Download an audio file from a URL.
+
+    Args:
+        source (str): Source of the audio file. Can be "youtube" or "url".
+        url (str): URL of the audio file.
+        filename (str): Filename to save the file as.
+        url_headers (Optional[Dict[str, str]]): Headers to send with the request. Defaults to None.
+
+    Raises:
+        ValueError: If the source is invalid. Valid sources are: youtube, url.
+
+    Returns:
+        Union[str, Awaitable[str]]: Path to the downloaded file.
+    """
+    async with download_limit:
+        if source == "youtube":
+            filename = await asyncio.get_running_loop().run_in_executor(
+                None, _download_file_from_youtube, url, filename
+            )
+        elif source == "url":
+            filename = await _download_file_from_url(url, filename, url_headers)
+        else:
+            raise ValueError(f"Invalid source: {source}. Valid sources are: youtube, url.")
+    
+    return filename
+
+
+# pragma: no cover
+def _download_file_from_youtube(url: str, filename: str) -> str:
     """
     Download a file from YouTube using youtube-dl.
 
@@ -274,24 +312,24 @@ def download_file_from_youtube(url: str, filename: str) -> str:
 
 
 # pragma: no cover
-async def download_audio_file(
+async def _download_file_from_url(
     url: str,
     filename: str,
     url_headers: Optional[Dict[str, str]] = None,
 ) -> str:
     """
-    Download an audio file from a URL.
+    Download a file from a URL using aiohttp.
 
     Args:
         url (str): URL of the audio file.
         filename (str): Filename to save the file as.
         url_headers (Optional[Dict[str, str]]): Headers to send with the request. Defaults to None.
 
-    Raises:
-        Exception: If the file failed to download.
-
     Returns:
         str: Path to the downloaded file.
+
+    Raises:
+        Exception: If the file failed to download.
     """
     url_headers = url_headers or {}
 

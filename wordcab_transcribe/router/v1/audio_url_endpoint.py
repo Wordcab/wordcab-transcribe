@@ -45,7 +45,7 @@ async def inference_with_audio_url(
 
     data = AudioRequest() if data is None else AudioRequest(**data.dict())
 
-    _filepath = await download_audio_file(url, filename)
+    _filepath = await download_audio_file("url", url, filename)
 
     if data.dual_channel:
         try:

@@ -21,9 +21,9 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi import status as http_status
 from loguru import logger
 
-from wordcab_transcribe.dependencies import asr, io_executor
+from wordcab_transcribe.dependencies import asr
 from wordcab_transcribe.models import BaseRequest, YouTubeResponse
-from wordcab_transcribe.utils import delete_file, download_file_from_youtube
+from wordcab_transcribe.utils import delete_file, download_audio_file
 
 
 router = APIRouter()
@@ -37,9 +37,7 @@ async def inference_with_youtube(
 ) -> YouTubeResponse:
     """Inference endpoint with YouTube url."""
     filename = f"yt_{shortuuid.ShortUUID().random(length=32)}"
-    filepath = await asyncio.get_running_loop().run_in_executor(
-        io_executor, download_file_from_youtube, url, filename
-    )
+    filepath = await download_audio_file("youtube", url, filename)
 
     data = BaseRequest() if data is None else BaseRequest(**data.dict())
 
