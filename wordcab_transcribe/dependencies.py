@@ -13,8 +13,7 @@
 # limitations under the License.
 """Dependencies for the API."""
 
-import multiprocessing
-from concurrent.futures import ThreadPoolExecutor
+import asyncio
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.services.asr_service import ASRAsyncService, ASRLiveService
@@ -29,9 +28,5 @@ else:
     raise ValueError(f"Invalid ASR type: {settings.asr_type}")
 
 
-hardware_num_cores = multiprocessing.cpu_count()
-
-# Define the number of workers for the I/O bound tasks
-io_executor = ThreadPoolExecutor(max_workers=hardware_num_cores)
-
-# TODO: Define the number of workers for the CPU bound tasks: Transcription, Alignment, Diarization
+# Define the maximum number of files to pre-download for the async ASR service
+download_limit = asyncio.Semaphore(10)
