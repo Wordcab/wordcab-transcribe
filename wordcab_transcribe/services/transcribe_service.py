@@ -402,7 +402,7 @@ class TranscribeService:
             words = ", ".join(vocab)
             prompt = f"Vocab: {words[:-2]}"
         else:
-            prompt = ""
+            prompt = None
 
         if not isinstance(audio, tuple):
             if isinstance(audio, torch.Tensor):
