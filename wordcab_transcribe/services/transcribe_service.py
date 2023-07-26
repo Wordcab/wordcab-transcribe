@@ -425,7 +425,7 @@ class TranscribeService:
             # )
 
             segments = list(segments)
-            if not segments and not internal_vad:
+            if not segments:
                 logger.warning(
                     "Empty transcription result. Trying with vad_filter=True."
                 )
@@ -435,7 +435,7 @@ class TranscribeService:
                     initial_prompt=prompt,
                     suppress_blank=False,
                     word_timestamps=True,
-                    vad_filter=True,
+                    vad_filter=False if internal_vad else True,
                 )
 
             outputs = [segment._asdict() for segment in segments]
