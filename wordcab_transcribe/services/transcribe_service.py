@@ -415,6 +415,13 @@ class TranscribeService:
                 suppress_blank=False,
                 word_timestamps=True,
                 vad_filter=internal_vad,
+                vad_parameters=dict(
+                    threshold=0.5,
+                    min_speech_duration_ms=250,
+                    min_silence_duration_ms=100,
+                    speech_pad_ms=30,
+                    window_size_samples=512,
+                ),
             )
             # segments, _ = self.models[model_index].model.transcribe(
             #     audio,
