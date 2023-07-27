@@ -28,6 +28,7 @@ def run_api_youtube(
     alignment: bool = False,
     diarization: bool = False,
     server_url: Optional[str] = None,
+    vocab: Optional[List[str]] = None,
     timeout: int = 900,
 ):
     """
@@ -41,6 +42,8 @@ def run_api_youtube(
         alignment: re-align timestamps (defaulted to False)
         diarization: speaker labels for utterances (defaulted to False)
         server_url: the URL used to reach out the API.
+        vocab: defaulted to empty list
+        timeout: defaulted to 90 seconds (15 minutes)
 
     Returns:
         YouTubeResponse
@@ -54,6 +57,8 @@ def run_api_youtube(
         "timestamps": timestamps,
         "word_timestamps": word_timestamps,
     }
+    if vocab:
+        data["vocab"] = vocab
 
     if server_url is None:
         response = requests.post(
@@ -65,21 +70,21 @@ def run_api_youtube(
         )
     else:
         response = requests.post(
-            f"{server_url}/api/v1/youtube",
+            f"http://localhost:5001/api/{server_url}",
+            # f"{server_url}/api/v1/youtube",
             headers=headers,
             params=params,
             data=json.dumps(data),
             timeout=timeout,
         )
 
-    if response.json == 200:
+    try:
         r_json = response.json()
-    else:
-        raise ValueError("Unexpected JSON response")
-
-    url_name = url.split("https://")[-1]
-    with open(f"{url_name}.json", "w", encoding="utf-8") as f:
-        json.dump(r_json, f, indent=4, ensure_ascii=False)
+        url_name = url.split("https://")[-1]
+        with open(f"{url_name}.json", "w", encoding="utf-8") as f:
+            json.dump(r_json, f, indent=4, ensure_ascii=False)
+    except Exception:
+        print("An exception occurred")
 
 
 def run_audio_url(
@@ -105,7 +110,7 @@ def run_audio_url(
         alignment: re-align timestamps (defaulted to False)
         diarization: speaker labels for utterances (defaulted to False)
         dual_channel: defaulted to False
-        server_url: defaulted to string value None
+        server_url: the URL used to reach out the API.
         vocab: defaulted to empty list
         timeout: defaulted to 90 seconds (15 minutes)
 
@@ -144,15 +149,13 @@ def run_audio_url(
             timeout=timeout,
         )
 
-    if response.json == 200:
+    try:
         r_json = response.json()
-    else:
-        raise ValueError("Unexpected JSON response")
-
-    url_name = url.split("https://")[-1]
-
-    with open(f"{url_name}.json", "w", encoding="utf-8") as f:
-        json.dump(r_json, f, indent=4, ensure_ascii=False)
+        url_name = url.split("https://")[-1]
+        with open(f"{url_name}.json", "w", encoding="utf-8") as f:
+            json.dump(r_json, f, indent=4, ensure_ascii=False)
+    except Exception:
+        print("An exception occurred")
 
 
 def run_api_audio_file(
@@ -178,7 +181,7 @@ def run_api_audio_file(
         alignment: re-align timestamps (defaulted to False)
         diarization: speaker labels for utterances (defaulted to False)
         dual_channel: defaulted to False
-        server_url: defaulted to string value None
+        server_url: the URL used to reach out the API.
         vocab: defaulted to empty list
         timeout: defaulted to 900 seconds (15 minutes)
 
@@ -213,14 +216,13 @@ def run_api_audio_file(
                 timeout=timeout,
             )
 
-    if response.json == 200:
+    try:
         r_json = response.json()
-    else:
-        raise ValueError("Unexpected JSON response")
-
-    filename = filepath.split(".")[0]
-    with open(f"{filename}.json", "w", encoding="utf-8") as f:
-        json.dump(r_json, f, indent=4, ensure_ascii=False)
+        filename = file.split(".")[0]
+        with open(f"{filename}.json", "w", encoding="utf-8") as f:
+            json.dump(r_json, f, indent=4, ensure_ascii=False)
+    except Exception:
+        print("An exception occurred")
 
 
 # run API function that will delegate to other functions based on the endpoint
@@ -235,6 +237,7 @@ def run_api(
     dual_channel: bool = False,
     server_url: Optional[str] = None,
     vocab: Optional[List[str]] = None,
+    timeout: int = 900,
 ):
     """
     Automated function for API calls for 3 endpoints: audio files, youtube videos, and audio URLs.
@@ -248,7 +251,7 @@ def run_api(
         alignment: re-align timestamps (defaulted to False)
         diarization: speaker labels for utterances (defaulted to False)
         dual_channel: defaulted to False
-        server_url: defaulted to string value None
+        server_url: the URL used to reach out the API.
         vocab: defaulted to empty list
         timeout: defaulted to 900 seconds (15 minutes)
 
@@ -264,6 +267,8 @@ def run_api(
             alignment,
             diarization,
             server_url,
+            vocab,
+            timeout,
         )
     elif endpoint == "audio_file":
         run_api_audio_file(
@@ -276,6 +281,7 @@ def run_api(
             dual_channel,
             server_url,
             vocab,
+            timeout,
         )
     elif endpoint == "audio_url":
         run_audio_url(
@@ -288,4 +294,5 @@ def run_api(
             dual_channel,
             server_url,
             vocab,
+            timeout,
         )
