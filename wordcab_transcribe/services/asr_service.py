@@ -288,7 +288,9 @@ class ASRAsyncService(ASRService):
             None: The task is updated with the result.
         """
         try:
-            result = self.services["diarization"](task["input"], model_index=gpu_index)
+            result = self.services["diarization"](
+                task["input"], model_index=gpu_index, vad_service=self.services["vad"]
+            )
 
         except Exception as e:
             result = Exception(f"Error in diarization: {e}\n{traceback.format_exc()}")
