@@ -400,7 +400,7 @@ class TranscribeService:
         # if not use_batch and not isinstance(audio, tuple):
         if vocab:
             words = ", ".join(vocab)
-            prompt = f"Vocab: {words[:-2]}"
+            prompt = f"Vocab: {words}"
         else:
             prompt = None
 
