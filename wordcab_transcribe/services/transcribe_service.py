@@ -457,7 +457,6 @@ class TranscribeService:
                         speaker_id=audio_index,
                         vad_service=vad_service,
                         prompt=prompt,
-                        internal_vad=internal_vad,
                     )
                 )
 
@@ -858,7 +857,6 @@ class TranscribeService:
         speaker_id: int,
         vad_service: VadService,
         prompt: Optional[str] = None,
-        internal_vad: bool = False,
     ) -> List[dict]:
         """
         Transcribe an audio file using the faster-whisper original pipeline.
@@ -892,14 +890,6 @@ class TranscribeService:
                 initial_prompt=prompt,
                 suppress_blank=False,
                 word_timestamps=True,
-                vad_filter=internal_vad,
-                vad_parameters=dict(
-                    threshold=0.5,
-                    min_speech_duration_ms=250,
-                    min_silence_duration_ms=100,
-                    speech_pad_ms=30,
-                    window_size_samples=512,
-                ),
             )
             segments = list(segments)
 
