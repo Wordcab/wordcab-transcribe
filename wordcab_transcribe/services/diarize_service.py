@@ -163,7 +163,7 @@ class SegmentationModule:
 
         dataset = AudioSegmentDataset(waveform, scale_segments)
         dataloader = torch.utils.data.DataLoader(
-            dataset, batch_size=64, shuffle=False, collate_fn=segmentatio_collate_fn
+            dataset, batch_size=64, shuffle=False, collate_fn=segmentation_collate_fn
         )
 
         for batch in dataloader:
@@ -249,8 +249,8 @@ class ClusteringModule:
             multiscale_weights=multiscale_embeddings_and_timestamps["multiscale_weights"],
             oracle_num_speakers=-1,
             max_num_speakers=self.params["max_num_speakers"],
-            max_rp_threshold=self.clustering_params["max_rp_threshold"],
-            sparse_search_volume=self.clustering_params["sparse_search_volume"],
+            max_rp_threshold=self.params["max_rp_threshold"],
+            sparse_search_volume=self.params["sparse_search_volume"],
         )
 
         del multiscale_embeddings_and_timestamps
