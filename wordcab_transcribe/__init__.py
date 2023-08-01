@@ -1,14 +1,20 @@
 # Copyright 2023 The Wordcab Team. All rights reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
+# Licensed under the Wordcab Transcribe License 0.1 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://github.com/Wordcab/wordcab-transcribe/blob/main/LICENSE
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Except as expressly provided otherwise herein, and to the fullest
+# extent permitted by law, Licensor provides the Software (and each
+# Contributor provides its Contributions) AS IS, and Licensor
+# disclaims all warranties or guarantees of any kind, express or
+# implied, whether arising under any law or from any usage in trade,
+# or otherwise including but not limited to the implied warranties
+# of merchantability, non-infringement, quiet enjoyment, fitness
+# for a particular purpose, or otherwise.
+#
+# See the License for the specific language governing permissions
+# and limitations under the License.
 """Main module of the Wordcab ASR API."""
