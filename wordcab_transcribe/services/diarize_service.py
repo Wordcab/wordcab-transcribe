@@ -127,11 +127,11 @@ class SegmentationModule:
             device (str): Device to use for inference. Can be "cpu" or "cuda".
             multiscale_weights (List[float]): List of weights for each scale.
         """
-        self.multiscale_weights = multiscale_weights
+        self.multiscale_weights = torch.tensor(multiscale_weights).unsqueeze(0).float()
 
-        if len(self.multiscale_weights) > 3:
+        if len(multiscale_weights) > 3:
             self.batch_size = 64
-        elif len(self.multiscale_weights) > 1:
+        elif len(multiscale_weights) > 1:
             self.batch_size = 128
         else:
             self.batch_size = 256
@@ -179,11 +179,13 @@ class SegmentationModule:
             segment_indexes.append(_embeddings.shape[0])
             timestamps.append(torch.tensor(_timestamps))
 
+        _multiscale_weights = torch.tensor(self.multiscale_weights).unsqueeze(0).float()
+
         return MultiscaleEmbeddingsAndTimestamps(
             embeddings=torch.cat(embeddings, dim=0),
             timestamps=torch.cat(timestamps, dim=0),
             multiscale_segment_counts=torch.tensor(segment_indexes),
-            multiscale_weights=torch.tensor(self.multiscale_weights).unsqueeze(0).float(),
+            multiscale_weights=_multiscale_weights,
         )
 
     def get_audio_segments_from_scale(
@@ -239,7 +241,10 @@ class SegmentationModule:
 
         dataset = AudioSegmentDataset(waveform, scale_segments)
         dataloader = torch.utils.data.DataLoader(
-            dataset, batch_size=self.batch_size, shuffle=False, collate_fn=segmentation_collate_fn
+            dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            collate_fn=segmentation_collate_fn,
         )
 
         for batch in dataloader:
