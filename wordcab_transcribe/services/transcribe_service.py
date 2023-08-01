@@ -917,6 +917,7 @@ class TranscribeService:
                             start=word_start_adjusted,
                             end=word_end_adjusted,
                             word=word.word,
+                            score=word.probability,
                         )
                     )
 
