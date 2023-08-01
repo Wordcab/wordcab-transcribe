@@ -15,11 +15,7 @@
 
 from typing import Any, Dict, List
 
-from wordcab_transcribe.utils import (
-    convert_timestamp,
-    format_punct,
-    is_empty_string,
-)
+from wordcab_transcribe.utils import convert_timestamp, format_punct, is_empty_string
 
 
 class PostProcessingService:

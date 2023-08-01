@@ -14,23 +14,16 @@
 """Diarization Service for audio files."""
 
 import math
-# from pathlib import Path
 from typing import Dict, List, NamedTuple, Tuple, Union
 
-# import librosa
-# import soundfile as sf
-
-from nemo.collections.asr.models.msdd_models import NeuralDiarizer
+import torch
 from nemo.collections.asr.models import EncDecSpeakerLabelModel
 from nemo.collections.asr.parts.utils.offline_clustering import SpeakerClustering
-
-import torch
 from torch.cuda.amp import autocast
 from torch.utils.data import Dataset
 
 from wordcab_transcribe.logging import time_and_tell
 from wordcab_transcribe.services.vad_service import VadService
-# from wordcab_transcribe.utils import load_nemo_config
 
 
 class MultiscaleEmbeddingsAndTimestamps(NamedTuple):
@@ -42,18 +35,12 @@ class MultiscaleEmbeddingsAndTimestamps(NamedTuple):
     multiscale_weights: torch.Tensor
 
 
-class NemoModel(NamedTuple):
-    """NeMo Model."""
-
-    model: NeuralDiarizer
-    output_path: str
-    tmp_audio_path: str
-    device: str
-
-
 class AudioSegmentDataset(Dataset):
     """Dataset for audio segments used by the SegmentationModule."""
-    def __init__(self, waveform: torch.Tensor, segments: List[dict], sample_rate=16000) -> None:
+
+    def __init__(
+        self, waveform: torch.Tensor, segments: List[dict], sample_rate=16000
+    ) -> None:
         """
         Initialize the dataset for the SegmentationModule.
 
@@ -84,12 +71,14 @@ class AudioSegmentDataset(Dataset):
         offset_samples = int(segment_info["offset"] * self.sample_rate)
         duration_samples = int(segment_info["duration"] * self.sample_rate)
 
-        segment = self.waveform[offset_samples:offset_samples + duration_samples]
+        segment = self.waveform[offset_samples : offset_samples + duration_samples]
 
         return segment, torch.tensor(segment.shape[0]).long()
 
 
-def segmentation_collate_fn(batch: List[Tuple[torch.Tensor, torch.Tensor]]) -> Tuple[torch.Tensor, torch.Tensor]:
+def segmentation_collate_fn(
+    batch: List[Tuple[torch.Tensor, torch.Tensor]]
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Collate function used by the dataloader of the SegmentationModule.
 
@@ -129,6 +118,7 @@ def segmentation_collate_fn(batch: List[Tuple[torch.Tensor, torch.Tensor]]) -> T
 
 class SegmentationModule:
     """Segmentation module for diariation."""
+
     def __init__(self, device: str) -> None:
         """Initialize the segmentation module."""
         self.speaker_model = EncDecSpeakerLabelModel.from_pretrained(
@@ -156,12 +146,16 @@ class SegmentationModule:
         embeddings, timestamps, segment_indexes = [], [], []
 
         for _, (window, shift) in scale_dict.items():
-            scale_segments = self.get_audio_segments_from_scale(vad_outputs, window, shift)
+            scale_segments = self.get_audio_segments_from_scale(
+                vad_outputs, window, shift
+            )
 
             _embeddings, _timestamps = self.extract_embeddings(waveform, scale_segments)
 
             if len(_embeddings) != len(_timestamps):
-                raise ValueError("Mismatch of counts between embedding vectors and timestamps")
+                raise ValueError(
+                    "Mismatch of counts between embedding vectors and timestamps"
+                )
 
             embeddings.append(_embeddings)
             segment_indexes.append(_embeddings.shape[0])
@@ -195,8 +189,13 @@ class SegmentationModule:
         """
         scale_segment = []
         for segment in vad_outputs:
-            segment_start, segment_end = segment["start"] / 16000, segment["end"] / 16000
-            subsegments = self.get_subsegments(segment_start, segment_end, window, shift)
+            segment_start, segment_end = (
+                segment["start"] / 16000,
+                segment["end"] / 16000,
+            )
+            subsegments = self.get_subsegments(
+                segment_start, segment_end, window, shift
+            )
 
             for subsegment in subsegments:
                 start, duration = subsegment
@@ -205,10 +204,18 @@ class SegmentationModule:
 
         return scale_segment
 
-    def extract_embeddings(self, waveform: torch.Tensor, scale_segments: List[dict]):
+    def extract_embeddings(
+        self, waveform: torch.Tensor, scale_segments: List[dict]
+    ) -> Tuple[torch.Tensor, List[List[float]]]:
         """
-        This method extracts speaker embeddings from segments passed through manifest_file
-        Optionally you may save the intermediate speaker embeddings for debugging or any use. 
+        This method extracts speaker embeddings from the audio file based on the scale segments.
+
+        Args:
+            waveform (torch.Tensor): Waveform of the audio file.
+            scale_segments (List[dict]): List of segments with the following keys: "offset", "duration".
+
+        Returns:
+            Tuple[torch.Tensor, List[List[float]]]: Tuple of embeddings and timestamps.
         """
         all_embs = torch.empty([0])
 
@@ -260,7 +267,7 @@ class SegmentationModule:
         start = segment_start
         duration = segment_end - segment_start
         base = math.ceil((duration - window) / shift)
-        
+
         subsegments: List[List[float]] = []
         slices = 1 if base < 0 else base + 1
         for slice_id in range(slices):
@@ -278,6 +285,7 @@ class SegmentationModule:
 
 class ClusteringModule:
     """Clustering module for diariation."""
+
     def __init__(self, device: str, max_num_speakers: int = 8) -> None:
         """Initialize the clustering module."""
         self.params = dict(
@@ -291,7 +299,9 @@ class ClusteringModule:
         self.clustering_model = SpeakerClustering(parallelism=True, cuda=True)
         self.clustering_model.device = device
 
-    def __call__(self, ms_emb_ts: MultiscaleEmbeddingsAndTimestamps) -> List[Tuple[float, float, int]]:
+    def __call__(
+        self, ms_emb_ts: MultiscaleEmbeddingsAndTimestamps
+    ) -> List[Tuple[float, float, int]]:
         """
         Run the clustering module and return the speaker segments.
 
@@ -321,7 +331,9 @@ class ClusteringModule:
         cluster_labels = cluster_labels.cpu().numpy()
 
         if len(cluster_labels) != timestamps.shape[0]:
-            raise ValueError("Mismatch of length between cluster_labels and timestamps.")
+            raise ValueError(
+                "Mismatch of length between cluster_labels and timestamps."
+            )
 
         clustering_labels = []
         for idx, label in enumerate(cluster_labels):
@@ -347,20 +359,21 @@ class DiarizeService:
         device: str,
         device_index: List[int],
         max_num_speakers: int = 8,
-        window_lengths: List[float] = [1.5, 1.25, 1.0, 0.75, 0.5],
-        shift_lengths: List[float] = [0.75, 0.625, 0.5, 0.375, 0.25],
-        multiscale_weights: List[int] = [1, 1, 1, 1, 1],
+        window_lengths: List[float] = [1.5, 1.25, 1.0, 0.75, 0.5],  # noqa: B006
+        shift_lengths: List[float] = [0.75, 0.625, 0.5, 0.375, 0.25],  # noqa: B006
+        multiscale_weights: List[int] = [1, 1, 1, 1, 1],  # noqa: B006
     ) -> None:
         """Initialize the Diarize Service.
 
-        This service uses the NeuralDiarizer from NeMo to diarize audio files.
+        This service uses the NVIDIA NeMo diarization models.
 
         Args:
-            domain_type (str): Domain type to use for diarization. Can be "general", "telephonic" or "meeting".
-            storage_path (str): Path where the diarization pipeline will save temporary files.
-            output_path (str): Path where the diarization pipeline will save the final output files.
             device (str): Device to use for inference. Can be "cpu" or "cuda".
             device_index (Union[int, List[int]]): Index of the device to use for inference.
+            max_num_speakers (int): Maximum number of speakers. Defaults to 8.
+            window_lengths (List[float]): List of window lengths. Defaults to [1.5, 1.25, 1.0, 0.75, 0.5].
+            shift_lengths (List[float]): List of shift lengths. Defaults to [0.75, 0.625, 0.5, 0.375, 0.25].
+            multiscale_weights (List[int]): List of weights for each scale. Defaults to [1, 1, 1, 1, 1].
         """
         self.device = device
         self.models = {}
@@ -370,12 +383,24 @@ class DiarizeService:
         self.window_lengths = window_lengths
         self.shift_lengths = shift_lengths
         self.multiscale_weights = multiscale_weights
-        assert len(self.window_lengths) == len(self.shift_lengths) == len(self.multiscale_weights)
-        self.scale_dict = {k: (w, s) for k, (w, s) in enumerate(zip(window_lengths, shift_lengths))}
+
+        if (
+            len(self.window_lengths)
+            != len(self.shift_lengths)
+            != len(self.multiscale_weights)
+        ):
+            raise ValueError(
+                f"Length of window_lengths, shift_lengths and multiscale_weights must be the same.\n"
+                f"Found: {len(self.window_lengths)}, {len(self.shift_lengths)}, {len(self.multiscale_weights)}"
+            )
+
+        self.scale_dict = {
+            k: (w, s) for k, (w, s) in enumerate(zip(window_lengths, shift_lengths))
+        }
 
         for idx in device_index:
             _device = f"cuda:{idx}" if self.device == "cuda" else "cpu"
-            
+
             segmentation_module = SegmentationModule(_device)
             clustering_module = ClusteringModule(_device, self.max_num_speakers)
 
@@ -398,14 +423,19 @@ class DiarizeService:
         Args:
             filepath (Union[str, torch.Tensor]): Path to the audio file or waveform.
             model_index (int): Index of the model to use for inference.
+            vad_service (VadService): VAD service instance to use for Voice Activity Detection.
 
         Returns:
             List[dict]: List of segments with the following keys: "start", "end", "speaker".
         """
         vad_outputs, _ = vad_service(filepath, False)
 
-        ms_emb_ts: MultiscaleEmbeddingsAndTimestamps = self.models[model_index].segmentation(
-            waveform=filepath, vad_outputs=vad_outputs, scale_dict=self.scale_dict,
+        ms_emb_ts: MultiscaleEmbeddingsAndTimestamps = self.models[
+            model_index
+        ].segmentation(
+            waveform=filepath,
+            vad_outputs=vad_outputs,
+            scale_dict=self.scale_dict,
         )
 
         clustering_outputs = self.models[model_index].clustering(ms_emb_ts)
@@ -416,9 +446,11 @@ class DiarizeService:
         return outputs
 
     @staticmethod
-    def get_contiguous_stamps(stamps: List[Tuple[float, float, int]]) -> List[Tuple[float, float, int]]:
+    def get_contiguous_stamps(
+        stamps: List[Tuple[float, float, int]]
+    ) -> List[Tuple[float, float, int]]:
         """
-        Return contiguous timestamps
+        Return contiguous timestamps.
 
         Args:
             stamps (List[Tuple[float, float, int]]): List of segments containing the start time, end time and speaker.
@@ -444,7 +476,9 @@ class DiarizeService:
         return contiguous_stamps
 
     @staticmethod
-    def merge_stamps(stamps: List[Tuple[float, float, int]]) -> List[Tuple[float, float, int]]:
+    def merge_stamps(
+        stamps: List[Tuple[float, float, int]]
+    ) -> List[Tuple[float, float, int]]:
         """
         Merge timestamps of the same speaker.
 
