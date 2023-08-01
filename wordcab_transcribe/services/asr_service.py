@@ -88,9 +88,6 @@ class ASRAsyncService(ASRService):
                 device_index=device_index,
             ),
             "diarization": DiarizeService(
-                domain_type=settings.nemo_domain_type,
-                storage_path=settings.nemo_storage_path,
-                output_path=settings.nemo_output_path,
                 device=self.device,
                 device_index=device_index,
             ),
