@@ -119,8 +119,23 @@ def segmentation_collate_fn(
 class SegmentationModule:
     """Segmentation module for diariation."""
 
-    def __init__(self, device: str) -> None:
-        """Initialize the segmentation module."""
+    def __init__(self, device: str, multiscale_weights: List[float]) -> None:
+        """
+        Initialize the segmentation module.
+
+        Args:
+            device (str): Device to use for inference. Can be "cpu" or "cuda".
+            multiscale_weights (List[float]): List of weights for each scale.
+        """
+        self.multiscale_weights = multiscale_weights
+
+        if len(self.multiscale_weights) > 3:
+            self.batch_size = 64
+        elif len(self.multiscale_weights) > 1:
+            self.batch_size = 128
+        else:
+            self.batch_size = 256
+
         self.speaker_model = EncDecSpeakerLabelModel.from_pretrained(
             model_name="titanet_large", map_location=None
         ).to(device)
@@ -142,6 +157,9 @@ class SegmentationModule:
 
         Returns:
             MultiscaleEmbeddingsAndTimestamps: Embeddings and timestamps of the audio file.
+
+        Raises:
+            ValueError: If there is a mismatch of counts between embedding vectors and timestamps.
         """
         embeddings, timestamps, segment_indexes = [], [], []
 
@@ -165,7 +183,7 @@ class SegmentationModule:
             embeddings=torch.cat(embeddings, dim=0),
             timestamps=torch.cat(timestamps, dim=0),
             multiscale_segment_counts=torch.tensor(segment_indexes),
-            multiscale_weights=torch.tensor([1, 1, 1, 1, 1]).unsqueeze(0).float(),
+            multiscale_weights=torch.tensor(self.multiscale_weights).unsqueeze(0).float(),
         )
 
     def get_audio_segments_from_scale(
@@ -221,7 +239,7 @@ class SegmentationModule:
 
         dataset = AudioSegmentDataset(waveform, scale_segments)
         dataloader = torch.utils.data.DataLoader(
-            dataset, batch_size=64, shuffle=False, collate_fn=segmentation_collate_fn
+            dataset, batch_size=self.batch_size, shuffle=False, collate_fn=segmentation_collate_fn
         )
 
         for batch in dataloader:
@@ -358,10 +376,10 @@ class DiarizeService:
         self,
         device: str,
         device_index: List[int],
+        window_lengths: List[float],
+        shift_lengths: List[float],
+        multiscale_weights: List[int],
         max_num_speakers: int = 8,
-        window_lengths: List[float] = [1.5, 1.25, 1.0, 0.75, 0.5],  # noqa: B006
-        shift_lengths: List[float] = [0.75, 0.625, 0.5, 0.375, 0.25],  # noqa: B006
-        multiscale_weights: List[int] = [1, 1, 1, 1, 1],  # noqa: B006
     ) -> None:
         """Initialize the Diarize Service.
 
@@ -370,10 +388,10 @@ class DiarizeService:
         Args:
             device (str): Device to use for inference. Can be "cpu" or "cuda".
             device_index (Union[int, List[int]]): Index of the device to use for inference.
+            window_lengths (List[float]): List of window lengths.
+            shift_lengths (List[float]): List of shift lengths.
+            multiscale_weights (List[int]): List of weights for each scale.
             max_num_speakers (int): Maximum number of speakers. Defaults to 8.
-            window_lengths (List[float]): List of window lengths. Defaults to [1.5, 1.25, 1.0, 0.75, 0.5].
-            shift_lengths (List[float]): List of shift lengths. Defaults to [0.75, 0.625, 0.5, 0.375, 0.25].
-            multiscale_weights (List[int]): List of weights for each scale. Defaults to [1, 1, 1, 1, 1].
         """
         self.device = device
         self.models = {}
@@ -384,16 +402,6 @@ class DiarizeService:
         self.shift_lengths = shift_lengths
         self.multiscale_weights = multiscale_weights
 
-        if (
-            len(self.window_lengths)
-            != len(self.shift_lengths)
-            != len(self.multiscale_weights)
-        ):
-            raise ValueError(
-                f"Length of window_lengths, shift_lengths and multiscale_weights must be the same.\n"
-                f"Found: {len(self.window_lengths)}, {len(self.shift_lengths)}, {len(self.multiscale_weights)}"
-            )
-
         self.scale_dict = {
             k: (w, s) for k, (w, s) in enumerate(zip(window_lengths, shift_lengths))
         }
@@ -401,7 +409,7 @@ class DiarizeService:
         for idx in device_index:
             _device = f"cuda:{idx}" if self.device == "cuda" else "cpu"
 
-            segmentation_module = SegmentationModule(_device)
+            segmentation_module = SegmentationModule(_device, self.multiscale_weights)
             clustering_module = ClusteringModule(_device, self.max_num_speakers)
 
             self.models[idx] = DiarizationModels(

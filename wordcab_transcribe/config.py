@@ -34,19 +34,16 @@ class Settings:
     description: str
     api_prefix: str
     debug: bool
-    # Batch configuration
-    batch_size: int
-    max_wait: float
     # Models configuration
     # Whisper
     whisper_model: str
     compute_type: str
     extra_languages: List[str]
     extra_languages_model_paths: Dict[str, str]
-    # NVIDIA NeMo
-    nemo_domain_type: str
-    nemo_storage_path: str
-    nemo_output_path: str
+    # Diarization
+    window_lengths: List[float]
+    shift_lengths: List[float]
+    multiscale_weights: List[float]
     # ASR type configuration
     asr_type: str
     # Endpoints configuration
@@ -107,26 +104,6 @@ class Settings:
 
         return value
 
-    @field_validator("batch_size")
-    def batch_size_must_be_positive(cls, value: int):  # noqa: B902, N805
-        """Check that the batch_size is positive."""
-        if value <= 0:
-            raise ValueError(
-                "`batch_size` must be positive, please verify the `.env` file."
-            )
-
-        return value
-
-    @field_validator("max_wait")
-    def max_wait_must_be_positive(cls, value: float):  # noqa: B902, N805
-        """Check that the max_wait is positive."""
-        if value <= 0:
-            raise ValueError(
-                "`max_wait` must be positive, please verify the `.env` file."
-            )
-
-        return value
-
     @field_validator("whisper_model")
     def whisper_model_must_be_valid(cls, value: str):  # noqa: B902, N805
         """Check that the model name is valid. It can be a local path or a model name."""
@@ -148,17 +125,6 @@ class Settings:
             raise ValueError(
                 f"{value} is not a valid compute type. "
                 "Choose one of int8, int8_float16, int16, float16, float32."
-            )
-
-        return value
-
-    @field_validator("nemo_domain_type")
-    def nemo_domain_type_must_be_valid(cls, value: str):  # noqa: B902, N805
-        """Check that the model precision is valid."""
-        if value not in {"general", "telephonic", "meeting"}:
-            raise ValueError(
-                f"{value} is not a valid domain type. "
-                "Choose one of general, telephonic, meeting."
             )
 
         return value
@@ -224,6 +190,16 @@ class Settings:
                     "You can generate a new key with `openssl rand -hex 32`."
                 )
 
+        if (
+            len(self.window_lengths)
+            != len(self.shift_lengths)
+            != len(self.multiscale_weights)
+        ):
+            raise ValueError(
+                f"Length of window_lengths, shift_lengths and multiscale_weights must be the same.\n"
+                f"Found: {len(self.window_lengths)}, {len(self.shift_lengths)}, {len(self.multiscale_weights)}"
+            )
+
 
 load_dotenv()
 
@@ -234,6 +210,25 @@ if _extra_languages is not None:
 else:
     extra_languages = []
 
+# Diarization scales
+_window_lengths = getenv("WINDOW_LENGTHS")
+if _window_lengths is not None:
+    window_lengths = [float(x) for x in _window_lengths.split(",")]
+else:
+    window_lengths = [1.5, 1.25, 1.0, 0.75, 0.5]
+
+_shift_lengths = getenv("SHIFT_LENGTHS")
+if _shift_lengths is not None:
+    shift_lengths = [float(x) for x in _shift_lengths.split(",")]
+else:
+    shift_lengths = [0.75, 0.625, 0.5, 0.375, 0.25]
+
+_multiscale_weights = getenv("MULTISCALE_WEIGHTS")
+if _multiscale_weights is not None:
+    multiscale_weights = [float(x) for x in _multiscale_weights.split(",")]
+else:
+    multiscale_weights = [1.0, 1.0, 1.0, 1.0, 1.0]
+
 settings = Settings(
     # General configuration
     project_name=getenv("PROJECT_NAME", "Wordcab Transcribe"),
@@ -243,9 +238,6 @@ settings = Settings(
     ),
     api_prefix=getenv("API_PREFIX", "/api/v1"),
     debug=getenv("DEBUG", True),
-    # Batch configuration
-    batch_size=getenv("BATCH_SIZE", 1),
-    max_wait=getenv("MAX_WAIT", 0.1),
     # Models configuration
     # Whisper
     whisper_model=getenv("WHISPER_MODEL", "large-v2"),
@@ -253,9 +245,9 @@ settings = Settings(
     extra_languages=extra_languages,
     extra_languages_model_paths={lang: "" for lang in extra_languages},
     # NeMo
-    nemo_domain_type=getenv("NEMO_DOMAIN_TYPE", "general"),
-    nemo_storage_path=getenv("NEMO_STORAGE_PATH", "nemo_storage"),
-    nemo_output_path=getenv("NEMO_OUTPUT_PATH", "nemo_outputs"),
+    window_lengths=window_lengths,
+    shift_lengths=shift_lengths,
+    multiscale_weights=multiscale_weights,
     # ASR type
     asr_type=getenv("ASR_TYPE", "async"),
     # Endpoints configuration

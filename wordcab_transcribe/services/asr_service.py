@@ -90,6 +90,9 @@ class ASRAsyncService(ASRService):
             "diarization": DiarizeService(
                 device=self.device,
                 device_index=device_index,
+                window_lengths=settings.window_lengths,
+                shift_lengths=settings.shift_lengths,
+                multiscale_weights=settings.multiscale_weights,
             ),
             "alignment": AlignService(self.device),
             "post_processing": PostProcessingService(),
