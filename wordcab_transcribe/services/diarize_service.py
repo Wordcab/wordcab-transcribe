@@ -179,13 +179,11 @@ class SegmentationModule:
             segment_indexes.append(_embeddings.shape[0])
             timestamps.append(torch.tensor(_timestamps))
 
-        _multiscale_weights = torch.tensor(self.multiscale_weights).unsqueeze(0).float()
-
         return MultiscaleEmbeddingsAndTimestamps(
             embeddings=torch.cat(embeddings, dim=0),
             timestamps=torch.cat(timestamps, dim=0),
             multiscale_segment_counts=torch.tensor(segment_indexes),
-            multiscale_weights=_multiscale_weights,
+            multiscale_weights=self.multiscale_weights,
         )
 
     def get_audio_segments_from_scale(
