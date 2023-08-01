@@ -366,9 +366,54 @@ class DiarizeService:
             scale_dict=self.scale_dict,
         )
 
-        outputs = self.clustering_module(multiscale_embeddings_and_timestamps)
+        _outputs = self.clustering_module(multiscale_embeddings_and_timestamps)
+
+        _outputs = self.get_contiguous_stamps(_outputs)
+        outputs = self.merge_stamps(_outputs)
 
         return outputs
+
+    @staticmethod
+    def get_contiguous_stamps(stamps: list):
+        """
+        Return contiguous time stamps
+        """
+        contiguous_stamps = []
+        for i in range(len(stamps) - 1):
+            start, end, speaker = stamps[i]
+            next_start, next_end, next_speaker = stamps[i + 1]
+
+            if end > next_start:
+                avg = (next_start + end) / 2.0
+                stamps[i + 1] = (avg, next_end, next_speaker)
+                contiguous_stamps.append((start, avg, speaker))
+            else:
+                contiguous_stamps.append((start, end, speaker))
+
+        start, end, speaker = stamps[-1]
+        contiguous_stamps.append((start, end, speaker))
+
+        return contiguous_stamps
+
+    @staticmethod
+    def merge_stamps(stamps: list):
+        """
+        Merge time stamps of the same speaker.
+        """
+        overlap_stamps = []
+        for i in range(len(stamps) - 1):
+            start, end, speaker = stamps[i]
+            next_start, next_end, next_speaker = stamps[i + 1]
+
+            if end == next_start and speaker == next_speaker:
+                stamps[i + 1] = (start, next_end, next_speaker)
+            else:
+                overlap_stamps.append((start, end, speaker))
+
+        start, end, speaker = stamps[-1]
+        overlap_stamps.append((start, end, speaker))
+
+        return overlap_stamps
 
     @staticmethod
     def _format_timestamps(output_path: str) -> List[dict]:
@@ -387,80 +432,9 @@ class DiarizeService:
             lines = f.readlines()
             for line in lines:
                 line_list = line.split(" ")
-                s = int(float(line_list[5]) * 1000)
-                e = s + int(float(line_list[8]) * 1000)
-                speaker_timestamps.append([s, e, int(line_list[11].split("_")[-1])])
+                start = int(float(line_list[5]))
+                end = start + int(float(line_list[8]))
+                speaker = int(line_list[11].split("_")[-1])
+                speaker_timestamps.append([start, end, speaker])
 
         return speaker_timestamps
-
-
-def real_diarize():
-    """"""
-    # VAD
-    waveform, _ = read_audio("./mono_file.wav")
-    vad_service = VadService()
-    speech_ts, _ = vad_service(waveform, False)
-
-    # Segmentation
-    window_lengths = [1.5, 1.25, 1.0, 0.75, 0.5]
-    shift_lengths = [0.75, 0.625, 0.5, 0.375, 0.25]
-    multiscale_weights = [1, 1, 1, 1, 1]
-
-    multiscale_args_dict = {'use_single_scale_clustering': False}
-    scale_dict = {k: (w, s) for k, (w, s) in enumerate(zip(window_lengths, shift_lengths))}
-
-
-    # Clustering
-
-
-    # Scoring
-
-def run_segmentation(
-    vad_outputs: List[dict],
-    window: float,
-    shift: float,
-    min_subsegment_duration: float = 0.05,
-) -> List[dict]:
-    """"""
-    scale_segment = []
-    for segment in vad_outputs:
-        segment_start, segment_end = segment["start"] / 16000, segment["end"] / 16000
-        subsegments = get_subsegments(segment_start, segment_end, window, shift)
-
-        for subsegment in subsegments:
-            start, duration = subsegment
-            if duration > min_subsegment_duration:
-                scale_segment.append({"offset": start, "duration": duration})
-
-    return scale_segment
-
-def get_subsegments(segment_start: float, segment_end: float, window: float, shift: float) -> List[List[float]]:
-    """
-    Return a list of subsegments based on the segment start and end time and the window and shift length.
-
-    Args:
-        segment_start (float): Segment start time.
-        segment_end (float): Segment end time.
-        window (float): Window length.
-        shift (float): Shift length.
-
-    Returns:
-        List[List[float]]: List of subsegments with start time and duration.
-    """
-    start = segment_start
-    duration = segment_end - segment_start
-    base = math.ceil((duration - window) / shift)
-    
-    subsegments: List[List[float]] = []
-    slices = 1 if base < 0 else base + 1
-    for slice_id in range(slices):
-        end = start + window
-
-        if end > segment_end:
-            end = segment_end
-
-        subsegments.append([start, end - start])
-
-        start = segment_start + (slice_id + 1) * shift
-
-    return subsegments
