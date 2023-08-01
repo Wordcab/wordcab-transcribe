@@ -69,9 +69,9 @@ def test_config() -> None:
     assert settings.extra_languages == [""]
     assert settings.extra_languages_model_paths == {"": ""}
 
-    assert settings.window_lengths == [0.5]
-    assert settings.shift_lengths == [0.25]
-    assert settings.multiscale_weights == [1.0]
+    assert settings.window_lengths == [1.5, 1.25, 1.0, 0.75, 0.5]
+    assert settings.shift_lengths == [0.75, 0.625, 0.5, 0.375, 0.25]
+    assert settings.multiscale_weights == [1.0, 1.0, 1.0, 1.0, 1.0]
 
     assert settings.asr_type == "async"
 
