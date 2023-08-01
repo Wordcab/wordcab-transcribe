@@ -31,7 +31,6 @@ COPY ./poetry.lock ./pyproject.toml ./
 RUN poetry install --only main
 
 COPY ./wordcab_transcribe /app/wordcab_transcribe
-COPY ./config /app/config
 COPY ./.env /app/.env
 
 WORKDIR /app
