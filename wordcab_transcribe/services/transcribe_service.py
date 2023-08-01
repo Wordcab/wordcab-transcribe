@@ -415,6 +415,13 @@ class TranscribeService:
                 suppress_blank=False,
                 word_timestamps=True,
                 vad_filter=internal_vad,
+                vad_parameters=dict(
+                    threshold=0.5,
+                    min_speech_duration_ms=250,
+                    min_silence_duration_ms=100,
+                    speech_pad_ms=30,
+                    window_size_samples=512,
+                ),
             )
             # segments, _ = self.models[model_index].model.transcribe(
             #     audio,
@@ -425,7 +432,7 @@ class TranscribeService:
             # )
 
             segments = list(segments)
-            if not segments and not internal_vad:
+            if not segments:
                 logger.warning(
                     "Empty transcription result. Trying with vad_filter=True."
                 )
@@ -435,7 +442,7 @@ class TranscribeService:
                     initial_prompt=prompt,
                     suppress_blank=False,
                     word_timestamps=True,
-                    vad_filter=True,
+                    vad_filter=False if internal_vad else True,
                 )
 
             outputs = [segment._asdict() for segment in segments]
