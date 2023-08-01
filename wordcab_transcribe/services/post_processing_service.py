@@ -15,13 +15,7 @@
 
 from typing import Any, Dict, List
 
-from wordcab_transcribe.utils import (
-    _convert_ms_to_s,
-    _convert_s_to_ms,
-    convert_timestamp,
-    format_punct,
-    is_empty_string,
-)
+from wordcab_transcribe.utils import convert_timestamp, format_punct, is_empty_string
 
 
 class PostProcessingService:
@@ -106,12 +100,12 @@ class PostProcessingService:
         while segment_index < len(transcript_segments):
             segment = transcript_segments[segment_index]
             segment_start, segment_end, segment_text = (
-                _convert_s_to_ms(segment["start"]),
-                _convert_s_to_ms(segment["end"]),
+                segment["start"],
+                segment["end"],
                 segment["text"],
             )
 
-            while segment_start > float(end) or abs(segment_start - float(end)) < 300:
+            while segment_start > float(end) or abs(segment_start - float(end)) < 0.3:
                 turn_idx += 1
                 turn_idx = min(turn_idx, len(speaker_timestamps) - 1)
                 _, end, speaker = speaker_timestamps[turn_idx]
@@ -126,8 +120,8 @@ class PostProcessingService:
                     (
                         i
                         for i, word in enumerate(words)
-                        if _convert_s_to_ms(word["start"]) > float(end)
-                        or abs(_convert_s_to_ms(word["start"]) - float(end)) < 300
+                        if word["start"] > float(end)
+                        or abs(word["start"] - float(end)) < 0.3
                     ),
                     None,
                 )
@@ -158,7 +152,7 @@ class PostProcessingService:
                         segment_index + 1,
                         dict(
                             start=words[word_index]["start"],
-                            end=_convert_ms_to_s(segment_end),
+                            end=segment_end,
                             text=" ".join(_splitted_segment[word_index:]),
                             words=words[word_index:],
                         ),
@@ -166,8 +160,8 @@ class PostProcessingService:
                 else:
                     segment_speaker_mapping.append(
                         dict(
-                            start=_convert_ms_to_s(segment_start),
-                            end=_convert_ms_to_s(segment_end),
+                            start=segment_start,
+                            end=segment_end,
                             text=segment_text,
                             speaker=speaker,
                             words=words,
@@ -176,8 +170,8 @@ class PostProcessingService:
             else:
                 segment_speaker_mapping.append(
                     dict(
-                        start=_convert_ms_to_s(segment_start),
-                        end=_convert_ms_to_s(segment_end),
+                        start=segment_start,
+                        end=segment_end,
                         text=segment_text,
                         speaker=speaker,
                         words=segment["words"],

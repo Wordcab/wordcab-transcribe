@@ -13,7 +13,6 @@
 # limitations under the License.
 """Utils module of the Wordcab Transcribe."""
 import asyncio
-import json
 import math
 import re
 import subprocess  # noqa: S404
@@ -30,7 +29,6 @@ import torchaudio
 from fastapi import UploadFile
 from loguru import logger
 from num2words import num2words
-from omegaconf import DictConfig, ListConfig, OmegaConf
 from yt_dlp import YoutubeDL
 
 
@@ -562,71 +560,6 @@ def interpolate_nans(x: pd.Series, method="nearest") -> pd.Series:
         return x.interpolate(method=method).ffill().bfill()
     else:
         return x.ffill().bfill()
-
-
-def load_nemo_config(
-    domain_type: str,
-    storage_path: str,
-    output_path: Path,
-    device: str,
-    index: int,
-) -> Union[DictConfig, ListConfig]:
-    """
-    Load NeMo config file based on a domain type.
-
-    Args:
-        domain_type (str): The domain type. Can be "general", "meeting" or "telephonic".
-        storage_path (str): The path to the NeMo storage directory.
-        output_path (Path): The path to the NeMo output directory.
-        device (str): The device to use for inference.
-        index (int): The index of the model to use for inference. Used to create separate folders and files.
-
-    Returns:
-        Tuple[DictConfig, str]: The NeMo config loaded as a DictConfig and the audio filepath.
-    """
-    cfg_path = (
-        Path(__file__).parent.parent
-        / "config"
-        / "nemo"
-        / f"diar_infer_{domain_type}.yaml"
-    )
-    with open(cfg_path) as f:
-        cfg = OmegaConf.load(f)
-
-    _storage_path = Path(__file__).parent.parent / storage_path
-    if not _storage_path.exists():
-        _storage_path.mkdir(parents=True, exist_ok=True)
-
-    temp_folder = Path.cwd() / f"temp_outputs_{index}"
-    if not temp_folder.exists():
-        temp_folder.mkdir(parents=True, exist_ok=True)
-
-    audio_filepath = str(temp_folder / "mono_file.wav")
-    meta = {
-        "audio_filepath": audio_filepath,
-        "offset": 0,
-        "duration": None,
-        "label": "infer",
-        "text": "-",
-        "rttm_filepath": None,
-        "uem_filepath": None,
-    }
-
-    manifest_path = _storage_path / f"infer_manifest_{index}.json"
-    with open(manifest_path, "w") as fp:
-        json.dump(meta, fp)
-        fp.write("\n")
-
-    _output_path = Path(__file__).parent.parent / output_path
-    if not _output_path.exists():
-        _output_path.mkdir(parents=True, exist_ok=True)
-
-    cfg.num_workers = 0
-    cfg.device = device
-    cfg.diarizer.manifest_filepath = str(manifest_path)
-    cfg.diarizer.out_dir = str(_output_path)
-
-    return cfg, audio_filepath
 
 
 def read_audio(filepath: str, sample_rate: int = 16000) -> Tuple[torch.Tensor, float]:

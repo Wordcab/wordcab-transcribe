@@ -10,9 +10,10 @@ __pycache__/
 /data/
 /dist/
 /docs/_build/
+/infer_out_dir/
 /src/*.egg-info/
+async_bench.py
 test.ipynb
 test.py
-async_bench.py
 whisper_model
 whisper_model_he

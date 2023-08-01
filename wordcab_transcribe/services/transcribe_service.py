@@ -399,10 +399,10 @@ class TranscribeService:
 
         # if not use_batch and not isinstance(audio, tuple):
         if (
-          vocab is not None
-          and isinstance(vocab, list)
-          and len(vocab) > 0
-          and vocab[0].strip()
+            vocab is not None
+            and isinstance(vocab, list)
+            and len(vocab) > 0
+            and vocab[0].strip()
         ):
             words = ", ".join(vocab)
             prompt = f"Vocab: {words.strip()}"

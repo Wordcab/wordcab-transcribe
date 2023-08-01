@@ -29,15 +29,13 @@ def default_settings() -> OrderedDict:
         description="💬 ASR FastAPI server using faster-whisper and NVIDIA NeMo.",
         api_prefix="/api/v1",
         debug=True,
-        batch_size=1,
-        max_wait=0.1,
         whisper_model="large-v2",
         compute_type="float16",
         extra_languages=["he"],
         extra_languages_model_paths={"he": "path/to/model"},
-        nemo_domain_type="general",
-        nemo_storage_path="nemo_storage",
-        nemo_output_path="nemo_outputs",
+        window_lengths=[1.5, 1.25, 1.0, 0.75, 0.5],
+        shift_lengths=[0.75, 0.625, 0.5, 0.375, 0.25],
+        multiscale_weights=[1.0, 1.0, 1.0, 1.0, 1.0],
         asr_type="async",
         audio_file_endpoint=True,
         audio_url_endpoint=True,
@@ -66,17 +64,14 @@ def test_config() -> None:
     assert settings.api_prefix == "/api/v1"
     assert settings.debug is True
 
-    assert settings.batch_size == 1
-    assert settings.max_wait == 0.1
-
     assert settings.whisper_model == "large-v2"
     assert settings.compute_type == "float16"
-    # assert settings.extra_languages == ["he"]
-    # assert settings.extra_languages_model_paths == {"he": ""}
+    assert settings.extra_languages == [""]
+    assert settings.extra_languages_model_paths == {"": ""}
 
-    assert settings.nemo_domain_type == "telephonic"
-    assert settings.nemo_storage_path == "nemo_storage"
-    assert settings.nemo_output_path == "nemo_outputs"
+    assert settings.window_lengths == [1.5, 1.25, 1.0, 0.75, 0.5]
+    assert settings.shift_lengths == [0.75, 0.625, 0.5, 0.375, 0.25]
+    assert settings.multiscale_weights == [1.0, 1.0, 1.0, 1.0, 1.0]
 
     assert settings.asr_type == "async"
 
@@ -120,19 +115,6 @@ def test_general_parameters_validator(default_settings: dict) -> None:
         Settings(**wrong_api_prefix)
 
 
-def test_batch_request_parameters_validator(default_settings: dict) -> None:
-    """Test batch request parameters validator."""
-    wrong_batch_size = default_settings.copy()
-    wrong_batch_size["batch_size"] = 0
-    with pytest.raises(ValueError):
-        Settings(**wrong_batch_size)
-
-    wrong_max_wait = default_settings.copy()
-    wrong_max_wait["max_wait"] = -1
-    with pytest.raises(ValueError):
-        Settings(**wrong_max_wait)
-
-
 def test_whisper_model_validator(default_settings: dict) -> None:
     """Test whisper model validator."""
     wrong_whisper_model = default_settings.copy()
@@ -149,13 +131,6 @@ def test_whisper_model_validator(default_settings: dict) -> None:
 def test_compute_type_validator(default_settings: dict) -> None:
     """Test compute type validator."""
     default_settings["compute_type"] = "invalid_compute_type"
-    with pytest.raises(ValueError):
-        Settings(**default_settings)
-
-
-def test_nemo_domain_type_validator(default_settings: dict) -> None:
-    """Test nemo domain type validator."""
-    default_settings["nemo_domain_type"] = "invalid_domain_type"
     with pytest.raises(ValueError):
         Settings(**default_settings)
 

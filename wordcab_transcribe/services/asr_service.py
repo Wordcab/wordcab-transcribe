@@ -88,11 +88,11 @@ class ASRAsyncService(ASRService):
                 device_index=device_index,
             ),
             "diarization": DiarizeService(
-                domain_type=settings.nemo_domain_type,
-                storage_path=settings.nemo_storage_path,
-                output_path=settings.nemo_output_path,
                 device=self.device,
                 device_index=device_index,
+                window_lengths=settings.window_lengths,
+                shift_lengths=settings.shift_lengths,
+                multiscale_weights=settings.multiscale_weights,
             ),
             "alignment": AlignService(self.device),
             "post_processing": PostProcessingService(),
@@ -288,7 +288,9 @@ class ASRAsyncService(ASRService):
             None: The task is updated with the result.
         """
         try:
-            result = self.services["diarization"](task["input"], model_index=gpu_index)
+            result = self.services["diarization"](
+                task["input"], model_index=gpu_index, vad_service=self.services["vad"]
+            )
 
         except Exception as e:
             result = Exception(f"Error in diarization: {e}\n{traceback.format_exc()}")
