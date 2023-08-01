@@ -135,13 +135,6 @@ def test_compute_type_validator(default_settings: dict) -> None:
         Settings(**default_settings)
 
 
-def test_nemo_domain_type_validator(default_settings: dict) -> None:
-    """Test nemo domain type validator."""
-    default_settings["nemo_domain_type"] = "invalid_domain_type"
-    with pytest.raises(ValueError):
-        Settings(**default_settings)
-
-
 def test_asr_type_validator(default_settings: dict) -> None:
     """Test asr type validator."""
     default_settings["asr_type"] = "invalid_asr_type"
