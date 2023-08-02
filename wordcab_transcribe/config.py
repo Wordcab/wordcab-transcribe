@@ -240,7 +240,8 @@ settings = Settings(
     project_name=getenv("PROJECT_NAME", "Wordcab Transcribe"),
     version=getenv("VERSION", "0.3.0"),
     description=getenv(
-        "DESCRIPTION", "💬 ASR FastAPI server using faster-whisper and NVIDIA NeMo."
+        "DESCRIPTION",
+        "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering for diarization.",
     ),
     api_prefix=getenv("API_PREFIX", "/api/v1"),
     debug=getenv("DEBUG", True),
