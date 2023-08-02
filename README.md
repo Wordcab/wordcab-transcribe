@@ -1,17 +1,19 @@
 # Wordcab Transcribe 💬
 
-FastAPI based API for transcribing audio files using [`faster-whisper`](https://github.com/guillaumekln/faster-whisper) and [`NVIDIA NeMo`](https://github.com/NVIDIA/NeMo)
+FastAPI based API for transcribing audio files using [`faster-whisper`](https://github.com/guillaumekln/faster-whisper)
+and [Auto-Tuning-Spectral-Clustering](https://arxiv.org/pdf/2003.02405.pdf) for diarization
+(based on this [GitHub implementation](https://github.com/tango4j/Auto-Tuning-Spectral-Clustering)).
 
 More details on this project on this [blog post](https://wordcab.github.io/wordcab-posts/blog/2023/03/31/wordcab-transcribe/).
 
 ## Key features
 
-- 🤗 Open-source: Our project is open-source and based on open-source libraries, allowing you to customize and extend it as needed.
 - ⚡ Fast: The faster-whisper library and CTranslate2 make audio processing incredibly fast compared to other implementations.
 - 🐳 Easy to deploy: You can deploy the project on your workstation or in the cloud using Docker.
 - 🔥 Batch requests: You can transcribe multiple audio files at once because batch requests are implemented in the API.
 - 💸 Cost-effective: As an open-source solution, you won't have to pay for costly ASR platforms.
 - 🫶 Easy-to-use API: With just a few lines of code, you can use the API to transcribe audio files or even YouTube videos.
+- 🤗 Open-source (commercial-use under [WTLv0.1 license](https://github.com/Wordcab/wordcab-transcribe/blob/main/LICENSE), please reach out to `info@wordcab.com`): Our project is open-source and based on open-source libraries, allowing you to customize and extend it as needed until you don't sell this as a hosted service.
 
 ## Requirements
 

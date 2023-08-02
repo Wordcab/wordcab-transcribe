@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "wordcab-transcribe"
-version = "0.3.1"
-description = "ASR FastAPI server using faster-whisper and NVIDIA NeMo diarization."
+version = "0.4.0"
+description = "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering for diarization."
 authors = ["Wordcab <info@wordcab.com>"]
 readme = "README.md"
 
@@ -12,6 +12,7 @@ aiofiles = ">=23.1.0"
 argon2-cffi = ">=21.3.0"
 cython = ">=0.29.24"
 fastapi = ">=0.96.0"
+faster-whisper = { git = "https://github.com/Wordcab/faster-whisper.git", branch = "patch-word-alignment" }
 ffmpeg-python = ">=0.2.0"
 loguru = ">=0.6.0"
 nemo-toolkit = { version = "1.19.1", extras = ["asr"] }
@@ -30,8 +31,6 @@ torchaudio = "2.0.1"
 uvicorn = ">=0.21.1"
 yt-dlp = ">=2023.3.4"
 youtokentome = { git = "https://github.com/gbeckenkamp/YouTokenToMe.git", branch = "add_minimum_requirements" }
-faster-whisper = { git = "https://github.com/Wordcab/faster-whisper.git", branch = "patch-word-alignment" }
-filetype = "1.2.0"
 
 [tool.poetry.group.test.dependencies]
 black = ">=23.1.0"
