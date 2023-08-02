@@ -1,7 +1,7 @@
 # Wordcab Transcribe 💬
 
 FastAPI based API for transcribing audio files using [`faster-whisper`](https://github.com/guillaumekln/faster-whisper)
-and [Auto-Tuning-Spectral-Clustering](https://arxiv.org/pdf/2003.02405.pdf) for diarization 
+and [Auto-Tuning-Spectral-Clustering](https://arxiv.org/pdf/2003.02405.pdf) for diarization
 (based on this [GitHub implementation](https://github.com/tango4j/Auto-Tuning-Spectral-Clustering)).
 
 More details on this project on this [blog post](https://wordcab.github.io/wordcab-posts/blog/2023/03/31/wordcab-transcribe/).
