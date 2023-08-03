@@ -136,9 +136,8 @@ class SegmentationModule:
             timestamps.append(torch.tensor(_timestamps))
 
         return MultiscaleEmbeddingsAndTimestamps(
-            embeddings=torch.cat(embeddings, dim=0),
-            timestamps=torch.cat(timestamps, dim=0),
-            multiscale_segment_counts=torch.tensor(segment_indexes),
+            embeddings=embeddings,
+            timestamps=timestamps,
             multiscale_weights=self.multiscale_weights,
         )
 

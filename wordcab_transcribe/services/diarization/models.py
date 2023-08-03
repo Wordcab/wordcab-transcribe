@@ -19,7 +19,7 @@
 # and limitations under the License.
 """Models for the diarization service and modules."""
 
-from typing import NamedTuple
+from typing import List, NamedTuple
 
 import torch
 
@@ -27,7 +27,6 @@ import torch
 class MultiscaleEmbeddingsAndTimestamps(NamedTuple):
     """Multiscale embeddings and timestamps outputs of the SegmentationModule."""
 
-    embeddings: torch.Tensor
-    timestamps: torch.Tensor
-    multiscale_segment_counts: torch.Tensor
+    embeddings: List[torch.Tensor]
+    timestamps: List[torch.Tensor]
     multiscale_weights: torch.Tensor
