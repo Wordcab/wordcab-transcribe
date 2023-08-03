@@ -32,7 +32,7 @@ from loguru import logger
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.logging import time_and_tell
 from wordcab_transcribe.services.align_service import AlignService
-from wordcab_transcribe.services.diarize_service import DiarizeService
+from wordcab_transcribe.services.diarization import DiarizeService
 from wordcab_transcribe.services.gpu_service import GPUService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
