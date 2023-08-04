@@ -117,7 +117,7 @@ class SegmentationModule:
         Raises:
             ValueError: If there is a mismatch of counts between embedding vectors and timestamps.
         """
-        embeddings, timestamps, segment_indexes = [], [], []
+        embeddings, timestamps = [], []
 
         for _, (window, shift) in scale_dict.items():
             scale_segments = self.get_audio_segments_from_scale(
@@ -132,10 +132,10 @@ class SegmentationModule:
                 )
 
             embeddings.append(_embeddings)
-            segment_indexes.append(_embeddings.shape[0])
             timestamps.append(torch.tensor(_timestamps))
 
         return MultiscaleEmbeddingsAndTimestamps(
+            base_scale_index=len(embeddings) - 1,
             embeddings=embeddings,
             timestamps=timestamps,
             multiscale_weights=self.multiscale_weights,

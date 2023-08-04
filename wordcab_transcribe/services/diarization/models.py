@@ -27,6 +27,7 @@ import torch
 class MultiscaleEmbeddingsAndTimestamps(NamedTuple):
     """Multiscale embeddings and timestamps outputs of the SegmentationModule."""
 
+    base_scale_index: int
     embeddings: List[torch.Tensor]
     timestamps: List[torch.Tensor]
     multiscale_weights: torch.Tensor
