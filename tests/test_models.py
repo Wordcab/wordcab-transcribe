@@ -30,10 +30,18 @@ from wordcab_transcribe.models import (
     CortexPayload,
     CortexUrlResponse,
     CortexYoutubeResponse,
+    Timestamps,
     Utterance,
     Word,
     YouTubeResponse,
 )
+
+
+def test_timestamps() -> None:
+    """Test the Timestamps enum."""
+    assert Timestamps.seconds == "s"
+    assert Timestamps.milliseconds == "ms"
+    assert Timestamps.hour_minute_second == "hms"
 
 
 def test_word() -> None:
@@ -248,9 +256,7 @@ def test_base_request_default() -> None:
 
 def test_base_request_invalid() -> None:
     """Test the BaseRequest model with invalid data."""
-    with pytest.raises(
-        ValueError, match="`timestamps` must be one of 'hms', 'ms', 's'."
-    ):
+    with pytest.raises(ValueError):
         BaseRequest(timestamps="invalid")
 
 
