@@ -17,6 +17,7 @@ data = {
     "word_timestamps": True,  # optional, default is False
 }
 
+
 async def fetch(session, params):
     async with session.post(
         "http://localhost:5001/api/v1/youtube",
@@ -26,13 +27,13 @@ async def fetch(session, params):
     ) as response:
         return await response.json()
 
+
 async def main():
     async with aiohttp.ClientSession() as session:
-        responses = await asyncio.gather(
-            *[fetch(session, params) for _ in range(15)]
-        )
+        responses = await asyncio.gather(*[fetch(session, params) for _ in range(15)])
         for response in responses:
             print(response["audio_duration"])
+
 
 if __name__ == "__main__":
     import asyncio
