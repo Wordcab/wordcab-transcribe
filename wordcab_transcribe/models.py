@@ -19,9 +19,18 @@
 # and limitations under the License.
 """Models module of the Wordcab Transcribe."""
 
-from typing import List, Optional
+from enum import Enum
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, field_validator
+
+
+class Timestamps(str, Enum):
+    """Timestamps enum for the API."""
+
+    seconds = "s"
+    milliseconds = "ms"
+    hour_minute_second = "hms"
 
 
 class Word(BaseModel):
@@ -160,36 +169,20 @@ class CortexError(BaseModel):
 class CortexPayload(BaseModel):
     """Request object for Cortex endpoint."""
 
-    url_type: str = "audio_url"
+    url_type: Literal["audio_url", "youtube"]
     url: Optional[str] = None
     api_key: Optional[str] = None
     alignment: Optional[bool] = False
     diarization: Optional[bool] = False
     dual_channel: Optional[bool] = False
     source_lang: Optional[str] = "en"
-    timestamps: Optional[str] = "s"
+    timestamps: Optional[Timestamps] = Timestamps.seconds
     use_batch: Optional[bool] = False
     vocab: Optional[List[str]] = []
     word_timestamps: Optional[bool] = False
     internal_vad: Optional[bool] = False
     job_name: Optional[str] = None
     ping: Optional[bool] = False
-
-    @field_validator("timestamps")
-    def validate_timestamps_values(cls, value: str) -> str:  # noqa: B902, N805
-        """Validate the value of the timestamps field."""
-        if value not in ["hms", "ms", "s"]:
-            raise ValueError("`timestamps` must be one of 'hms', 'ms', 's'.")
-
-        return value
-
-    @field_validator("url_type")
-    def validate_url_type(cls, value: str) -> str:  # noqa: B902, N805
-        """Validate the value of the url_type field."""
-        if value not in ["audio_url", "youtube"]:
-            raise ValueError("`url_type` must be one of 'audio_url', 'youtube'.")
-
-        return value
 
     class Config:
         """Pydantic config class."""
@@ -314,19 +307,11 @@ class BaseRequest(BaseModel):
     alignment: bool = False
     diarization: bool = False
     source_lang: str = "en"
-    timestamps: str = "s"
+    timestamps: Timestamps = Timestamps.seconds
     use_batch: bool = False
     vocab: List[str] = []
     word_timestamps: bool = False
     internal_vad: bool = False
-
-    @field_validator("timestamps")
-    def validate_timestamps_values(cls, value: str) -> str:  # noqa: B902, N805
-        """Validate the value of the timestamps field."""
-        if value not in ["hms", "ms", "s"]:
-            raise ValueError("`timestamps` must be one of 'hms', 'ms', 's'.")
-
-        return value
 
     @field_validator("vocab")
     def validate_each_vocab_value(
