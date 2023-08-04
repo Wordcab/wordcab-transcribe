@@ -14,10 +14,13 @@
 
 """Automate module of the Wordcab Transcribe."""
 
+
 import json
 from typing import List, Optional
 
 import requests
+
+from wordcab_transcribe.models import AudioResponse, BaseResponse, YouTubeResponse
 
 
 def run_api_youtube(
@@ -30,7 +33,7 @@ def run_api_youtube(
     server_url: Optional[str] = None,
     vocab: Optional[List[str]] = None,
     timeout: int = 900,
-):
+) -> YouTubeResponse:
     """
     Run API call for Youtube videos.
 
@@ -41,12 +44,12 @@ def run_api_youtube(
         word_timestamps: associated words and their timestamps (defaulted to False)
         alignment: re-align timestamps (defaulted to False)
         diarization: speaker labels for utterances (defaulted to False)
-        server_url: the URL used to reach out the API.
+        server_url: the URL used to reach out the API
         vocab: defaulted to empty list
         timeout: defaulted to 90 seconds (15 minutes)
 
     Returns:
-        YouTubeResponse
+        AudioResponse
     """
     headers = {"accept": "application/json", "Content-Type": "application/json"}
     params = {"url": url}
@@ -83,6 +86,7 @@ def run_api_youtube(
         url_name = url.split("https://")[-1]
         with open(f"{url_name}.json", "w", encoding="utf-8") as f:
             json.dump(r_json, f, indent=4, ensure_ascii=False)
+        return response
     except Exception:
         print("An exception occurred")
 
@@ -98,19 +102,19 @@ def run_audio_url(
     server_url: Optional[str] = None,
     vocab: Optional[List[str]] = None,
     timeout: int = 900,
-):
+) -> AudioResponse:
     """
     Run API call for audio URLs.
 
     Args:
-        url (str): URL source of the audio file.
+        url (str): URL source of the audio URL.
         source_lang: language of the URL source (defaulted to English)
         timestamps: time unit of the timestamps (defaulted to seconds)
-        word_timestamps: whether the timestamps are represented by words (defaulted to False)
+        word_timestamps: associated words and their timestamps (defaulted to False)
         alignment: re-align timestamps (defaulted to False)
         diarization: speaker labels for utterances (defaulted to False)
         dual_channel: defaulted to False
-        server_url: the URL used to reach out the API.
+        server_url: the URL used to reach out the API
         vocab: defaulted to empty list
         timeout: defaulted to 90 seconds (15 minutes)
 
@@ -154,6 +158,7 @@ def run_audio_url(
         url_name = url.split("https://")[-1]
         with open(f"{url_name}.json", "w", encoding="utf-8") as f:
             json.dump(r_json, f, indent=4, ensure_ascii=False)
+        return response
     except Exception:
         print("An exception occurred")
 
@@ -169,21 +174,21 @@ def run_api_audio_file(
     server_url: Optional[str] = None,
     vocab: Optional[List[str]] = None,
     timeout: int = 900,
-):
+) -> AudioResponse:
     """
     Run API call for audio files.
 
     Args:
-        file (str): file source of the audio file.
-        source_lang: language of the source (defaulted to English)
+        file (str): source of the audio file.
+        source_lang: language of the URL source (defaulted to English)
         timestamps: time unit of the timestamps (defaulted to seconds)
-        word_timestamps: whether the timestamps are represented by words (defaulted to False)
+        word_timestamps: associated words and their timestamps (defaulted to False)
         alignment: re-align timestamps (defaulted to False)
         diarization: speaker labels for utterances (defaulted to False)
         dual_channel: defaulted to False
-        server_url: the URL used to reach out the API.
+        server_url: the URL used to reach out the API
         vocab: defaulted to empty list
-        timeout: defaulted to 900 seconds (15 minutes)
+        timeout: defaulted to 90 seconds (15 minutes)
 
     Returns:
         AudioResponse
@@ -221,6 +226,7 @@ def run_api_audio_file(
         filename = file.split(".")[0]
         with open(f"{filename}.json", "w", encoding="utf-8") as f:
             json.dump(r_json, f, indent=4, ensure_ascii=False)
+        return response
     except Exception:
         print("An exception occurred")
 
@@ -238,7 +244,7 @@ def run_api(
     server_url: Optional[str] = None,
     vocab: Optional[List[str]] = None,
     timeout: int = 900,
-):
+) -> BaseResponse:
     """
     Automated function for API calls for 3 endpoints: audio files, youtube videos, and audio URLs.
 
@@ -251,15 +257,15 @@ def run_api(
         alignment: re-align timestamps (defaulted to False)
         diarization: speaker labels for utterances (defaulted to False)
         dual_channel: defaulted to False
-        server_url: the URL used to reach out the API.
+        server_url: the URL used to reach out the API
         vocab: defaulted to empty list
         timeout: defaulted to 900 seconds (15 minutes)
 
     Returns:
-        AudioResponse
+        BaseResponse
     """
     if endpoint == "youtube":
-        run_api_youtube(
+        response = run_api_youtube(
             source,
             source_lang,
             timestamps,
@@ -271,7 +277,7 @@ def run_api(
             timeout,
         )
     elif endpoint == "audio_file":
-        run_api_audio_file(
+        response = run_api_audio_file(
             source,
             source_lang,
             timestamps,
@@ -284,7 +290,7 @@ def run_api(
             timeout,
         )
     elif endpoint == "audio_url":
-        run_audio_url(
+        response = run_audio_url(
             source,
             source_lang,
             timestamps,
@@ -296,3 +302,4 @@ def run_api(
             vocab,
             timeout,
         )
+    return response
