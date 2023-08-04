@@ -44,8 +44,6 @@
 from typing import Dict, List, Tuple
 
 import torch
-from loguru import logger
-from nemo.collections.asr.parts.utils.offline_clustering import SpeakerClustering
 
 from wordcab_transcribe.services.diarization.models import MultiscaleEmbeddingsAndTimestamps
 from wordcab_transcribe.services.diarization.utils import (
