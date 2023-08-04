@@ -292,7 +292,7 @@ def get_k_neighbors_connections(
     Args:
         affinity_matrix (torch.Tensor): A square matrix (tensor) containing normalized cosine similarity values
         p_value (int): The number of top values that are selected from each row.
-        mask_method (str): The method that is used to manipulate the affinity matrix. The default method is 'binary'.
+        mask_method (str): The method that is used to manipulate the affinity matrix. The default method is "binary".
 
     Returns:
         binarized_affinity_mat (torch.Tensor):
@@ -306,18 +306,18 @@ def get_k_neighbors_connections(
     indices_row = sorted_matrix[:, :p_value].flatten()
     indices_col = torch.arange(affinity_matrix.shape[1]).repeat(p_value, 1).T.flatten()
 
-    if mask_method == 'binary' or mask_method is None:
+    if mask_method == "binary" or mask_method is None:
         binarized_affinity_matrix[indices_row, indices_col] = (
             torch.ones(indices_row.shape[0]).to(affinity_matrix.device).half()
         )
-    elif mask_method == 'drop':
+    elif mask_method == "drop":
         binarized_affinity_matrix[indices_row, indices_col] = affinity_matrix[indices_row, indices_col].half()
-    elif mask_method == 'sigmoid':
+    elif mask_method == "sigmoid":
         binarized_affinity_matrix[indices_row, indices_col] = torch.sigmoid(
             affinity_matrix[indices_row, indices_col]
         ).half()
     else:
-        raise ValueError(f'Unknown mask method: {mask_method}')
+        raise ValueError(f"Unknown mask method: {mask_method}")
 
     return binarized_affinity_matrix
 
@@ -376,7 +376,7 @@ def get_minimum_connection(
     p_value = torch.tensor(1)
     affinity_matrix = get_affinity_graph_matrix(matrix, p_value)
 
-    for i, p_value in enumerate(n_list):
+    for p_value in n_list:
         fully_connected = is_graph_fully_connected(affinity_matrix, device)
         affinity_matrix = get_affinity_graph_matrix(matrix, p_value)
 

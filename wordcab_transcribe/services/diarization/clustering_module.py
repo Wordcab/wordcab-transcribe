@@ -715,14 +715,16 @@ class SpeakerClustering(torch.nn.Module):
             parallelism=self.parallelism,
             device=self.device,
         )
-        estimation_number_of_speakers, p_hat_value = nmesc.forward()
 
         # If there are less than `min_samples_for_nmesc` segments, estimation_number_of_speakers is 1.
         if matrix_shape[0] > self.min_samples_for_nmesc:
+            estimation_number_of_speakers, p_hat_value = nmesc.forward()
             affinity_matrix = get_affinity_graph_matrix(multiscale_cosine_affinity_matrix, p_hat_value)
         else:
             nmesc.fixed_thres = max_rp_threshold
+            estimation_number_of_speakers, p_hat_value = nmesc.forward()
             affinity_matrix = multiscale_cosine_affinity_matrix
+
 
         # n_clusters is number of speakers estimated from spectral clustering.
         if oracle_num_speakers > 0:
