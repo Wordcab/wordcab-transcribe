@@ -44,6 +44,7 @@
 from typing import Dict, List, Tuple
 
 import torch
+from loguru import logger
 from nemo.collections.asr.parts.utils.offline_clustering import SpeakerClustering
 
 from wordcab_transcribe.services.diarization.models import MultiscaleEmbeddingsAndTimestamps
@@ -457,7 +458,7 @@ class SpectralClustering:
             _labels = self.kmeans_torch(
                 X=spectral_embeddings,
                 num_clusters=self.n_clusters, 
-                andom_state=random_state_seed,
+                random_state=random_state_seed,
                 device=self.device,
             )
             labels_set.append(_labels)
@@ -585,6 +586,7 @@ class SpeakerClustering(torch.nn.Module):
         nme_mat_size: int = 512,
         sparse_search: bool = True,
         maj_vote_spk_count: bool = False,
+        parallelism: bool = False,
     ):
         """
         Clustering method for speaker diarization based on cosine similarity.
@@ -601,6 +603,11 @@ class SpeakerClustering(torch.nn.Module):
                 If True, take a majority vote on all p-values in the given range to estimate the number of speakers.
                 The majority voting may contribute to surpress overcounting of the speakers and improve speaker
                 counting accuracy.
+            nme_mat_size (int):
+                The size of the NME matrix. The NME matrix is a matrix that contains the NME values for all possible
+                number of speakers. The NME matrix is used to estimate the number of speakers in the given audio.
+            parallelism (bool):
+                If True, use parallel processing for speaker clustering.
         """
         super().__init__()
 
@@ -609,6 +616,7 @@ class SpeakerClustering(torch.nn.Module):
         self.min_samples_for_nmesc: int = min_samples_for_nmesc
         self.nme_mat_size: int = nme_mat_size
         self.sparse_search: bool = sparse_search
+        self.parallelism: bool = parallelism
 
     def forward(
         self,
@@ -772,7 +780,7 @@ class SpeakerClustering(torch.nn.Module):
             repeated_tensor_1 = torch.repeat_interleave(
                 repeated_tensor_0, repeats=repeat_list, dim=1,
             ).to(self.device)
-
+            
             fused_sim_d += weight * repeated_tensor_1
 
         return fused_sim_d
@@ -815,7 +823,7 @@ class ClusteringModule:
             sparse_search_volume=30,
             maj_vote_spk_count=False,
         )
-        self.clustering_model = SpeakerClustering(device=device, parallelism=True)
+        self.clustering_model = SpeakerClustering(device=device, parallelism=False)
 
     def __call__(
         self, ms_emb_ts: MultiscaleEmbeddingsAndTimestamps

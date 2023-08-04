@@ -30,4 +30,4 @@ class MultiscaleEmbeddingsAndTimestamps(NamedTuple):
     base_scale_index: int
     embeddings: List[torch.Tensor]
     timestamps: List[torch.Tensor]
-    multiscale_weights: torch.Tensor
+    multiscale_weights: List[float]

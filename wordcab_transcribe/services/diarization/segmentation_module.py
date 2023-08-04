@@ -83,11 +83,11 @@ class SegmentationModule:
             device (str): Device to use for inference. Can be "cpu" or "cuda".
             multiscale_weights (List[float]): List of weights for each scale.
         """
-        self.multiscale_weights = torch.tensor(multiscale_weights).unsqueeze(0).float()
+        self.multiscale_weights = multiscale_weights
 
-        if len(multiscale_weights) > 3:
+        if len(self.multiscale_weights) > 3:
             self.batch_size = 64
-        elif len(multiscale_weights) > 1:
+        elif len(self.multiscale_weights) > 1:
             self.batch_size = 128
         else:
             self.batch_size = 256

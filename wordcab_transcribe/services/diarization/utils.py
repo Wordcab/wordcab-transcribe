@@ -146,7 +146,7 @@ def eigen_value_sh(laplacian: torch.Tensor, device: str) -> torch.Tensor:
     return lambdas
 
 
-def estimate_numbre_of_speakers(
+def estimate_number_of_speakers(
     affinity_matrix: torch.Tensor, max_num_speakers: int, device: str,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
