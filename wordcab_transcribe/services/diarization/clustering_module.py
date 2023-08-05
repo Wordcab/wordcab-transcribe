@@ -420,7 +420,8 @@ class NMESC:
 
 # https://github.com/NVIDIA/NeMo/blob/main/nemo/collections/asr/parts/utils/offline_clustering.py#L737
 class SpectralClustering:
-    """
+    """Speaker diarization based on spectral clustering.
+
     Perform spectral clustering by calculating spectral embeddings then run k-means clustering
     algorithm on the spectral embeddings.
     """

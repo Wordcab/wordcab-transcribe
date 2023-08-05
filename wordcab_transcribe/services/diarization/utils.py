@@ -503,16 +503,15 @@ def kmeans_plusplus_torch(
 
     Originally, the implementation of the k-means++ algorithm in scikit-learn is based
     on the following research article:
-        Arthur, David, and Sergei Vassilvitskii. k-means++: The advantages of careful
-        seeding. Proceedings of the eighteenth annual ACM-SIAM symposium on Discrete
-        algorithms, Society for Industrial and Applied Mathematics (2007)
+    Arthur, David, and Sergei Vassilvitskii. k-means++: The advantages of careful
+    seeding. Proceedings of the eighteenth annual ACM-SIAM symposium on Discrete
+    algorithms, Society for Industrial and Applied Mathematics (2007)
 
     Args:
         X (torch.Tensor):
             Matrix containing cosine similarity values among embedding vectors (N x N)
         n_clusters (int):
-            Maximum number of speakers for estimating number of speakers.
-            Shows stable performance under 20.
+            Maximum number of speakers for estimating number of speakers. Shows stable performance under 20.
         random_state (int):
             Seed variable for setting up a random state.
         device (str)
