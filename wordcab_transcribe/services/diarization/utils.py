@@ -513,7 +513,7 @@ def kmeans_plusplus_torch(
             Maximum number of speakers for estimating number of speakers. Shows stable performance under 20.
         random_state (int):
             Seed variable for setting up a random state.
-        device (str)
+        device (str):
             Torch device that is used to run the model.
         n_local_trials (int):
             Number of trials for creating initial values of the center points.
