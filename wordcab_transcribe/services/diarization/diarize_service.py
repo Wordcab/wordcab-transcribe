@@ -87,7 +87,7 @@ class DiarizeService:
 
     def __call__(
         self,
-        filepath: Union[str, torch.Tensor],
+        waveform: torch.Tensor,
         model_index: int,
         vad_service: VadService,
     ) -> List[dict]:
@@ -95,19 +95,19 @@ class DiarizeService:
         Run inference with the diarization model.
 
         Args:
-            filepath (Union[str, torch.Tensor]): Path to the audio file or waveform.
+            waveform (torch.Tensor): Waveform to run inference on.
             model_index (int): Index of the model to use for inference.
             vad_service (VadService): VAD service instance to use for Voice Activity Detection.
 
         Returns:
             List[dict]: List of segments with the following keys: "start", "end", "speaker".
         """
-        vad_outputs, _ = vad_service(filepath, False)
+        vad_outputs, _ = vad_service(waveform, group_timestamps=False)
 
         ms_emb_ts: MultiscaleEmbeddingsAndTimestamps = self.models[
             model_index
         ].segmentation(
-            waveform=filepath,
+            waveform=waveform,
             vad_outputs=vad_outputs,
             scale_dict=self.scale_dict,
         )
