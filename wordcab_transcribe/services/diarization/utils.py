@@ -494,13 +494,12 @@ def kmeans_plusplus_torch(
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Choose initial centroids for initializing k-means algorithm.
 
-    The performance of k-means algorithm can vary significantly by the initial centroids. To alleviate
-    this problem, k-means++ algorithm chooses initial centroids based on the probability
+    The performance of k-means algorithm can vary significantly by the initial centroids.
+    To alleviate this problem, k-means++ algorithm chooses initial centroids based on the probability
     proportional to the distance from the formally chosen centroids. The centroids
     selected by k-means++ algorithm improve the chance of getting more accurate and
     stable clustering results. The overall implementation of k-means++ algorithm is
     inspired by the numpy based k-means++ implementation in: https://github.com/scikit-learn/scikit-learn
-
     Originally, the implementation of the k-means++ algorithm in scikit-learn is based
     on the following research article:
     Arthur, David, and Sergei Vassilvitskii. k-means++: The advantages of careful
@@ -515,7 +514,7 @@ def kmeans_plusplus_torch(
         random_state (int):
             Seed variable for setting up a random state.
         device (str)
-            Torch device variable.
+            Torch device that is used to run the model.
         n_local_trials (int):
             Number of trials for creating initial values of the center points.
 
