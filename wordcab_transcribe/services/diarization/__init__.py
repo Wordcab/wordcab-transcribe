@@ -18,6 +18,3 @@
 # See the License for the specific language governing permissions
 # and limitations under the License.
 """Diarization services and all diarization related code."""
-
-
-from .diarize_service import DiarizeService

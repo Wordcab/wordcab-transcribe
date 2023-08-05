@@ -41,7 +41,7 @@
 
 """Utils functions for the diarization service and modules."""
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import torch
 
@@ -73,10 +73,13 @@ def add_anchor_embeddings(
 
     new_emb_list = []
     for _ in range(anchor_spk_n):
-        emb_m = torch.tile(torch.randn(1, emb_dim), (anchor_sample_n, 1)).to(embeddings.device)
+        emb_m = torch.tile(torch.randn(1, emb_dim), (anchor_sample_n, 1)).to(
+            embeddings.device
+        )
         emb_noise = torch.randn(anchor_sample_n, emb_dim).T.to(embeddings.device)
         emb_noise = torch.matmul(
-            torch.diag(std_org), emb_noise / torch.max(torch.abs(emb_noise), dim=0)[0].unsqueeze(0)
+            torch.diag(std_org),
+            emb_noise / torch.max(torch.abs(emb_noise), dim=0)[0].unsqueeze(0),
         ).T
         emb_gen = emb_m + sigma * emb_noise
         new_emb_list.append(emb_gen)
@@ -88,7 +91,7 @@ def add_anchor_embeddings(
 
 
 def cosine_similarity(
-    emb_a: torch.Tensor, emb_b: torch.Tensor, eps: torch.Tensor = torch.tensor(3.5e-4)
+    emb_a: torch.Tensor, emb_b: torch.Tensor, eps: Optional[torch.Tensor] = None
 ) -> torch.Tensor:
     """Calculate cosine similarities of the given two set of tensors.
 
@@ -97,12 +100,20 @@ def cosine_similarity(
     Args:
         emb_a (torch.Tensor): Matrix containing speaker representation vectors. (N x embedding_dim)
         emb_b (torch.Tensor): Matrix containing speaker representation vectors. (N x embedding_dim)
+        eps (torch.Tensor): Small value to avoid division by zero.
 
     Returns:
         torch.Tensor: Matrix containing cosine similarities. (N x N)
     """
     if emb_a.shape[0] == 1 or emb_b.shape[0] == 1:
-        raise ValueError(f"Number of feature vectors should be greater than 1 but got {emb_a.shape} and {emb_b.shape}")
+        raise ValueError(
+            f"Number of feature vectors should be greater than 1 but got {emb_a.shape} and {emb_b.shape}"
+        )
+
+    if eps is None:
+        eps = torch.tensor(3.5e-4).to(emb_a.device)
+    else:
+        eps = eps.to(emb_a.device)
 
     a_norm = emb_a / (torch.norm(emb_a, dim=1).unsqueeze(1) + eps)
     b_norm = emb_b / (torch.norm(emb_b, dim=1).unsqueeze(1) + eps)
@@ -112,13 +123,18 @@ def cosine_similarity(
     return cosine_similarity
 
 
-def eigen_decompose(laplacian: torch.Tensor, device: str) -> Tuple[torch.Tensor, torch.Tensor]:
+def eigen_decompose(
+    laplacian: torch.Tensor, device: str
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Calculate eigenvalues and eigenvectors from the Laplacian matrix.
 
     Args:
         laplacian (torch.Tensor): Laplacian matrix
         device (str): Device to use for eigendecomposition.
+
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor]: Tuple containing eigenvalues and eigenvectors.
     """
     laplacian = laplacian.float()
 
@@ -136,8 +152,10 @@ def eigen_value_sh(laplacian: torch.Tensor, device: str) -> torch.Tensor:
 
     Args:
         laplacian (torch.Tensor): Laplacian matrix
-        cuda (bool): If cuda available eigendecomposition is computed on GPUs.
-        device (torch.device): Device to use for eigendecomposition.
+        device (str): Device to use for eigendecomposition.
+
+    Returns:
+        torch.Tensor: Eigenvalues of the Laplacian matrix.
     """
     laplacian = laplacian.float().to(device)
 
@@ -147,7 +165,9 @@ def eigen_value_sh(laplacian: torch.Tensor, device: str) -> torch.Tensor:
 
 
 def estimate_number_of_speakers(
-    affinity_matrix: torch.Tensor, max_num_speakers: int, device: str,
+    affinity_matrix: torch.Tensor,
+    max_num_speakers: int,
+    device: str,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Estimate the number of speakers using eigendecomposition on the Laplacian Matrix.
@@ -172,7 +192,9 @@ def estimate_number_of_speakers(
 
     lambda_gap = get_lamda_gap_list(lambdas)
 
-    number_of_speakers = torch.argmax(lambda_gap[: min(max_num_speakers, lambda_gap.shape[0])]) + 1
+    number_of_speakers = (
+        torch.argmax(lambda_gap[: min(max_num_speakers, lambda_gap.shape[0])]) + 1
+    )
 
     return number_of_speakers, lambdas, lambda_gap
 
@@ -205,7 +227,9 @@ def get_euclidean_distance(
     return distance
 
 
-def get_affinity_graph_matrix(affinity_matrix_raw: torch.Tensor, p_value: int) -> torch.Tensor:
+def get_affinity_graph_matrix(
+    affinity_matrix_raw: torch.Tensor, p_value: int
+) -> torch.Tensor:
     """
     Calculate a binarized graph matrix and symmetrize the binarized graph matrix.
 
@@ -216,14 +240,20 @@ def get_affinity_graph_matrix(affinity_matrix_raw: torch.Tensor, p_value: int) -
     Returns:
         torch.Tensor: Matrix containing cosine similarities. (N x N)
     """
-    X = affinity_matrix_raw if p_value <= 0 else get_k_neighbors_connections(affinity_matrix_raw, p_value)
-    
+    X = (
+        affinity_matrix_raw
+        if p_value <= 0
+        else get_k_neighbors_connections(affinity_matrix_raw, p_value)
+    )
+
     symm_affinity_mat = 0.5 * (X + X.T)
 
     return symm_affinity_mat
 
 
-def get_argmin_mapping_list(timestamps_in_scales: List[torch.Tensor]) -> List[torch.Tensor]:
+def get_argmin_mapping_list(
+    timestamps_in_scales: List[torch.Tensor],
+) -> List[torch.Tensor]:
     """Calculate the mapping between the base scale and other scales.
 
     A segment from a longer scale is repeatedly mapped to a segment from a shorter scale or the base scale.
@@ -238,7 +268,9 @@ def get_argmin_mapping_list(timestamps_in_scales: List[torch.Tensor]) -> List[to
             List containing argmin arrays indexed by scale index.
     """
     scale_list = list(range(len(timestamps_in_scales)))
-    segment_anchor_list = [torch.mean(timestamps_in_scales[scale_idx], dim=1) for scale_idx in scale_list]
+    segment_anchor_list = [
+        torch.mean(timestamps_in_scales[scale_idx], dim=1) for scale_idx in scale_list
+    ]
 
     base_scale_anchor = segment_anchor_list[max(scale_list)].view(-1, 1)
 
@@ -278,7 +310,9 @@ def get_cosine_affinity_matrix(embeddings: torch.Tensor) -> torch.Tensor:
         cosine_affinity_matix = cosine_similarity(embeddings, embeddings)
 
         v_min, v_max = cosine_affinity_matix.min(), cosine_affinity_matix.max()
-        normalized_cosine_affinity_matrix = (cosine_affinity_matix - v_min) / (v_max - v_min)
+        normalized_cosine_affinity_matrix = (cosine_affinity_matix - v_min) / (
+            v_max - v_min
+        )
 
     return normalized_cosine_affinity_matrix
 
@@ -300,9 +334,9 @@ def get_k_neighbors_connections(
     """
     binarized_affinity_matrix = torch.zeros_like(affinity_matrix).half()
     sorted_matrix = torch.argsort(affinity_matrix, dim=1, descending=True)[:, :p_value]
-    binarized_affinity_matrix[sorted_matrix.T, torch.arange(affinity_matrix.shape[0])] = (
-        torch.ones(1).to(affinity_matrix.device).half()
-    )
+    binarized_affinity_matrix[
+        sorted_matrix.T, torch.arange(affinity_matrix.shape[0])
+    ] = (torch.ones(1).to(affinity_matrix.device).half())
     indices_row = sorted_matrix[:, :p_value].flatten()
     indices_col = torch.arange(affinity_matrix.shape[1]).repeat(p_value, 1).T.flatten()
 
@@ -311,7 +345,9 @@ def get_k_neighbors_connections(
             torch.ones(indices_row.shape[0]).to(affinity_matrix.device).half()
         )
     elif mask_method == "drop":
-        binarized_affinity_matrix[indices_row, indices_col] = affinity_matrix[indices_row, indices_col].half()
+        binarized_affinity_matrix[indices_row, indices_col] = affinity_matrix[
+            indices_row, indices_col
+        ].half()
     elif mask_method == "sigmoid":
         binarized_affinity_matrix[indices_row, indices_col] = torch.sigmoid(
             affinity_matrix[indices_row, indices_col]
@@ -409,7 +445,7 @@ def get_the_largest_component(
     nodes_to_explore[seg_index] = True
     nodes_to_explore = nodes_to_explore.to(device)
 
-    for k in range(num_of_segments):
+    for _ in range(num_of_segments):
         last_num_component = connected_nodes.sum()
         torch.logical_or(connected_nodes, nodes_to_explore, out=connected_nodes)
 
@@ -423,12 +459,16 @@ def get_the_largest_component(
 
         for i in indices:
             neighbors = affinity_matrix[i].to(device)
-            torch.logical_or(nodes_to_explore, neighbors.squeeze(0), out=nodes_to_explore)
+            torch.logical_or(
+                nodes_to_explore, neighbors.squeeze(0), out=nodes_to_explore
+            )
 
     return connected_nodes
 
 
-def is_graph_fully_connected(affinity_matrix: torch.Tensor, device: str) -> torch.Tensor:
+def is_graph_fully_connected(
+    affinity_matrix: torch.Tensor, device: str
+) -> torch.Tensor:
     """
     Check whether the given affinity matrix is a fully connected graph.
 
@@ -439,16 +479,19 @@ def is_graph_fully_connected(affinity_matrix: torch.Tensor, device: str) -> torc
     Returns:
         bool: A boolean value indicating whether the graph is fully connected.
     """
-    return get_the_largest_component(affinity_matrix, 0, device).sum() == affinity_matrix.shape[0]
+    return (
+        get_the_largest_component(affinity_matrix, 0, device).sum()
+        == affinity_matrix.shape[0]
+    )
 
 
 def kmeans_plusplus_torch(
     X: torch.Tensor,
     n_clusters: int,
     random_state: int,
+    device: str,
     n_local_trials: int = 30,
-    device: torch.device = torch.device('cpu'),
-):
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """Choose initial centroids for initializing k-means algorithm.
 
     The performance of k-means algorithm can vary significantly by the initial centroids. To alleviate
@@ -472,10 +515,10 @@ def kmeans_plusplus_torch(
             Shows stable performance under 20.
         random_state (int):
             Seed variable for setting up a random state.
+        device (str)
+            Torch device variable.
         n_local_trials (int):
             Number of trials for creating initial values of the center points.
-        device (torch.device)
-            Torch device variable.
 
     Returns:
         centers (torch.Tensor):
@@ -489,7 +532,13 @@ def kmeans_plusplus_torch(
 
     centers = torch.zeros(n_clusters, n_features, dtype=X.dtype)
     center_id = torch.randint(0, n_samples, (1,)).long()
-    indices = torch.full([n_clusters,], -1, dtype=torch.int)
+    indices = torch.full(
+        [
+            n_clusters,
+        ],
+        -1,
+        dtype=torch.int,
+    )
 
     centers[0] = X[center_id].squeeze(0)
     indices[0] = center_id.squeeze(0)
@@ -510,7 +559,9 @@ def kmeans_plusplus_torch(
         candidate_ids = torch.searchsorted(torch_cumsum, rand_vals.to(device))
 
         N_ci = candidate_ids.shape[0]
-        distance_diff = X[candidate_ids].repeat(1, X.shape[0]).view(X.shape[0] * N_ci, -1) - X.repeat(N_ci, 1)
+        distance_diff = X[candidate_ids].repeat(1, X.shape[0]).view(
+            X.shape[0] * N_ci, -1
+        ) - X.repeat(N_ci, 1)
         distance = distance_diff.pow(2).sum(dim=1).view(N_ci, -1)
         distance_to_candidates = torch.minimum(closest_dist_sq, distance)
         candidates_pot = distance_to_candidates.sum(dim=1)

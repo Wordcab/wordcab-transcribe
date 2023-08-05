@@ -27,7 +27,9 @@ from nemo.collections.asr.models import EncDecSpeakerLabelModel
 from torch.cuda.amp import autocast
 from torch.utils.data import Dataset
 
-from wordcab_transcribe.services.diarization.models import MultiscaleEmbeddingsAndTimestamps
+from wordcab_transcribe.services.diarization.models import (
+    MultiscaleEmbeddingsAndTimestamps,
+)
 from wordcab_transcribe.services.diarization.utils import segmentation_collate_fn
 
 

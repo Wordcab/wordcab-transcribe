@@ -19,13 +19,17 @@
 # and limitations under the License.
 """Diarization Service for audio files."""
 
-from typing import List, NamedTuple, Tuple, Union
+from typing import List, NamedTuple, Tuple
 
 import torch
 
 from wordcab_transcribe.services.diarization.clustering_module import ClusteringModule
-from wordcab_transcribe.services.diarization.models import MultiscaleEmbeddingsAndTimestamps
-from wordcab_transcribe.services.diarization.segmentation_module import SegmentationModule
+from wordcab_transcribe.services.diarization.models import (
+    MultiscaleEmbeddingsAndTimestamps,
+)
+from wordcab_transcribe.services.diarization.segmentation_module import (
+    SegmentationModule,
+)
 from wordcab_transcribe.services.vad_service import VadService
 
 

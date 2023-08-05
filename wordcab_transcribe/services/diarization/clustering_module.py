@@ -45,7 +45,9 @@ from typing import Dict, List, Tuple
 
 import torch
 
-from wordcab_transcribe.services.diarization.models import MultiscaleEmbeddingsAndTimestamps
+from wordcab_transcribe.services.diarization.models import (
+    MultiscaleEmbeddingsAndTimestamps,
+)
 from wordcab_transcribe.services.diarization.utils import (
     add_anchor_embeddings,
     eigen_decompose,
@@ -72,7 +74,7 @@ def get_enhanced_speaker_count(
 ) -> torch.Tensor:
     """Calculate the number of speakers using NME analysis with anchor embeddings.
 
-    Add dummy speaker embedding vectors and run speaker counting multiple times 
+    Add dummy speaker embedding vectors and run speaker counting multiple times
     to enhance the speaker counting accuracy for the short audio samples.
 
     Args:
@@ -104,7 +106,9 @@ def get_enhanced_speaker_count(
     for seed in range(random_test_count):
         torch.manual_seed(seed)
 
-        embeddings_aug = add_anchor_embeddings(emb, anchor_sample_n, anchor_spk_n, sigma)
+        embeddings_aug = add_anchor_embeddings(
+            emb, anchor_sample_n, anchor_spk_n, sigma
+        )
         matrix = get_cosine_affinity_matrix(embeddings_aug)
 
         nmesc = NMESC(
@@ -120,21 +124,22 @@ def get_enhanced_speaker_count(
         estimation_number_of_speakers, _ = nmesc.forward()
         estimations.append(estimation_number_of_speakers.item())
 
-    comp_est_num_of_spk = torch.tensor(max(torch.mode(torch.tensor(estimations))[0].item() - anchor_spk_n, 1))
+    comp_est_num_of_spk = torch.tensor(
+        max(torch.mode(torch.tensor(estimations))[0].item() - anchor_spk_n, 1)
+    )
 
     return comp_est_num_of_spk
 
 
 # https://github.com/NVIDIA/NeMo/blob/main/nemo/collections/asr/parts/utils/offline_clustering.py#L850
 class NMESC:
-    """
-    Normalized Maximum Eigengap based Spectral Clustering (NME-SC)
-    uses Eigengap analysis to get an estimated p-value for
+    """Normalized Maximum Eigengap based Spectral Clustering (NME-SC).
+
+    NME-SC uses Eigengap analysis to get an estimated p-value for
     affinity binarization and an estimated number of speakers.
 
-    p_value (also referred to as p_neighbors) is for taking
-    top p number of affinity values and convert those to 1 while
-    convert the rest of values to 0.
+    p_value (also referred to as p_neighbors) is for taking top p number of affinity values
+    and convert those to 1 while convert the rest of values to 0.
 
     p_value can be also tuned on a development set without performing
     NME-analysis. Fixing p_value brings about significantly faster clustering
@@ -176,8 +181,10 @@ class NMESC:
         fixed_thres: float = -1.0,
         maj_vote_spk_count: bool = False,
         parallelism: bool = True,
-    ):
+    ) -> None:
         """
+        Initialize the NMESC class.
+
         Args:
             matrix (torch.Tensor):
                 Cosine similarity matrix calculated from the provided speaker embeddings.
@@ -202,7 +209,7 @@ class NMESC:
             use_subsampling_for_nme (bool):
                 Use subsampling to reduce the calculational complexity.
                 Default is True.
-            fixed_thres (float or None):
+            fixed_thres (float):
                 A fixed threshold which can be used instead of estimating the
                 threshold with NME analysis. If fixed_thres is float,
                 it skips the NME analysis part.
@@ -243,22 +250,23 @@ class NMESC:
             subsample_ratio = torch.tensor(1)
 
         # Scans p_values and find a p_value that generates the smallest g_p value.
-        results: List[torch.Tensor] = []
         est_spk_n_dict: Dict[int, torch.Tensor] = {}
         self.p_value_list = self.get_p_value_list()
-        p_volume = self.p_value_list.shape[0]
-        eig_ratio_list = torch.zeros(p_volume,)
-        est_num_of_spk_list = torch.zeros(p_volume,)
 
+        p_volume = self.p_value_list.shape[0]
+        eig_ratio_list = torch.zeros(p_volume)
+        est_num_of_spk_list = torch.zeros(p_volume)
+
+        results: List[torch.Tensor] = []
         if self.parallelism:
             futures: List[torch.jit.Future[torch.Tensor]] = []
-            for p_idx, p_value in enumerate(self.p_value_list):
+            for p_value in self.p_value_list:
                 futures.append(torch.jit.fork(self.get_eigengap_ratio, p_value))
             for future in futures:
                 results.append(torch.jit.wait(future))
 
         else:
-            for p_idx, p_value in enumerate(self.p_value_list):
+            for p_value in self.p_value_list:
                 results.append(self.get_eigengap_ratio(p_value))
 
         # Retrieve the eigen analysis results
@@ -310,15 +318,19 @@ class NMESC:
             subsample_ratio (float):
                 The ratio between nme_mat_size and the original matrix size
         """
-        subsample_ratio = torch.max(torch.tensor(1), torch.tensor(self.mat.shape[0] / nme_mat_size)).type(torch.int)
+        subsample_ratio = torch.max(
+            torch.tensor(1), torch.tensor(self.mat.shape[0] / nme_mat_size)
+        ).type(torch.int)
         self.mat = self.mat[:: subsample_ratio.item(), :: subsample_ratio.item()]
 
         return subsample_ratio
 
     def get_eigengap_ratio(self, p_neighbors: int) -> torch.Tensor:
-        """
+        """Get the ratio between p_neighbors and the maximum eigen gap value.
+
         For a given p_neighbors value, calculate g_p, which is a ratio between p_neighbors and the
         maximum eigengap values.
+
         References:
             Tae Jin Park et al., Auto-Tuning Spectral Clustering for Speaker Diarization Using
             Normalized Maximum Eigengap, IEEE Signal Processing Letters 27 (2019),
@@ -338,7 +350,9 @@ class NMESC:
         est_num_of_spk, lambdas, lambda_gap_list = estimate_number_of_speakers(
             affinity_matrix, self.max_num_speakers, self.device
         )
-        arg_sorted_idx = torch.argsort(lambda_gap_list[: self.max_num_speakers], descending=True)
+        arg_sorted_idx = torch.argsort(
+            lambda_gap_list[: self.max_num_speakers], descending=True
+        )
 
         max_key = arg_sorted_idx[0]
         max_eig_gap = lambda_gap_list[max_key] / (torch.max(lambdas).item() + self.eps)
@@ -350,7 +364,7 @@ class NMESC:
     def get_p_value_list(self) -> torch.Tensor:
         """Generates a p-value (p_neighbour) list for searching.
 
-        p_value_list must include 2 (min_p_value) since at least one neighboring 
+        p_value_list must include 2 (min_p_value) since at least one neighboring
         segment should be selected other than itself.
 
         If fixed_thres value is specified, then only one p-value is specified.
@@ -368,22 +382,32 @@ class NMESC:
         """
         if self.fixed_thres is not None and self.fixed_thres > 0.0:
             self.max_N = torch.max(
-                torch.floor(torch.tensor(self.mat.shape[0] * self.fixed_thres)).type(torch.int), self.min_p_value
+                torch.floor(torch.tensor(self.mat.shape[0] * self.fixed_thres)).type(
+                    torch.int
+                ),
+                self.min_p_value,
             )
             p_value_list = self.max_N.unsqueeze(0).int()
 
         else:
             self.max_N = torch.max(
-                torch.floor(torch.tensor(self.mat.shape[0] * self.max_rp_threshold)).type(torch.int), self.min_p_value
+                torch.floor(
+                    torch.tensor(self.mat.shape[0] * self.max_rp_threshold)
+                ).type(torch.int),
+                self.min_p_value,
             )
 
             if self.sparse_search:
-                search_volume = torch.min(self.max_N, torch.tensor(self.sparse_search_volume).type(torch.int))
+                search_volume = torch.min(
+                    self.max_N, torch.tensor(self.sparse_search_volume).type(torch.int)
+                )
                 # search at least two values
                 N = torch.max(search_volume, torch.tensor(2))
                 # avoid repeating values by limiting the step size
                 steps = min(self.max_N, N)
-                p_value_list = torch.linspace(start=1, end=self.max_N, steps=steps).type(torch.int)
+                p_value_list = torch.linspace(
+                    start=1, end=self.max_N, steps=steps
+                ).type(torch.int)
 
             else:
                 p_value_list = torch.arange(1, self.max_N + 1)
@@ -403,7 +427,7 @@ class SpectralClustering:
 
     def __init__(
         self,
-        device:str,
+        device: str,
         n_clusters: int = 8,
         random_state: int = 0,
         n_random_trials: int = 1,
@@ -431,8 +455,8 @@ class SpectralClustering:
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """Perform k-means clustering on spectral embeddings.
 
-        To alleviate the effect of randomness, k-means clustering is performed for (self.n_random_trials) times 
-        then the final labels are obtained by taking a majority vote. If speed is the major concern, 
+        To alleviate the effect of randomness, k-means clustering is performed for (self.n_random_trials) times
+        then the final labels are obtained by taking a majority vote. If speed is the major concern,
         self.n_random_trials should be set to 1. n_random_trials=30 is recommended to see an improved result.
 
         Args:
@@ -449,13 +473,17 @@ class SpectralClustering:
         if X.device != self.device:
             X = X.to(self.device)
 
-        spectral_embeddings = self.get_spectral_embeddings(X, n_speakers=self.n_clusters, device=self.device)
+        spectral_embeddings = self.get_spectral_embeddings(
+            X, n_speakers=self.n_clusters, device=self.device
+        )
         labels_set = []
 
-        for random_state_seed in range(self.random_state, self.random_state + self.n_random_trials):
+        for random_state_seed in range(
+            self.random_state, self.random_state + self.n_random_trials
+        ):
             _labels = self.kmeans_torch(
                 X=spectral_embeddings,
-                num_clusters=self.n_clusters, 
+                num_clusters=self.n_clusters,
                 random_state=random_state_seed,
                 device=self.device,
             )
@@ -475,7 +503,7 @@ class SpectralClustering:
         Calculate eigenvalues and eigenvectors to extract spectral embeddings.
 
         Args:
-            affinity (torch.Tensor):
+            affinity_matrix (torch.Tensor):
                 Affinity matrix input
             n_speakers (int):
                 Number of the estimated (or oracle) number of speakers
@@ -483,8 +511,7 @@ class SpectralClustering:
                 Torch device variable. Default is "cpu".
 
         Returns:
-            labels (Tensor):
-                clustering label output
+            labels (torch.Tensor): clustering label output
         """
         laplacian = get_laplacian(affinity_matrix)
 
@@ -521,13 +548,15 @@ class SpectralClustering:
                 Cosine similarity matrix calculated from speaker embeddings
             num_clusters (int):
                 The estimated number of speakers.
-            device (torch.device):
-                Torch device variable
+            device (str):
+                Torch device to be used for the k-means algorithm.
             threshold (float):
                 This threshold limits the change of center values. If the square of
                 the center shift values are bigger than this threshold, the iteration stops.
             iter_limit (int):
                 The maximum number of iterations that is allowed by the k-means algorithm.
+            random_state (int):
+                Random seed that determines a random state of k-means initialization.
 
         Returns:
             selected_cluster_indices (Tensor):
@@ -556,7 +585,11 @@ class SpectralClustering:
             center_inits = centers.clone()
 
             for index in range(num_clusters):
-                selected_cluster = torch.nonzero(selected_cluster_indices == index).squeeze().to(device)
+                selected_cluster = (
+                    torch.nonzero(selected_cluster_indices == index)
+                    .squeeze()
+                    .to(device)
+                )
                 chosen_indices = torch.index_select(X, 0, selected_cluster)
 
                 if chosen_indices.shape[0] == 0:
@@ -566,7 +599,9 @@ class SpectralClustering:
 
             # Calculate the delta from center_inits to centers
             center_delta_pow = torch.pow((centers - center_inits), 2)
-            center_shift_pow = torch.pow(torch.sum(torch.sqrt(torch.sum(center_delta_pow, dim=1))), 2)
+            center_shift_pow = torch.pow(
+                torch.sum(torch.sqrt(torch.sum(center_delta_pow, dim=1))), 2
+            )
 
             # If the cluster centers are not changing significantly, stop the loop.
             if center_shift_pow < threshold:
@@ -577,35 +612,36 @@ class SpectralClustering:
 
 class SpeakerClustering(torch.nn.Module):
     """Clustering module for speaker diarization."""
+
     def __init__(
         self,
         device: str,
+        maj_vote_spk_count: bool = False,
         min_samples_for_nmesc: int = 6,
         nme_mat_size: int = 512,
-        sparse_search: bool = True,
-        maj_vote_spk_count: bool = False,
         parallelism: bool = False,
+        sparse_search: bool = True,
     ):
         """
         Clustering method for speaker diarization based on cosine similarity.
 
         Args:
             device (str): Device to use for inference. Can be "cpu" or "cuda".
-            min_samples_for_nmesc (int):
-                The minimum number of samples required for NME clustering. This avoids
-                zero p_neighbour_lists. If the input has fewer segments than min_samples,
-                it is directed to the enhanced speaker counting mode.
-            sparse_search (bool):
-                Toggle sparse search mode. If True, limit the size of p_value_list to sparse_search_volume.
             maj_vote_spk_count (bool):
                 If True, take a majority vote on all p-values in the given range to estimate the number of speakers.
                 The majority voting may contribute to surpress overcounting of the speakers and improve speaker
                 counting accuracy.
+            min_samples_for_nmesc (int):
+                The minimum number of samples required for NME clustering. This avoids
+                zero p_neighbour_lists. If the input has fewer segments than min_samples,
+                it is directed to the enhanced speaker counting mode.
             nme_mat_size (int):
                 The size of the NME matrix. The NME matrix is a matrix that contains the NME values for all possible
                 number of speakers. The NME matrix is used to estimate the number of speakers in the given audio.
             parallelism (bool):
                 If True, use parallel processing for speaker clustering.
+            sparse_search (bool):
+                Toggle sparse search mode. If True, limit the size of p_value_list to sparse_search_volume.
         """
         super().__init__()
 
@@ -613,65 +649,42 @@ class SpeakerClustering(torch.nn.Module):
         self.maj_vote_spk_count: bool = maj_vote_spk_count
         self.min_samples_for_nmesc: int = min_samples_for_nmesc
         self.nme_mat_size: int = nme_mat_size
-        self.sparse_search: bool = sparse_search
         self.parallelism: bool = parallelism
+        self.sparse_search: bool = sparse_search
 
     def forward(
         self,
         embeddings_in_scales: List[torch.Tensor],
         timestamps_in_scales: List[torch.Tensor],
         multiscale_weights: torch.Tensor,
-        oracle_num_speakers: int = -1,
-        max_rp_threshold: float = 0.15,
-        max_num_speakers: int = 8,
         enhanced_count_thres: int = 40,
-        sparse_search_volume: int = 30,
         fixed_thres: float = -1.0,
         kmeans_random_trials: int = 1,
+        oracle_num_speakers: int = -1,
+        max_num_speakers: int = 8,
+        max_rp_threshold: float = 0.15,
+        sparse_search_volume: int = 30,
     ) -> torch.LongTensor:
         """Forward pass of the speaker clustering module.
 
         Calculate affinity matrix using timestamps and speaker embeddings, run NME analysis to estimate the best
         p-value and perform spectral clustering based on the estimated p-value and the calculated affinity matrix.
 
-        Caution:
-            For the sake of compatibility with libtorch, python boolean `False` is replaced with `torch.LongTensor(-1)`.
-
         Args:
-            Dict containing following keys associated with tensors.
-            embeddings (Tensor):
+            embeddings_in_scales (torch.Tensor):
                 Concatenated Torch tensor containing embeddings in multiple scales
                 This tensor has dimensions of (Number of base segments) x (Embedding Dimension)
-            timestamps (Tensor):
+            timestamps_in_scales (torch.Tensor):
                 Concatenated Torch tensor containing timestamps in multiple scales.
                 This tensor has dimensions of (Total number of segments all scales) x 2
-                Example:
-                    >>> timestamps_in_scales = \
-                    >>> torch.tensor([0.4, 1.4], [0.9, 1.9], [1.4, 2.4], ... [121.2, 122.2]])
-
-            multiscale_weights (Tensor):
+            multiscale_weights (torch.Tensor):
                 Multi-scale weights that are used when affinity scores are merged.
-                Example:
-                    >>> multiscale_weights = torch.tensor([1.4, 1.3, 1.2, 1.1, 1.0])
-
-            oracle_num_speakers (int):
-                The number of speakers in a session from the reference transcript
-            max_num_speakers (int):
-                The upper bound for the number of speakers in each session
-            max_rp_threshold (float):
-                Limits the range of parameter search.
-                Clustering performance can vary depending on this range.
-                Default is 0.15.
             enhanced_count_thres (int):
                 For the short audio recordings, clustering algorithm cannot
                 accumulate enough amount of speaker profile for each cluster.
                 Thus, function `getEnhancedSpeakerCount` employs anchor embeddings
                 (dummy representations) to mitigate the effect of cluster sparsity.
                 enhanced_count_thres = 80 is recommended.
-            sparse_search_volume (int):
-                Number of p_values we search during NME analysis.
-                Default is 30. The lower the value, the faster NME-analysis becomes.
-                Lower than 20 might cause a poor parameter estimation.
             fixed_thres (float):
                 If fixed_thres value is provided, NME-analysis process will be skipped.
                 This value should be optimized on a development set to obtain a quality result.
@@ -679,17 +692,33 @@ class SpeakerClustering(torch.nn.Module):
             kmeans_random_trials (int):
                 Number of random trials for initializing k-means clustering. More trials
                 will result in a more stable clustering result. Default is 1.
+            max_num_speakers (int):
+                The upper bound for the number of speakers in each session
+            max_rp_threshold (float):
+                Limits the range of parameter search. Clustering performance can vary depending on this range.
+                Default is 0.15.
+            oracle_num_speakers (int):
+                The number of speakers in a session from the reference transcript
+            sparse_search_volume (int):
+                Number of p_values we search during NME analysis.
+                Default is 30. The lower the value, the faster NME-analysis becomes.
+                Lower than 20 might cause a poor parameter estimation.
 
         Returns:
-            Y (LongTensor):
+            Y (torch.LongTensor):
                 Speaker labels for the segments in the given input embeddings.
         """
         emb = embeddings_in_scales[-1]
 
         if emb.shape[0] == 1:
             return torch.zeros((1,), dtype=torch.int64)
-        elif emb.shape[0] <= max(enhanced_count_thres, self.min_samples_for_nmesc) and oracle_num_speakers < 0:
-            estimation_number_of_speaker_enhanced = get_enhanced_speaker_count(emb=emb, device=self.device)
+        elif (
+            emb.shape[0] <= max(enhanced_count_thres, self.min_samples_for_nmesc)
+            and oracle_num_speakers < 0
+        ):
+            estimation_number_of_speaker_enhanced = get_enhanced_speaker_count(
+                emb=emb, device=self.device
+            )
         else:
             estimation_number_of_speaker_enhanced = torch.tensor(-1)
 
@@ -697,7 +726,9 @@ class SpeakerClustering(torch.nn.Module):
             max_num_speakers = oracle_num_speakers
 
         multiscale_cosine_affinity_matrix = self.get_multiscale_cosine_affinity_matrix(
-            embeddings_in_scales, timestamps_in_scales, multiscale_weights,
+            embeddings_in_scales,
+            timestamps_in_scales,
+            multiscale_weights,
         )
         matrix_shape = multiscale_cosine_affinity_matrix.shape
 
@@ -717,12 +748,13 @@ class SpeakerClustering(torch.nn.Module):
         # If there are less than `min_samples_for_nmesc` segments, estimation_number_of_speakers is 1.
         if matrix_shape[0] > self.min_samples_for_nmesc:
             estimation_number_of_speakers, p_hat_value = nmesc.forward()
-            affinity_matrix = get_affinity_graph_matrix(multiscale_cosine_affinity_matrix, p_hat_value)
+            affinity_matrix = get_affinity_graph_matrix(
+                multiscale_cosine_affinity_matrix, p_hat_value
+            )
         else:
             nmesc.fixed_thres = max_rp_threshold
             estimation_number_of_speakers, p_hat_value = nmesc.forward()
             affinity_matrix = multiscale_cosine_affinity_matrix
-
 
         # n_clusters is number of speakers estimated from spectral clustering.
         if oracle_num_speakers > 0:
@@ -733,7 +765,9 @@ class SpeakerClustering(torch.nn.Module):
             n_clusters = int(estimation_number_of_speakers.item())
 
         spectral_model = SpectralClustering(
-            n_clusters=n_clusters, n_random_trials=kmeans_random_trials, device=self.device
+            n_clusters=n_clusters,
+            n_random_trials=kmeans_random_trials,
+            device=self.device,
         )
         Y = spectral_model.forward(affinity_matrix)
 
@@ -756,7 +790,7 @@ class SpeakerClustering(torch.nn.Module):
             multiscale_weights (List[float]): List of weights for each scale.
 
         Returns:
-            torch.Tensor: Fused similarity matrix, obtained by calculating the weighted sum of 
+            torch.Tensor: Fused similarity matrix, obtained by calculating the weighted sum of
                 the multiple affinity matrices from the different scales.
         """
         session_scale_mapping_list = get_argmin_mapping_list(timestamps_in_scales)
@@ -768,26 +802,33 @@ class SpeakerClustering(torch.nn.Module):
         for embeddings, weight, map_argmin in zip(
             embeddings_in_scales, multiscale_weights, session_scale_mapping_list
         ):
-            cosine_affinity_matrix = get_cosine_affinity_matrix(embeddings.to(self.device))
+            cosine_affinity_matrix = get_cosine_affinity_matrix(
+                embeddings.to(self.device)
+            )
 
             repeat_list = self.get_repeated_list(
                 map_argmin, torch.tensor(cosine_affinity_matrix.shape[0])
             ).to(self.device)
 
             repeated_tensor_0 = torch.repeat_interleave(
-                cosine_affinity_matrix, repeats=repeat_list, dim=0,
+                cosine_affinity_matrix,
+                repeats=repeat_list,
+                dim=0,
             ).to(self.device)
             repeated_tensor_1 = torch.repeat_interleave(
-                repeated_tensor_0, repeats=repeat_list, dim=1,
+                repeated_tensor_0,
+                repeats=repeat_list,
+                dim=1,
             ).to(self.device)
-            
+
             fused_sim_d += weight * repeated_tensor_1
 
         return fused_sim_d
 
-
     @staticmethod
-    def get_repeated_list(map_argmin: torch.Tensor, matrix_size: torch.Tensor) -> torch.Tensor:
+    def get_repeated_list(
+        map_argmin: torch.Tensor, matrix_size: torch.Tensor
+    ) -> torch.Tensor:
         """Get repeated list for the affinity matrix.
 
         Count the numbers in the mapping dictionary and create lists that contain
@@ -795,7 +836,7 @@ class SpeakerClustering(torch.nn.Module):
         This repeated matrix is then used for fusing multiple affinity values.
 
         Args:
-            map_argmin (torch.Tensor): Mapping dictionary that contains the mapping between the base scale 
+            map_argmin (torch.Tensor): Mapping dictionary that contains the mapping between the base scale
                 and other scales.
             matrix_size (torch.Tensor): Size of the affinity matrix.
 
