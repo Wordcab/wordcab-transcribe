@@ -167,6 +167,7 @@ class ASRAsyncService(ASRService):
 
         task = {
             "input": audio,
+            "audio_duration": duration,
             "alignment": alignment,
             "diarization": diarization,
             "dual_channel": dual_channel,
@@ -295,7 +296,10 @@ class ASRAsyncService(ASRService):
         """
         try:
             result = self.services["diarization"](
-                task["input"], model_index=gpu_index, vad_service=self.services["vad"]
+                task["input"],
+                task["audio_duration"],
+                model_index=gpu_index,
+                vad_service=self.services["vad"],
             )
 
         except Exception as e:

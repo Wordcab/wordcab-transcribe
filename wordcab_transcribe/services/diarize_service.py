@@ -431,6 +431,7 @@ class DiarizeService:
     def __call__(
         self,
         filepath: Union[str, torch.Tensor],
+        audio_duration: float,
         model_index: int,
         vad_service: VadService,
     ) -> List[dict]:
@@ -446,6 +447,13 @@ class DiarizeService:
             List[dict]: List of segments with the following keys: "start", "end", "speaker".
         """
         vad_outputs, _ = vad_service(filepath, False)
+
+        if audio_duration > 3600:
+            window_lengths = [3.0, 2.5, 2.0, 1.5, 1.0]
+            self.scale_dict = {
+                k: (w, s)
+                for k, (w, s) in enumerate(zip(window_lengths, self.shift_lengths))
+            }
 
         ms_emb_ts: MultiscaleEmbeddingsAndTimestamps = self.models[
             model_index
