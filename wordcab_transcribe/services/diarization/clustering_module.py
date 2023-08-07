@@ -70,7 +70,7 @@ def get_enhanced_speaker_count(
     anchor_spk_n: int = 3,
     anchor_sample_n: int = 10,
     sigma: float = 50,
-    cuda: bool = False,
+    device: str = "cuda",
 ) -> torch.Tensor:
     """Calculate the number of speakers using NME analysis with anchor embeddings.
 
@@ -96,6 +96,8 @@ def get_enhanced_speaker_count(
             If the sigma value is too small, under-counting could happen.
             If the sigma value is too large, over-counting could happen.
             sigma = 50 is recommended.
+        device (str):
+            The device to run the operations on ('cuda' or 'cpu').
 
     Returns:
         comp_est_num_of_spk (torch.Tensor):
@@ -119,7 +121,7 @@ def get_enhanced_speaker_count(
             sparse_search_volume=10,
             fixed_thres=-1.0,
             nme_mat_size=300,
-            cuda=cuda,
+            device=device,
         )
         estimation_number_of_speakers, _ = nmesc.forward()
         estimations.append(estimation_number_of_speakers.item())
