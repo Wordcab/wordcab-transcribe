@@ -69,18 +69,25 @@ class DiarizeService:
         self.models = {}
 
         self.max_num_speakers = max_num_speakers
-        self.window_lengths = window_lengths
-        self.shift_lengths = shift_lengths
-        self.multiscale_weights = multiscale_weights
+        self.default_window_lengths = window_lengths
+        self.default_shift_lengths = shift_lengths
+        self.default_multiscale_weights = multiscale_weights
 
-        self.scale_dict = {
+        if len(self.default_multiscale_weights) > 3:
+            self.default_segmentation_batch_size = 64
+        elif len(self.default_multiscale_weights) > 1:
+            self.default_segmentation_batch_size = 128
+        else:
+            self.default_segmentation_batch_size = 256
+
+        self.default_scale_dict = {
             k: (w, s) for k, (w, s) in enumerate(zip(window_lengths, shift_lengths))
         }
 
         for idx in device_index:
             _device = f"cuda:{idx}" if self.device == "cuda" else "cpu"
 
-            segmentation_module = SegmentationModule(_device, self.multiscale_weights)
+            segmentation_module = SegmentationModule(_device)
             clustering_module = ClusteringModule(_device, self.max_num_speakers)
 
             self.models[idx] = DiarizationModels(
@@ -92,6 +99,7 @@ class DiarizeService:
     def __call__(
         self,
         waveform: torch.Tensor,
+        audio_duration: float,
         model_index: int,
         vad_service: VadService,
     ) -> List[dict]:
@@ -100,6 +108,7 @@ class DiarizeService:
 
         Args:
             waveform (torch.Tensor): Waveform to run inference on.
+            audio_duration (float): Duration of the audio file in seconds.
             model_index (int): Index of the model to use for inference.
             vad_service (VadService): VAD service instance to use for Voice Activity Detection.
 
@@ -108,12 +117,35 @@ class DiarizeService:
         """
         vad_outputs, _ = vad_service(waveform, group_timestamps=False)
 
+        if audio_duration < 3600:
+            scale_dict = self.default_scale_dict
+            segmentation_batch_size = self.default_segmentation_batch_size
+            multiscale_weights = self.default_multiscale_weights
+        elif audio_duration < 10800:
+            scale_dict = {
+                k: (w, s)
+                for k, (w, s) in enumerate(
+                    zip([3.0, 2.5, 2.0, 1.5, 1.0], self.default_shift_lengths)
+                )
+            }
+            segmentation_batch_size = 64
+            multiscale_weights = self.default_multiscale_weights
+        else:
+            scale_dict = {
+                k: (w, s)
+                for k, (w, s) in enumerate(zip([3.0, 2.0, 1.0], [0.75, 0.5, 0.25]))
+            }
+            segmentation_batch_size = 32
+            multiscale_weights = [1.0, 1.0, 1.0]
+
         ms_emb_ts: MultiscaleEmbeddingsAndTimestamps = self.models[
             model_index
         ].segmentation(
             waveform=waveform,
+            batch_size=segmentation_batch_size,
             vad_outputs=vad_outputs,
-            scale_dict=self.scale_dict,
+            scale_dict=scale_dict,
+            multiscale_weights=multiscale_weights,
         )
 
         clustering_outputs = self.models[model_index].clustering(ms_emb_ts)

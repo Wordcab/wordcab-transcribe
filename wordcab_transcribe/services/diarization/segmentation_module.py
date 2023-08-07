@@ -77,23 +77,13 @@ class AudioSegmentDataset(Dataset):
 class SegmentationModule:
     """Segmentation module for diariation."""
 
-    def __init__(self, device: str, multiscale_weights: List[float]) -> None:
+    def __init__(self, device: str) -> None:
         """
         Initialize the segmentation module.
 
         Args:
             device (str): Device to use for inference. Can be "cpu" or "cuda".
-            multiscale_weights (List[float]): List of weights for each scale.
         """
-        self.multiscale_weights = multiscale_weights
-
-        if len(self.multiscale_weights) > 3:
-            self.batch_size = 64
-        elif len(self.multiscale_weights) > 1:
-            self.batch_size = 128
-        else:
-            self.batch_size = 256
-
         self.speaker_model = EncDecSpeakerLabelModel.from_pretrained(
             model_name="titanet_large", map_location=None
         ).to(device)
@@ -102,16 +92,20 @@ class SegmentationModule:
     def __call__(
         self,
         waveform: torch.Tensor,
+        batch_size: int,
         vad_outputs: List[dict],
         scale_dict: Dict[int, Tuple[float, float]],
+        multiscale_weights: List[float],
     ) -> MultiscaleEmbeddingsAndTimestamps:
         """
         Run the segmentation module.
 
         Args:
             waveform (torch.Tensor): Waveform of the audio file.
+            batch_size (int): Batch size to use for segmentation inference.
             vad_outputs (List[dict]): List of segments with the following keys: "start", "end".
             scale_dict (Dict[int, Tuple[float, float]]): Dictionary of scales in the format {scale_id: (window, shift)}.
+            multiscale_weights (List[float]): List of weights for each scale.
 
         Returns:
             MultiscaleEmbeddingsAndTimestamps: Embeddings and timestamps of the audio file.
@@ -126,7 +120,9 @@ class SegmentationModule:
                 vad_outputs, window, shift
             )
 
-            _embeddings, _timestamps = self.extract_embeddings(waveform, scale_segments)
+            _embeddings, _timestamps = self.extract_embeddings(
+                waveform, scale_segments, batch_size
+            )
 
             if len(_embeddings) != len(_timestamps):
                 raise ValueError(
@@ -140,7 +136,7 @@ class SegmentationModule:
             base_scale_index=len(embeddings) - 1,
             embeddings=embeddings,
             timestamps=timestamps,
-            multiscale_weights=self.multiscale_weights,
+            multiscale_weights=multiscale_weights,
         )
 
     def get_audio_segments_from_scale(
@@ -180,7 +176,10 @@ class SegmentationModule:
         return scale_segment
 
     def extract_embeddings(
-        self, waveform: torch.Tensor, scale_segments: List[dict]
+        self,
+        waveform: torch.Tensor,
+        scale_segments: List[dict],
+        batch_size: int,
     ) -> Tuple[torch.Tensor, List[List[float]]]:
         """
         This method extracts speaker embeddings from the audio file based on the scale segments.
@@ -188,6 +187,7 @@ class SegmentationModule:
         Args:
             waveform (torch.Tensor): Waveform of the audio file.
             scale_segments (List[dict]): List of segments with the following keys: "offset", "duration".
+            batch_size (int): Batch size to use for segmentation inference.
 
         Returns:
             Tuple[torch.Tensor, List[List[float]]]: Tuple of embeddings and timestamps.
@@ -197,7 +197,7 @@ class SegmentationModule:
         dataset = AudioSegmentDataset(waveform, scale_segments)
         dataloader = torch.utils.data.DataLoader(
             dataset,
-            batch_size=self.batch_size,
+            batch_size=batch_size,
             shuffle=False,
             collate_fn=segmentation_collate_fn,
         )
