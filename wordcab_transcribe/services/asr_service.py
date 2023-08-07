@@ -32,7 +32,7 @@ from loguru import logger
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.logging import time_and_tell
 from wordcab_transcribe.services.align_service import AlignService
-from wordcab_transcribe.services.diarize_service import DiarizeService
+from wordcab_transcribe.services.diarization.diarize_service import DiarizeService
 from wordcab_transcribe.services.gpu_service import GPUService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
@@ -167,6 +167,7 @@ class ASRAsyncService(ASRService):
 
         task = {
             "input": audio,
+            "duration": duration,
             "alignment": alignment,
             "diarization": diarization,
             "dual_channel": dual_channel,
@@ -295,7 +296,10 @@ class ASRAsyncService(ASRService):
         """
         try:
             result = self.services["diarization"](
-                task["input"], model_index=gpu_index, vad_service=self.services["vad"]
+                task["input"],
+                audio_duration=task["duration"],
+                model_index=gpu_index,
+                vad_service=self.services["vad"],
             )
 
         except Exception as e:
