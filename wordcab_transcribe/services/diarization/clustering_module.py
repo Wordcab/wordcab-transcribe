@@ -80,8 +80,6 @@ def get_enhanced_speaker_count(
     Args:
         emb (torch.Tensor):
             The input embedding from the embedding extractor.
-        cuda (bool):
-            Use cuda for the operations if cuda==True.
         random_test_count (int):
             Number of trials of the enhanced counting with randomness.
             The higher the count, the more accurate the enhanced counting is.
