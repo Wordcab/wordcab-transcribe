@@ -41,6 +41,7 @@
 
 """Utils functions for the diarization service and modules."""
 
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 import torch
@@ -573,6 +574,18 @@ def kmeans_plusplus_torch(
         indices[c] = best_candidate
 
     return centers, indices
+
+
+def resolve_diarization_cache_dir() -> Path:
+    """
+    Utility method to get the cache directory for the diarization module.
+
+    Returns:
+        Path: The path to the cache directory.
+    """
+    path = Path.joinpath(Path.home(), f".cache/torch/diarization")
+
+    return path
 
 
 def segmentation_collate_fn(
