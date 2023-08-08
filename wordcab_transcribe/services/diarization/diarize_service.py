@@ -100,6 +100,7 @@ class DiarizeService:
         self,
         waveform: torch.Tensor,
         audio_duration: float,
+        oracle_num_speakers: int,
         model_index: int,
         vad_service: VadService,
     ) -> List[dict]:
@@ -148,7 +149,9 @@ class DiarizeService:
             multiscale_weights=multiscale_weights,
         )
 
-        clustering_outputs = self.models[model_index].clustering(ms_emb_ts)
+        clustering_outputs = self.models[model_index].clustering(
+            ms_emb_ts, oracle_num_speakers
+        )
 
         _outputs = self.get_contiguous_stamps(clustering_outputs)
         outputs = self.merge_stamps(_outputs)

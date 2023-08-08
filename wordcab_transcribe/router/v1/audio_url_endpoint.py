@@ -77,6 +77,7 @@ async def inference_with_audio_url(
             asr.process_input(
                 filepath=filepath,
                 alignment=data.alignment,
+                num_speakers=data.num_speakers,
                 diarization=data.diarization,
                 dual_channel=data.dual_channel,
                 source_lang=data.source_lang,

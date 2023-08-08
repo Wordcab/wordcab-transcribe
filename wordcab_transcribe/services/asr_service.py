@@ -118,6 +118,7 @@ class ASRAsyncService(ASRService):
         self,
         filepath: Union[str, Tuple[str, str]],
         alignment: bool,
+        num_speakers: int,
         diarization: bool,
         dual_channel: bool,
         source_lang: str,
@@ -169,6 +170,7 @@ class ASRAsyncService(ASRService):
             "input": audio,
             "duration": duration,
             "alignment": alignment,
+            "num_speakers": num_speakers,
             "diarization": diarization,
             "dual_channel": dual_channel,
             "source_lang": source_lang,
@@ -298,6 +300,7 @@ class ASRAsyncService(ASRService):
             result = self.services["diarization"](
                 task["input"],
                 audio_duration=task["duration"],
+                oracle_num_speakers=task["num_speakers"],
                 model_index=gpu_index,
                 vad_service=self.services["vad"],
             )

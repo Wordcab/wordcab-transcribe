@@ -868,7 +868,9 @@ class ClusteringModule:
         self.clustering_model = SpeakerClustering(device=device, parallelism=False)
 
     def __call__(
-        self, ms_emb_ts: MultiscaleEmbeddingsAndTimestamps
+        self,
+        ms_emb_ts: MultiscaleEmbeddingsAndTimestamps,
+        oracle_num_speakers: int,
     ) -> List[Tuple[float, float, int]]:
         """
         Run the clustering module and return the speaker segments.
@@ -885,7 +887,7 @@ class ClusteringModule:
             embeddings_in_scales=ms_emb_ts.embeddings,
             timestamps_in_scales=ms_emb_ts.timestamps,
             multiscale_weights=ms_emb_ts.multiscale_weights,
-            oracle_num_speakers=-1,
+            oracle_num_speakers=oracle_num_speakers,
             max_num_speakers=self.params["max_num_speakers"],
             max_rp_threshold=self.params["max_rp_threshold"],
             sparse_search_volume=self.params["sparse_search_volume"],
