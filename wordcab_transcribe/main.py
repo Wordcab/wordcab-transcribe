@@ -25,8 +25,8 @@ from fastapi import status as http_status
 from fastapi.responses import HTMLResponse
 from loguru import logger
 
-from wordcab_transcribe.dependencies import asr
 from wordcab_transcribe.config import settings
+from wordcab_transcribe.dependencies import asr
 from wordcab_transcribe.logging import LoggingMiddleware
 from wordcab_transcribe.router.authentication import get_current_user
 from wordcab_transcribe.router.v1.endpoints import (
