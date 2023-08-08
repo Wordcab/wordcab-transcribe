@@ -46,7 +46,7 @@ router = APIRouter()
 async def inference_with_audio(  # noqa: C901
     background_tasks: BackgroundTasks,
     alignment: bool = Form(False),  # noqa: B008
-    num_speakers: int = Form(False),  # noqa: B008
+    num_speakers: int = Form(-1),  # noqa: B008
     diarization: bool = Form(False),  # noqa: B008
     dual_channel: bool = Form(False),  # noqa: B008
     source_lang: str = Form("en"),  # noqa: B008
