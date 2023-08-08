@@ -26,6 +26,7 @@ from fastapi.responses import HTMLResponse
 from loguru import logger
 
 from wordcab_transcribe.config import settings
+from wordcab_transcribe.dependencies import asr
 from wordcab_transcribe.logging import LoggingMiddleware
 from wordcab_transcribe.router.authentication import get_current_user
 from wordcab_transcribe.router.v1.endpoints import (
@@ -87,6 +88,11 @@ async def startup_event():
 
             except Exception as e:
                 logger.error(f"Error downloading model for {model}: {e}")
+
+    logger.info("Warmup initialization...")
+    await asr.inference_warmup()
+
+    logger.info("Application started!")
 
 
 @app.get("/", tags=["status"])
