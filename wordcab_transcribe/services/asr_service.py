@@ -113,6 +113,24 @@ class ASRAsyncService(ASRService):
             "temperature": 0.0,
         }
 
+    async def inference_warmup(self) -> None:
+        """Warmup the GPU by loading the models."""
+        for gpu_index in self.gpu_handler.device_index:
+            logger.info(f"Warmup GPU {gpu_index}.")
+            await self.process_input(
+                "wordcab_transcribe/assets/warmup_sample.wav",
+                alignment=False,
+                num_speakers=1,
+                diarization=True,
+                dual_channel=False,
+                source_lang="en",
+                timestamps_format="s",
+                use_batch=False,
+                vocab=[],
+                word_timestamps=False,
+                internal_vad=False,
+            )
+
     @time_and_tell
     async def process_input(
         self,
