@@ -1487,7 +1487,7 @@ dev = ["black (>=23.0.0,<24.0.0)", "flake8 (>=6.0.0,<7.0.0)", "isort (>=5.0.0,<6
 type = "git"
 url = "https://github.com/Wordcab/faster-whisper.git"
 reference = "patch-word-alignment"
-resolved_reference = "f3f2672c55c4e313e52768b05d9eec3de98775a8"
+resolved_reference = "af9423efc9a342a47b70cc27305e6ab19a07e908"
 
 [[package]]
 name = "ffmpeg-python"
