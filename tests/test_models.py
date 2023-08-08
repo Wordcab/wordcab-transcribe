@@ -130,12 +130,14 @@ def test_audio_request() -> None:
     """Test the AudioRequest model."""
     request = AudioRequest(
         alignment=True,
+        num_speakers=-1,
         diarization=True,
         dual_channel=True,
         source_lang="en",
         timestamps="s",
     )
     assert request.alignment is True
+    assert request.num_speakers == -1
     assert request.diarization is True
     assert request.dual_channel is True
     assert request.source_lang == "en"
@@ -152,6 +154,7 @@ def test_audio_response() -> None:
         utterances=[],
         audio_duration=0.0,
         alignment=False,
+        num_speakers=-1,
         diarization=False,
         dual_channel=False,
         source_lang="en",
@@ -164,6 +167,7 @@ def test_audio_response() -> None:
     assert response.utterances == []
     assert response.audio_duration == 0.0
     assert response.alignment is False
+    assert response.num_speakers == -1
     assert response.diarization is False
     assert response.dual_channel is False
     assert response.source_lang == "en"
@@ -192,6 +196,7 @@ def test_audio_response() -> None:
         ],
         audio_duration=6.0,
         alignment=True,
+        num_speakers=-1,
         diarization=True,
         dual_channel=True,
         source_lang="en",
@@ -219,6 +224,7 @@ def test_audio_response() -> None:
     ]
     assert response.audio_duration == 6.0
     assert response.alignment is True
+    assert response.num_speakers == -1
     assert response.diarization is True
     assert response.dual_channel is True
     assert response.source_lang == "en"
@@ -246,6 +252,7 @@ def test_base_request_default() -> None:
     """Test the BaseRequest model with default values."""
     req = BaseRequest()
     assert req.alignment is False
+    assert req.num_speakers == -1
     assert req.diarization is False
     assert req.source_lang == "en"
     assert req.timestamps == "s"
@@ -281,6 +288,7 @@ def test_base_response() -> None:
         ],
         audio_duration=6.0,
         alignment=True,
+        num_speakers=-1,
         diarization=False,
         source_lang="en",
         timestamps="s",
@@ -307,6 +315,7 @@ def test_base_response() -> None:
     ]
     assert response.audio_duration == 6.0
     assert response.alignment is True
+    assert response.num_speakers == -1
     assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
@@ -331,6 +340,7 @@ def test_cortex_payload() -> None:
         url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         api_key="test_api_key",
         alignment=True,
+        num_speakers=-1,
         diarization=False,
         dual_channel=False,
         source_lang="en",
@@ -345,6 +355,7 @@ def test_cortex_payload() -> None:
     assert payload.url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     assert payload.api_key == "test_api_key"
     assert payload.alignment is True
+    assert payload.num_speakers == -1
     assert payload.diarization is False
     assert payload.dual_channel is False
     assert payload.source_lang == "en"
@@ -378,6 +389,7 @@ def test_cortex_url_response() -> None:
         ],
         audio_duration=6.0,
         alignment=True,
+        num_speakers=-1,
         diarization=False,
         source_lang="en",
         timestamps="s",
@@ -407,6 +419,7 @@ def test_cortex_url_response() -> None:
     ]
     assert response.audio_duration == 6.0
     assert response.alignment is True
+    assert response.num_speakers == -1
     assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
@@ -440,6 +453,7 @@ def test_cortex_youtube_response() -> None:
         ],
         audio_duration=6.0,
         alignment=True,
+        num_speakers=-1,
         diarization=False,
         source_lang="en",
         timestamps="s",
@@ -469,6 +483,7 @@ def test_cortex_youtube_response() -> None:
     ]
     assert response.audio_duration == 6.0
     assert response.alignment is True
+    assert response.num_speakers == -1
     assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
@@ -502,6 +517,7 @@ def test_youtube_response() -> None:
         ],
         audio_duration=6.0,
         alignment=True,
+        num_speakers=-1,
         diarization=False,
         source_lang="en",
         timestamps="s",
@@ -529,6 +545,7 @@ def test_youtube_response() -> None:
     ]
     assert response.audio_duration == 6.0
     assert response.alignment is True
+    assert response.num_speakers == -1
     assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"

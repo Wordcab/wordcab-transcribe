@@ -58,6 +58,7 @@ class BaseResponse(BaseModel):
     utterances: List[Utterance]
     audio_duration: float
     alignment: bool
+    num_speakers: int
     diarization: bool
     source_lang: str
     timestamps: str
@@ -93,6 +94,7 @@ class AudioResponse(BaseResponse):
                 ],
                 "audio_duration": 2.678,
                 "alignment": False,
+                "num_speakers": -1,
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
@@ -135,6 +137,7 @@ class YouTubeResponse(BaseResponse):
                 ],
                 "audio_duration": 2.0,
                 "alignment": False,
+                "num_speakers": -1,
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
@@ -173,6 +176,7 @@ class CortexPayload(BaseModel):
     url: Optional[str] = None
     api_key: Optional[str] = None
     alignment: Optional[bool] = False
+    num_speakers: Optional[int] = -1
     diarization: Optional[bool] = False
     dual_channel: Optional[bool] = False
     source_lang: Optional[str] = "en"
@@ -193,6 +197,7 @@ class CortexPayload(BaseModel):
                 "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 "api_key": "1234567890",
                 "alignment": False,
+                "num_speakers": -1,
                 "diarization": False,
                 "dual_channel": False,
                 "source_lang": "en",
@@ -238,7 +243,8 @@ class CortexUrlResponse(AudioResponse):
                 ],
                 "audio_duration": 2.0,
                 "alignment": False,
-                "diariation": False,
+                "num_speakers": -1,
+                "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
                 "use_batch": False,
@@ -283,7 +289,8 @@ class CortexYoutubeResponse(YouTubeResponse):
                 ],
                 "audio_duration": 2.0,
                 "alignment": False,
-                "diariation": False,
+                "num_speakers": -1,
+                "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
                 "use_batch": False,
@@ -305,6 +312,7 @@ class BaseRequest(BaseModel):
     """Base request model for the API."""
 
     alignment: bool = False
+    num_speakers: int = -1
     diarization: bool = False
     source_lang: str = "en"
     timestamps: Timestamps = Timestamps.seconds
@@ -329,6 +337,7 @@ class BaseRequest(BaseModel):
         json_schema_extra = {
             "example": {
                 "alignment": False,
+                "num_speakers": -1,
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
@@ -355,6 +364,7 @@ class AudioRequest(BaseRequest):
         json_schema_extra = {
             "example": {
                 "alignment": False,
+                "num_speakers": -1,
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",

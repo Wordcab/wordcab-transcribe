@@ -858,7 +858,6 @@ class ClusteringModule:
     def __init__(self, device: str, max_num_speakers: int = 8) -> None:
         """Initialize the clustering module."""
         self.params = dict(
-            oracle_num_speakers=False,
             max_num_speakers=max_num_speakers,
             enhanced_count_thres=80,
             max_rp_threshold=0.25,
@@ -868,7 +867,9 @@ class ClusteringModule:
         self.clustering_model = SpeakerClustering(device=device, parallelism=False)
 
     def __call__(
-        self, ms_emb_ts: MultiscaleEmbeddingsAndTimestamps
+        self,
+        ms_emb_ts: MultiscaleEmbeddingsAndTimestamps,
+        oracle_num_speakers: int,
     ) -> List[Tuple[float, float, int]]:
         """
         Run the clustering module and return the speaker segments.
@@ -876,6 +877,7 @@ class ClusteringModule:
         Args:
             ms_emb_ts (MultiscaleEmbeddingsAndTimestamps): Embeddings and timestamps of the audio file in multiscale.
                 The multiscale embeddings and timestamps are from the SegmentationModule.
+            oracle_num_speakers (int): Number of speakers in the audio file.
 
         Returns:
             List[Tuple[float, float, int]]: List of segments with the following keys: "start", "end", "speaker".
@@ -885,7 +887,8 @@ class ClusteringModule:
             embeddings_in_scales=ms_emb_ts.embeddings,
             timestamps_in_scales=ms_emb_ts.timestamps,
             multiscale_weights=ms_emb_ts.multiscale_weights,
-            oracle_num_speakers=-1,
+            enhanced_count_thres=self.params["enhanced_count_thres"],
+            oracle_num_speakers=oracle_num_speakers,
             max_num_speakers=self.params["max_num_speakers"],
             max_rp_threshold=self.params["max_rp_threshold"],
             sparse_search_volume=self.params["sparse_search_volume"],
