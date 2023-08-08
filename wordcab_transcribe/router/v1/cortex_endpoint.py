@@ -71,6 +71,7 @@ async def run_cortex(
         if payload.url_type == "audio_url":
             data = AudioRequest(
                 alignment=payload.alignment,
+                num_speakers=payload.num_speakers,
                 diarization=payload.diarization,
                 dual_channel=payload.dual_channel,
                 source_lang=payload.source_lang,
@@ -89,6 +90,7 @@ async def run_cortex(
         elif payload.url_type == "youtube":
             data = BaseRequest(
                 alignment=payload.alignment,
+                num_speakers=payload.num_speakers,
                 diarization=payload.diarization,
                 source_lang=payload.source_lang,
                 timestamps=payload.timestamps,

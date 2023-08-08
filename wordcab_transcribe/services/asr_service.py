@@ -139,6 +139,7 @@ class ASRAsyncService(ASRService):
         Args:
             filepath (Union[str, Tuple[str, str]]): Path to the audio file or tuple of paths to the audio files.
             alignment (bool): Whether to do alignment or not.
+            num_speakers (int): The number of oracle speakers.
             diarization (bool): Whether to do diarization or not.
             dual_channel (bool): Whether to do dual channel or not.
             source_lang (str): Source language of the audio file.

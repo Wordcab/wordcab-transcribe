@@ -15,6 +15,7 @@ params = {"url": "https://youtu.be/JJbtS8CMr80"}  # 4h - multiple speakers
 
 data = {
     "alignment": False,  # Longer processing time but better timestamps
+    "num_speakers": -1,  # Leave at -1 to guess the number of speakers
     "diarization": True,  # Longer processing time but speaker segment attribution
     "source_lang": "nl",  # optional, default is "en"
     "timestamps": "s",  # optional, default is "s". Can be "s", "ms" or "hms".
