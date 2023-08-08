@@ -110,6 +110,7 @@ class DiarizeService:
         Args:
             waveform (torch.Tensor): Waveform to run inference on.
             audio_duration (float): Duration of the audio file in seconds.
+            oracle_num_speakers (int): Number of speakers in the audio file.
             model_index (int): Index of the model to use for inference.
             vad_service (VadService): VAD service instance to use for Voice Activity Detection.
 
