@@ -66,7 +66,7 @@ class BaseResponse(BaseModel):
     vocab: List[str]
     word_timestamps: bool
     internal_vad: bool
-    penalty_repetition: float
+    repetition_penalty: float
 
 
 class AudioResponse(BaseResponse):
@@ -107,7 +107,7 @@ class AudioResponse(BaseResponse):
                 ],
                 "word_timestamps": False,
                 "internal_vad": False,
-                "penalty_repetition": 1.2,
+                "repetition_penalty": 1.2,
                 "dual_channel": False,
             }
         }
@@ -151,7 +151,7 @@ class YouTubeResponse(BaseResponse):
                 ],
                 "word_timestamps": False,
                 "internal_vad": False,
-                "penalty_repetition": 1.2,
+                "repetition_penalty": 1.2,
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             }
         }
@@ -260,7 +260,7 @@ class CortexUrlResponse(AudioResponse):
                 ],
                 "word_timestamps": False,
                 "internal_vad": False,
-                "penalty_repetition": 1.2,
+                "repetition_penalty": 1.2,
                 "dual_channel": False,
                 "job_name": "job_name",
                 "request_id": "request_id",
@@ -307,7 +307,7 @@ class CortexYoutubeResponse(YouTubeResponse):
                 ],
                 "word_timestamps": False,
                 "internal_vad": False,
-                "penalty_repetition": 1.2,
+                "repetition_penalty": 1.2,
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 "job_name": "job_name",
                 "request_id": "request_id",
