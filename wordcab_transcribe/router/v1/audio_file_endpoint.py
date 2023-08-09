@@ -55,6 +55,7 @@ async def inference_with_audio(  # noqa: C901
     vocab: List[str] = Form([]),  # noqa: B008
     word_timestamps: bool = Form(False),  # noqa: B008
     internal_vad: bool = Form(False),  # noqa: B008
+    repetition_penalty: float = Form(1.2),  # noqa: B008
     file: UploadFile = File(...),  # noqa: B008
 ) -> AudioResponse:
     """Inference endpoint with audio file."""
@@ -77,6 +78,7 @@ async def inference_with_audio(  # noqa: C901
         vocab=vocab,
         word_timestamps=word_timestamps,
         internal_vad=internal_vad,
+        repetition_penalty=repetition_penalty,
         dual_channel=dual_channel,
     )
 
@@ -112,6 +114,7 @@ async def inference_with_audio(  # noqa: C901
             vocab=data.vocab,
             word_timestamps=data.word_timestamps,
             internal_vad=data.internal_vad,
+            repetition_penalty=data.repetition_penalty,
         )
     )
     result = await task
@@ -139,4 +142,5 @@ async def inference_with_audio(  # noqa: C901
             vocab=data.vocab,
             word_timestamps=data.word_timestamps,
             internal_vad=data.internal_vad,
+            repetition_penalty=data.repetition_penalty,
         )

@@ -145,6 +145,7 @@ class ASRAsyncService(ASRService):
         vocab: List[str],
         word_timestamps: bool,
         internal_vad: bool,
+        repetition_penalty: float,
     ) -> Union[Tuple[List[dict], float], Exception]:
         """Process the input request and return the results.
 
@@ -166,6 +167,7 @@ class ASRAsyncService(ASRService):
             vocab (List[str]): List of words to use for the vocabulary.
             word_timestamps (bool): Whether to return word timestamps or not.
             internal_vad (bool): Whether to use faster-whisper's VAD or not.
+            repetition_penalty (float): The repetition penalty to use for the beam search.
 
         Returns:
             Union[Tuple[List[dict], float], Exception]: The final transcription result associated with the audio
@@ -198,6 +200,7 @@ class ASRAsyncService(ASRService):
             "vocab": vocab,
             "word_timestamps": word_timestamps,
             "internal_vad": internal_vad,
+            "repetition_penalty": repetition_penalty,
             "transcription_result": None,
             "transcription_done": asyncio.Event(),
             "diarization_result": None,
@@ -287,6 +290,7 @@ class ASRAsyncService(ASRService):
                 vocab=None if task["vocab"] == [] else task["vocab"],
                 word_timestamps=True,
                 internal_vad=task["internal_vad"],
+                repetition_penalty=task["repetition_penalty"],
                 vad_service=self.services["vad"] if task["dual_channel"] else None,
                 use_batch=task["use_batch"],
             )

@@ -86,6 +86,7 @@ async def inference_with_audio_url(
                 vocab=data.vocab,
                 word_timestamps=data.word_timestamps,
                 internal_vad=data.internal_vad,
+                repetition_penalty=data.repetition_penalty,
             )
         )
         result = await task
@@ -113,4 +114,5 @@ async def inference_with_audio_url(
             vocab=data.vocab,
             word_timestamps=data.word_timestamps,
             internal_vad=data.internal_vad,
+            repetition_penalty=data.repetition_penalty,
         )

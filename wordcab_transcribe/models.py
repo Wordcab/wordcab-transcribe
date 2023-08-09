@@ -66,6 +66,7 @@ class BaseResponse(BaseModel):
     vocab: List[str]
     word_timestamps: bool
     internal_vad: bool
+    repetition_penalty: float
 
 
 class AudioResponse(BaseResponse):
@@ -106,6 +107,7 @@ class AudioResponse(BaseResponse):
                 ],
                 "word_timestamps": False,
                 "internal_vad": False,
+                "repetition_penalty": 1.2,
                 "dual_channel": False,
             }
         }
@@ -149,6 +151,7 @@ class YouTubeResponse(BaseResponse):
                 ],
                 "word_timestamps": False,
                 "internal_vad": False,
+                "repetition_penalty": 1.2,
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             }
         }
@@ -185,6 +188,7 @@ class CortexPayload(BaseModel):
     vocab: Optional[List[str]] = []
     word_timestamps: Optional[bool] = False
     internal_vad: Optional[bool] = False
+    repetition_penalty: Optional[float] = 1.2
     job_name: Optional[str] = None
     ping: Optional[bool] = False
 
@@ -210,6 +214,7 @@ class CortexPayload(BaseModel):
                 ],
                 "word_timestamps": False,
                 "internal_vad": False,
+                "repetition_penalty": 1.2,
                 "job_name": "job_abc123",
                 "ping": False,
             }
@@ -255,6 +260,7 @@ class CortexUrlResponse(AudioResponse):
                 ],
                 "word_timestamps": False,
                 "internal_vad": False,
+                "repetition_penalty": 1.2,
                 "dual_channel": False,
                 "job_name": "job_name",
                 "request_id": "request_id",
@@ -301,6 +307,7 @@ class CortexYoutubeResponse(YouTubeResponse):
                 ],
                 "word_timestamps": False,
                 "internal_vad": False,
+                "repetition_penalty": 1.2,
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 "job_name": "job_name",
                 "request_id": "request_id",
@@ -320,6 +327,7 @@ class BaseRequest(BaseModel):
     vocab: List[str] = []
     word_timestamps: bool = False
     internal_vad: bool = False
+    repetition_penalty: float = 1.2
 
     @field_validator("vocab")
     def validate_each_vocab_value(
@@ -349,6 +357,7 @@ class BaseRequest(BaseModel):
                 ],
                 "word_timestamps": False,
                 "internal_vad": False,
+                "repetition_penalty": 1.2,
             }
         }
 
@@ -377,6 +386,7 @@ class AudioRequest(BaseRequest):
                 "word_timestamps": False,
                 "dual_channel": False,
                 "internal_vad": False,
+                "repetition_penalty": 1.2,
             }
         }
 
