@@ -129,6 +129,7 @@ class ASRAsyncService(ASRService):
                 vocab=[],
                 word_timestamps=False,
                 internal_vad=False,
+                repetition_penalty=1.0,
             )
 
     @time_and_tell
