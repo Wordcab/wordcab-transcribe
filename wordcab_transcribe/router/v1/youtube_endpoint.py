@@ -62,6 +62,7 @@ async def inference_with_youtube(
                 vocab=data.vocab,
                 word_timestamps=data.word_timestamps,
                 internal_vad=data.internal_vad,
+                repetition_penalty=data.repetition_penalty,
             )
         )
         result = await task
@@ -88,5 +89,6 @@ async def inference_with_youtube(
             vocab=data.vocab,
             word_timestamps=data.word_timestamps,
             internal_vad=data.internal_vad,
+            repetition_penalty=data.repetition_penalty,
             video_url=url,
         )

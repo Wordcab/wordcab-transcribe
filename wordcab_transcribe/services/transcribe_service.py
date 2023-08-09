@@ -351,6 +351,7 @@ class TranscribeService:
         vocab: Optional[List[str]] = None,
         word_timestamps: bool = True,
         internal_vad: bool = False,
+        repetition_penalty: float = 1.0,
         vad_service: Optional[VadService] = None,
         use_batch: bool = True,
     ) -> Union[List[dict], List[List[dict]]]:
@@ -367,6 +368,7 @@ class TranscribeService:
             vocab (Optional[List[str]]): Vocabulary to use during generation if not None.
             word_timestamps (bool): Whether to return word timestamps.
             internal_vad (bool): Whether to use faster-whisper's VAD or not.
+            repetition_penalty (float): Repetition penalty to use during generation beamed search.
             vad_service (Optional[VADService]): VADService to use for voice activity detection in the dual_channel case.
             use_batch (bool): Whether to use batch inference.
 
@@ -423,6 +425,7 @@ class TranscribeService:
                 audio,
                 language=source_lang,
                 initial_prompt=prompt,
+                repetition_penalty=repetition_penalty,
                 suppress_blank=False,
                 word_timestamps=True,
                 vad_filter=internal_vad,
@@ -451,6 +454,7 @@ class TranscribeService:
                     audio,
                     language=source_lang,
                     initial_prompt=prompt,
+                    repetition_penalty=repetition_penalty,
                     suppress_blank=False,
                     word_timestamps=True,
                     vad_filter=False if internal_vad else True,
