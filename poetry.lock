@@ -1424,7 +1424,7 @@ develop = false
 [package.dependencies]
 av = "==10.*"
 ctranslate2 = ">=3.17,<4"
-huggingface_hub = ">=0.13"
+huggingface-hub = ">=0.13"
 onnxruntime = ">=1.14,<2"
 tokenizers = "==0.13.*"
 
@@ -6454,4 +6454,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8.1,<3.10"
-content-hash = "a4715b3cb1d3bc5906457aaebc420305146875b7c247a0e453f4480cdb81acdd"
+content-hash = "b7460df398666e83579bee325beb128151622e034accffcf2984ca4e7f6c7238"
