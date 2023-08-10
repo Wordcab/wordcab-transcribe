@@ -59,7 +59,8 @@ CURRENCIES_CHARACTERS = [
     "₾",
     "₿",
 ]
-        
+
+
 # pragma: no cover
 async def async_run_subprocess(command: List[str]) -> tuple:
     """
