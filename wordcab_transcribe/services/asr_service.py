@@ -504,7 +504,6 @@ class ASRAsyncService(ASRService):
                     lambda: format_segments(
                         segments=segments,
                         alignment=alignment,
-                        use_batch=task["use_batch"],
                         word_timestamps=True,
                     ),
                     func_name="format_segments",

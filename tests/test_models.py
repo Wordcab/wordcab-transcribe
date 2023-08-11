@@ -159,7 +159,6 @@ def test_audio_request() -> None:
     assert request.dual_channel is True
     assert request.source_lang == "en"
     assert request.timestamps == "s"
-    assert request.use_batch is False
     assert request.vocab == []
     assert request.word_timestamps is False
     assert request.internal_vad is False
@@ -181,7 +180,6 @@ def test_audio_response() -> None:
         dual_channel=False,
         source_lang="en",
         timestamps="s",
-        use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=False,
         internal_vad=False,
@@ -191,9 +189,9 @@ def test_audio_response() -> None:
         no_speech_threshold=0.4,
         condition_on_previous_text=False,
         process_times = ProcessTimes(
-            total=10.0
+            total=10.0,
             transcription=5.0,
-            post_processing=2.0
+            post_processing=2.0,
         )
     )
     assert response.utterances == []
@@ -204,7 +202,6 @@ def test_audio_response() -> None:
     assert response.dual_channel is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
-    assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
     assert response.internal_vad is False
@@ -243,7 +240,6 @@ def test_audio_response() -> None:
         dual_channel=True,
         source_lang="en",
         timestamps="s",
-        use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=True,
         internal_vad=False,
@@ -253,9 +249,9 @@ def test_audio_response() -> None:
         no_speech_threshold=0.4,
         condition_on_previous_text=False,
         process_times = ProcessTimes(
-            total=10.0
+            total=10.0,
             transcription=5.0,
-            post_processing=2.0
+            post_processing=2.0,
         )
     )
     assert response.utterances == [
@@ -281,7 +277,6 @@ def test_audio_response() -> None:
     assert response.dual_channel is True
     assert response.source_lang == "en"
     assert response.timestamps == "s"
-    assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is True
     assert response.internal_vad is False
@@ -318,7 +313,6 @@ def test_base_request_default() -> None:
     assert req.diarization is False
     assert req.source_lang == "en"
     assert req.timestamps == "s"
-    assert req.use_batch is False
     assert req.word_timestamps is False
     assert req.internal_vad is False
     assert req.repetition_penalty == 1.2
@@ -359,7 +353,6 @@ def test_base_response() -> None:
         diarization=False,
         source_lang="en",
         timestamps="s",
-        use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=False,
         internal_vad=False,
@@ -398,7 +391,6 @@ def test_base_response() -> None:
     assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
-    assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
     assert response.internal_vad is False
@@ -436,7 +428,6 @@ def test_cortex_payload() -> None:
         dual_channel=False,
         source_lang="en",
         timestamps="s",
-        use_batch=False,
         word_timestamps=False,
         internal_vad=False,
         repetition_penalty=1.2,
@@ -452,7 +443,6 @@ def test_cortex_payload() -> None:
     assert payload.dual_channel is False
     assert payload.source_lang == "en"
     assert payload.timestamps == "s"
-    assert payload.use_batch is False
     assert payload.vocab == []
     assert payload.word_timestamps is False
     assert payload.internal_vad is False
@@ -490,7 +480,6 @@ def test_cortex_url_response() -> None:
         diarization=False,
         source_lang="en",
         timestamps="s",
-        use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=False,
         internal_vad=False,
@@ -532,7 +521,6 @@ def test_cortex_url_response() -> None:
     assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
-    assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
     assert response.internal_vad is False
@@ -578,7 +566,6 @@ def test_cortex_youtube_response() -> None:
         diarization=False,
         source_lang="en",
         timestamps="s",
-        use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=False,
         internal_vad=False,
@@ -620,7 +607,6 @@ def test_cortex_youtube_response() -> None:
     assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
-    assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
     assert response.internal_vad is False
@@ -666,7 +652,6 @@ def test_youtube_response() -> None:
         diarization=False,
         source_lang="en",
         timestamps="s",
-        use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=False,
         internal_vad=False,
@@ -706,7 +691,6 @@ def test_youtube_response() -> None:
     assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
-    assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
     assert response.internal_vad is False

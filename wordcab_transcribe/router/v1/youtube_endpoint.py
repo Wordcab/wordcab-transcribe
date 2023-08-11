@@ -88,7 +88,6 @@ async def inference_with_youtube(
             diarization=data.diarization,
             source_lang=data.source_lang,
             timestamps=data.timestamps,
-            use_batch=data.use_batch,
             vocab=data.vocab,
             word_timestamps=data.word_timestamps,
             internal_vad=data.internal_vad,

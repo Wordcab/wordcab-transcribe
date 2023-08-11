@@ -113,7 +113,6 @@ class AudioResponse(BaseResponse):
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
-                "use_batch": False,
                 "vocab": [
                     "custom company name",
                     "custom product name",
@@ -168,7 +167,6 @@ class YouTubeResponse(BaseResponse):
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
-                "use_batch": False,
                 "vocab": [
                     "custom company name",
                     "custom product name",
@@ -220,7 +218,6 @@ class CortexPayload(BaseModel):
     dual_channel: Optional[bool] = False
     source_lang: Optional[str] = "en"
     timestamps: Optional[Timestamps] = Timestamps.seconds
-    use_batch: Optional[bool] = False
     vocab: Optional[List[str]] = []
     word_timestamps: Optional[bool] = False
     internal_vad: Optional[bool] = False
@@ -246,7 +243,6 @@ class CortexPayload(BaseModel):
                 "dual_channel": False,
                 "source_lang": "en",
                 "timestamps": "s",
-                "use_batch": False,
                 "vocab": [
                     "custom company name",
                     "custom product name",
@@ -296,7 +292,6 @@ class CortexUrlResponse(AudioResponse):
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
-                "use_batch": False,
                 "vocab": [
                     "custom company name",
                     "custom product name",
@@ -354,7 +349,6 @@ class CortexYoutubeResponse(YouTubeResponse):
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
-                "use_batch": False,
                 "vocab": [
                     "custom company name",
                     "custom product name",
@@ -389,7 +383,6 @@ class BaseRequest(BaseModel):
     diarization: bool = False
     source_lang: str = "en"
     timestamps: Timestamps = Timestamps.seconds
-    use_batch: bool = False
     vocab: List[str] = []
     word_timestamps: bool = False
     internal_vad: bool = False
@@ -419,7 +412,6 @@ class BaseRequest(BaseModel):
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
-                "use_batch": False,
                 "vocab": [
                     "custom company name",
                     "custom product name",
@@ -451,7 +443,6 @@ class AudioRequest(BaseRequest):
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
-                "use_batch": False,
                 "vocab": [
                     "custom company name",
                     "custom product name",
