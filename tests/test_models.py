@@ -45,7 +45,7 @@ def test_process_times() -> None:
         transcription=5.0,
         diarization=None,
         alignment=None,
-        post_processing=2.0
+        post_processing=2.0,
     )
     assert times.total == 10.0
     assert times.transcription == 5.0
@@ -188,11 +188,11 @@ def test_audio_response() -> None:
         log_prob_threshold=-1.0,
         no_speech_threshold=0.4,
         condition_on_previous_text=False,
-        process_times = ProcessTimes(
+        process_times=ProcessTimes(
             total=10.0,
             transcription=5.0,
             post_processing=2.0,
-        )
+        ),
     )
     assert response.utterances == []
     assert response.audio_duration == 0.0
@@ -211,9 +211,7 @@ def test_audio_response() -> None:
     assert response.no_speech_threshold == 0.4
     assert response.condition_on_previous_text is False
     assert response.process_times == ProcessTimes(
-        total=10.0,
-        transcription=5.0,
-        post_processing=2.0
+        total=10.0, transcription=5.0, post_processing=2.0
     )
 
     response = AudioResponse(
@@ -248,11 +246,11 @@ def test_audio_response() -> None:
         log_prob_threshold=-1.0,
         no_speech_threshold=0.4,
         condition_on_previous_text=False,
-        process_times = ProcessTimes(
+        process_times=ProcessTimes(
             total=10.0,
             transcription=5.0,
             post_processing=2.0,
-        )
+        ),
     )
     assert response.utterances == [
         Utterance(
@@ -286,9 +284,7 @@ def test_audio_response() -> None:
     assert response.no_speech_threshold == 0.4
     assert response.condition_on_previous_text is False
     assert response.process_times == ProcessTimes(
-        total=10.0,
-        transcription=5.0,
-        post_processing=2.0
+        total=10.0, transcription=5.0, post_processing=2.0
     )
 
 
@@ -361,13 +357,13 @@ def test_base_response() -> None:
         log_prob_threshold=-1.0,
         no_speech_threshold=0.4,
         condition_on_previous_text=False,
-        process_times = ProcessTimes(
+        process_times=ProcessTimes(
             total=10.0,
             transcription=5.0,
             diarization=2.0,
             alignment=2.0,
             post_processing=1.0,
-        )
+        ),
     )
     assert response.utterances == [
         Utterance(
@@ -488,7 +484,7 @@ def test_cortex_url_response() -> None:
         log_prob_threshold=-1.0,
         no_speech_threshold=0.4,
         condition_on_previous_text=False,
-        process_times = ProcessTimes(
+        process_times=ProcessTimes(
             total=10.0,
             transcription=5.0,
             diarization=2.0,
@@ -574,7 +570,7 @@ def test_cortex_youtube_response() -> None:
         log_prob_threshold=-1.0,
         no_speech_threshold=0.4,
         condition_on_previous_text=False,
-        process_times = ProcessTimes(
+        process_times=ProcessTimes(
             total=10.0,
             transcription=5.0,
             diarization=2.0,
@@ -660,7 +656,7 @@ def test_youtube_response() -> None:
         log_prob_threshold=-1.0,
         no_speech_threshold=0.4,
         condition_on_previous_text=False,
-        process_times = ProcessTimes(
+        process_times=ProcessTimes(
             total=10.0,
             transcription=5.0,
             diarization=2.0,

@@ -83,8 +83,9 @@ def time_and_tell(
     This decorator logs the execution time of a function only if the debug setting is True.
 
     Args:
-        func: The function to decorate.
-        debug_mode: The debug setting.
+        func: The function to call in the wrapper.
+        func_name: The name of the function for logging purposes.
+        debug_mode: The debug setting for logging purposes.
 
     Returns:
         The appropriate wrapper for the function.
