@@ -23,10 +23,8 @@
 from fastapi import Depends, FastAPI
 from fastapi import status as http_status
 from fastapi.responses import HTMLResponse
-from loguru import logger
 
 from wordcab_transcribe.config import settings
-from wordcab_transcribe.dependencies import asr
 from wordcab_transcribe.logging import LoggingMiddleware
 from wordcab_transcribe.router.authentication import get_current_user
 from wordcab_transcribe.router.v1.endpoints import (
@@ -34,7 +32,7 @@ from wordcab_transcribe.router.v1.endpoints import (
     auth_router,
     cortex_router,
 )
-from wordcab_transcribe.utils import download_model, retrieve_user_platform
+from wordcab_transcribe.config import lifespan
 
 
 # Main application instance creation
@@ -43,6 +41,7 @@ app = FastAPI(
     version=settings.version,
     openapi_url=f"{settings.api_prefix}/openapi.json",
     debug=settings.debug,
+    lifespan=lifespan,
 )
 
 # Add logging middleware
@@ -59,40 +58,6 @@ else:
 
 if settings.cortex_endpoint:
     app.include_router(cortex_router, tags=["cortex"])
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Startup event handler."""
-    logger.debug("Starting up...")
-
-    if retrieve_user_platform() != "linux":
-        logger.warning(
-            "You are not running the application on Linux.\n"
-            "The application was tested on Ubuntu 22.04, so we cannot guarantee that it will work on other OS.\n"
-            "Report any issues with your env specs to: https://github.com/Wordcab/wordcab-transcribe/issues"
-        )
-
-    if settings.extra_languages:
-        logger.info("Downloading models for extra languages...")
-        for model in settings.extra_languages:
-            try:
-                model_path = download_model(
-                    compute_type=settings.compute_type, language=model
-                )
-
-                if model_path is not None:
-                    settings.extra_languages_model_paths[model] = model_path
-                else:
-                    raise Exception(f"Coudn't download model for {model}")
-
-            except Exception as e:
-                logger.error(f"Error downloading model for {model}: {e}")
-
-    logger.info("Warmup initialization...")
-    await asr.inference_warmup()
-
-    logger.info("Application started!")
 
 
 @app.get("/", tags=["status"])
