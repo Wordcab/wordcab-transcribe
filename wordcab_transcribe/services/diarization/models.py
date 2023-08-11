@@ -27,17 +27,20 @@ import tarfile
 import wget
 import yaml
 from pathlib import Path
-from typing import List, NamedTuple, Optional, Tuple
+from typing import List, NamedTuple, Optional, Tuple, Union
 
 import librosa
 import torch
 import torch.nn as nn
+from torch.nn import functional as F
 
 from wordcab_transcribe.services.diarization.utils import resolve_diarization_cache_dir
 from wordcab_transcribe.services.diarization.modules import (
+    AttentivePoolLayer,
     JasperBlock,
     MaskedConv1d,
     SqueezeExcite,
+    StatsPoolLayer,
     init_weights,
 )
 
@@ -60,8 +63,12 @@ def normalize_batch(x, seq_len, normalize_type):
     x_std = None
 
     if normalize_type == "per_feature":
-        x_mean = torch.zeros((seq_len.shape[0], x.shape[1]), dtype=x.dtype, device=x.device)
-        x_std = torch.zeros((seq_len.shape[0], x.shape[1]), dtype=x.dtype, device=x.device)
+        x_mean = torch.zeros(
+            (seq_len.shape[0], x.shape[1]), dtype=x.dtype, device=x.device
+        )
+        x_std = torch.zeros(
+            (seq_len.shape[0], x.shape[1]), dtype=x.dtype, device=x.device
+        )
         for i in range(x.shape[0]):
             if x[i, :, : seq_len[i]].shape[1] == 1:
                 raise ValueError(
@@ -91,7 +98,8 @@ def normalize_batch(x, seq_len, normalize_type):
         x_std = torch.tensor(normalize_type["fixed_std"], device=x.device)
 
         return (
-            (x - x_mean.view(x.shape[0], x.shape[1]).unsqueeze(2)) / x_std.view(x.shape[0], x.shape[1]).unsqueeze(2),
+            (x - x_mean.view(x.shape[0], x.shape[1]).unsqueeze(2))
+            / x_std.view(x.shape[0], x.shape[1]).unsqueeze(2),
             x_mean,
             x_std,
         )
@@ -123,7 +131,7 @@ class MultiscaleEmbeddingsAndTimestamps(NamedTuple):
 
 
 # https://github.com/NVIDIA/NeMo/blob/main/nemo/collections/asr/modules/conv_asr.py#L56
-class ConvASREncoder:
+class ConvASREncoder(nn.Module):
     """
     Convolutional encoder for ASR models. With this class you can implement JasperNet and QuartzNet models.
 
@@ -140,7 +148,9 @@ class ConvASREncoder:
         """
         device = next(self.parameters()).device
         input_example = torch.randn(max_batch, self._feat_in, max_dim, device=device)
-        lens = torch.full(size=(input_example.shape[0],), fill_value=max_dim, device=device)
+        lens = torch.full(
+            size=(input_example.shape[0],), fill_value=max_dim, device=device
+        )
         return tuple([input_example, lens])
 
     def __init__(
@@ -178,28 +188,28 @@ class ConvASREncoder:
                 dense_res = residual_panes
                 self.dense_residual = True
 
-            groups = lcfg.get('groups', 1)
-            separable = lcfg.get('separable', False)
-            heads = lcfg.get('heads', -1)
-            residual_mode = lcfg.get('residual_mode', residual_mode)
-            se = lcfg.get('se', False)
-            se_reduction_ratio = lcfg.get('se_reduction_ratio', 8)
-            se_context_window = lcfg.get('se_context_size', -1)
-            se_interpolation_mode = lcfg.get('se_interpolation_mode', 'nearest')
-            kernel_size_factor = lcfg.get('kernel_size_factor', 1.0)
-            stride_last = lcfg.get('stride_last', False)
-            future_context = lcfg.get('future_context', -1)
+            groups = lcfg.get("groups", 1)
+            separable = lcfg.get("separable", False)
+            heads = lcfg.get("heads", -1)
+            residual_mode = lcfg.get("residual_mode", residual_mode)
+            se = lcfg.get("se", False)
+            se_reduction_ratio = lcfg.get("se_reduction_ratio", 8)
+            se_context_window = lcfg.get("se_context_size", -1)
+            se_interpolation_mode = lcfg.get("se_interpolation_mode", "nearest")
+            kernel_size_factor = lcfg.get("kernel_size_factor", 1.0)
+            stride_last = lcfg.get("stride_last", False)
+            future_context = lcfg.get("future_context", -1)
 
             encoder_layers.append(
                 JasperBlock(
                     feat_in,
-                    lcfg['filters'],
-                    repeat=lcfg['repeat'],
-                    kernel_size=lcfg['kernel'],
-                    stride=lcfg['stride'],
-                    dilation=lcfg['dilation'],
-                    dropout=lcfg['dropout'],
-                    residual=lcfg['residual'],
+                    lcfg["filters"],
+                    repeat=lcfg["repeat"],
+                    kernel_size=lcfg["kernel"],
+                    stride=lcfg["stride"],
+                    dilation=lcfg["dilation"],
+                    dropout=lcfg["dropout"],
+                    residual=lcfg["residual"],
                     groups=groups,
                     separable=separable,
                     heads=heads,
@@ -220,7 +230,7 @@ class ConvASREncoder:
                     layer_idx=layer_idx,
                 )
             )
-            feat_in = lcfg['filters']
+            feat_in = lcfg["filters"]
 
         self._feat_out = feat_in
 
@@ -230,7 +240,9 @@ class ConvASREncoder:
         self.max_audio_length = 0
 
     def forward(self, audio_signal, length):
-        self.update_max_sequence_length(seq_length=audio_signal.size(2), device=audio_signal.device)
+        self.update_max_sequence_length(
+            seq_length=audio_signal.size(2), device=audio_signal.device
+        )
         s_input, length = self.encoder(([audio_signal], length))
         if length is None:
             return s_input[-1]
@@ -240,10 +252,14 @@ class ConvASREncoder:
     def update_max_sequence_length(self, seq_length: int, device):
         # Find global max audio length across all nodes
         if torch.distributed.is_initialized():
-            global_max_len = torch.tensor([seq_length], dtype=torch.float32, device=device)
+            global_max_len = torch.tensor(
+                [seq_length], dtype=torch.float32, device=device
+            )
 
             # Update across all ranks in the distributed system
-            torch.distributed.all_reduce(global_max_len, op=torch.distributed.ReduceOp.MAX)
+            torch.distributed.all_reduce(
+                global_max_len, op=torch.distributed.ReduceOp.MAX
+            )
 
             seq_length = global_max_len.int().item()
 
@@ -256,15 +272,17 @@ class ConvASREncoder:
 
             device = next(self.parameters()).device
             seq_range = torch.arange(0, self.max_audio_length, device=device)
-            if hasattr(self, 'seq_range'):
+            if hasattr(self, "seq_range"):
                 self.seq_range = seq_range
             else:
-                self.register_buffer('seq_range', seq_range, persistent=False)
+                self.register_buffer("seq_range", seq_range, persistent=False)
 
             # Update all submodules
             for _, m in self.named_modules():
                 if isinstance(m, MaskedConv1d):
-                    m.update_masked_length(self.max_audio_length, seq_range=self.seq_range)
+                    m.update_masked_length(
+                        self.max_audio_length, seq_range=self.seq_range
+                    )
                 elif isinstance(m, SqueezeExcite):
                     m.set_max_len(self.max_audio_length, seq_range=self.seq_range)
 
@@ -288,7 +306,7 @@ class MelSpectrogramPreprocessor(nn.Module):
         highfreq: int = None,
         log=True,
         log_zero_guard_type="add",
-        log_zero_guard_value=2 ** -24,
+        log_zero_guard_value=2**-24,
         dither=1e-5,
         pad_to=16,
         max_duration=16.7,
@@ -317,7 +335,9 @@ class MelSpectrogramPreprocessor(nn.Module):
             "none": None,
         }
         window_fn = torch_windows.get(window, None)
-        window_tensor = window_fn(self.win_length, periodic=False) if window_fn else None
+        window_tensor = (
+            window_fn(self.win_length, periodic=False) if window_fn else None
+        )
         self.register_buffer("window", window_tensor)
         self.stft = lambda x: torch.stft(
             x,
@@ -339,13 +359,21 @@ class MelSpectrogramPreprocessor(nn.Module):
         highfreq = highfreq or sample_rate / 2
 
         filterbanks = torch.tensor(
-            librosa.filters.mel(sr=sample_rate, n_fft=self.n_fft, n_mels=features, fmin=lowfreq, fmax=highfreq),
+            librosa.filters.mel(
+                sr=sample_rate,
+                n_fft=self.n_fft,
+                n_mels=features,
+                fmin=lowfreq,
+                fmax=highfreq,
+            ),
             dtype=torch.float,
         ).unsqueeze(0)
         self.register_buffer("fb", filterbanks)
 
         # Calculate maximum sequence length
-        max_length = self.get_seq_len(torch.tensor(max_duration * sample_rate, dtype=torch.float))
+        max_length = self.get_seq_len(
+            torch.tensor(max_duration * sample_rate, dtype=torch.float)
+        )
         max_pad = pad_to - (max_length % pad_to) if pad_to > 0 else 0
         self.max_length = max_length + max_pad
         self.pad_value = pad_value
@@ -390,7 +418,11 @@ class MelSpectrogramPreprocessor(nn.Module):
 
     def get_seq_len(self, seq_len):
         # Assuming that center is True is stft_pad_amount = 0
-        pad_amount = self.stft_pad_amount * 2 if self.stft_pad_amount is not None else self.n_fft // 2 * 2
+        pad_amount = (
+            self.stft_pad_amount * 2
+            if self.stft_pad_amount is not None
+            else self.n_fft // 2 * 2
+        )
         seq_len = torch.floor((seq_len + pad_amount - self.n_fft) / self.hop_length) + 1
         return seq_len.to(dtype=torch.long)
 
@@ -408,7 +440,9 @@ class MelSpectrogramPreprocessor(nn.Module):
 
         # do preemphasis
         if self.preemph is not None:
-            x = torch.cat((x[:, 0].unsqueeze(1), x[:, 1:] - self.preemph * x[:, :-1]), dim=1)
+            x = torch.cat(
+                (x[:, 0].unsqueeze(1), x[:, 1:] - self.preemph * x[:, :-1]), dim=1
+            )
 
         # disable autocast to get full range of stft values
         with torch.cuda.amp.autocast(enabled=False):
@@ -451,18 +485,129 @@ class MelSpectrogramPreprocessor(nn.Module):
         max_len = x.size(-1)
         mask = torch.arange(max_len).to(x.device)
         mask = mask.repeat(x.size(0), 1) >= seq_len.unsqueeze(1)
-        x = x.masked_fill(mask.unsqueeze(1).type(torch.bool).to(device=x.device), self.pad_value)
+        x = x.masked_fill(
+            mask.unsqueeze(1).type(torch.bool).to(device=x.device), self.pad_value
+        )
         del mask
         pad_to = self.pad_to
 
         if pad_to == "max":
-            x = nn.functional.pad(x, (0, self.max_length - x.size(-1)), value=self.pad_value)
+            x = nn.functional.pad(
+                x, (0, self.max_length - x.size(-1)), value=self.pad_value
+            )
         elif pad_to > 0:
             pad_amt = x.size(-1) % pad_to
             if pad_amt != 0:
                 x = nn.functional.pad(x, (0, pad_to - pad_amt), value=self.pad_value)
-    
+
         return x, seq_len
+
+
+class SpeakerDecoder(nn.Module):
+    """Speaker Decoder layer for Jasper.
+
+    Speaker Decoder creates the final neural layers that maps from the outputs
+    of Jasper Encoder to the embedding layer followed by speaker based softmax loss.
+
+    Args:
+        feat_in (int): Number of channels being input to this module
+        num_classes (int): Number of unique speakers in dataset
+        emb_sizes (list) : shapes of intermediate embedding layers (we consider speaker embbeddings from 1st of this layers)
+                Defaults to [1024,1024]
+        pool_mode (str) : Pooling strategy type. options are 'xvector','tap', 'attention'
+                Defaults to 'xvector (mean and variance)'
+                tap (temporal average pooling: just mean)
+                attention (attention based pooling)
+
+        init_mode (str): Describes how neural network parameters are
+            initialized. Options are ['xavier_uniform', 'xavier_normal',
+            'kaiming_uniform','kaiming_normal'].
+            Defaults to "xavier_uniform".
+    """
+
+    def __init__(
+        self,
+        feat_in: int,
+        num_classes: int,
+        emb_sizes: Optional[Union[int, list]] = 256,
+        pool_mode: str = "xvector",
+        angular: bool = False,
+        attention_channels: int = 128,
+        init_mode: str = "xavier_uniform",
+    ):
+        super().__init__()
+        self.angular = angular
+        self.emb_id = 2
+        bias = False if self.angular else True
+        emb_sizes = [emb_sizes] if type(emb_sizes) is int else emb_sizes
+
+        self._num_classes = num_classes
+        self.pool_mode = pool_mode.lower()
+        if self.pool_mode == "xvector" or self.pool_mode == "tap":
+            self._pooling = StatsPoolLayer(feat_in=feat_in, pool_mode=self.pool_mode)
+            affine_type = "linear"
+        elif self.pool_mode == "attention":
+            self._pooling = AttentivePoolLayer(
+                inp_filters=feat_in, attention_channels=attention_channels
+            )
+            affine_type = "conv"
+
+        shapes = [self._pooling.feat_in]
+        for size in emb_sizes:
+            shapes.append(int(size))
+
+        emb_layers = []
+        for shape_in, shape_out in zip(shapes[:-1], shapes[1:]):
+            layer = self.affine_layer(
+                shape_in, shape_out, learn_mean=False, affine_type=affine_type
+            )
+            emb_layers.append(layer)
+
+        self.emb_layers = nn.ModuleList(emb_layers)
+
+        self.final = nn.Linear(shapes[-1], self._num_classes, bias=bias)
+
+        self.apply(lambda x: init_weights(x, mode=init_mode))
+
+    def affine_layer(
+        self,
+        inp_shape,
+        out_shape,
+        learn_mean=True,
+        affine_type="conv",
+    ):
+        if affine_type == "conv":
+            layer = nn.Sequential(
+                nn.BatchNorm1d(inp_shape, affine=True, track_running_stats=True),
+                nn.Conv1d(inp_shape, out_shape, kernel_size=1),
+            )
+
+        else:
+            layer = nn.Sequential(
+                nn.Linear(inp_shape, out_shape),
+                nn.BatchNorm1d(out_shape, affine=learn_mean, track_running_stats=True),
+                nn.ReLU(),
+            )
+
+        return layer
+
+    def forward(self, encoder_output, length=None):
+        pool = self._pooling(encoder_output, length)
+        embs = []
+
+        for layer in self.emb_layers:
+            pool, emb = layer(pool), layer[: self.emb_id](pool)
+            embs.append(emb)
+
+        pool = pool.squeeze(-1)
+        if self.angular:
+            for W in self.final.parameters():
+                W = F.normalize(W, p=2, dim=1)
+            pool = F.normalize(pool, p=2, dim=1)
+
+        out = self.final(pool)
+
+        return out, embs[-1].squeeze(-1)
 
 
 # Inspired from NVIDIA NeMo's EncDecSpeakerLabelModel
@@ -491,10 +636,14 @@ class EncDecSpeakerLabelModel:
         self.model_name = model_name
         self.location_in_the_cloud = "https://api.ngc.nvidia.com/v2/models/nvidia/nemo/titanet_large/versions/v1/files/titanet-l.nemo"
         self.cache_dir = Path.joinpath(resolve_diarization_cache_dir(), "titanet-l")
-        cache_subfolder = hashlib.md5((self.location_in_the_cloud).encode("utf-8")).hexdigest()
+        cache_subfolder = hashlib.md5(
+            (self.location_in_the_cloud).encode("utf-8")
+        ).hexdigest()
 
         self.nemo_model_folder, self.nemo_model_file = self.download_model_if_required(
-            url=self.location_in_the_cloud, cache_dir=self.cache_dir, subfolder=cache_subfolder,
+            url=self.location_in_the_cloud,
+            cache_dir=self.cache_dir,
+            subfolder=cache_subfolder,
         )
 
         self.model_files = Path.joinpath(self.nemo_model_folder, "model_files")
@@ -508,15 +657,16 @@ class EncDecSpeakerLabelModel:
 
         self.preprocessor = MelSpectrogramPreprocessor(**model_config["preprocessor"])
         self.encoder = ConvASREncoder(**model_config["encoder"])
-        self.decoder = None
+        self.decoder = SpeakerDecoder(**model_config["decoder"])
 
     def forward() -> None:
         """Forward pass of the model."""
         pass
 
-
     @staticmethod
-    def download_model_if_required(url, subfolder=None, cache_dir=None) -> Tuple[str, str]:
+    def download_model_if_required(
+        url, subfolder=None, cache_dir=None
+    ) -> Tuple[str, str]:
         """
         Helper function to download pre-trained weights from the cloud.
 
@@ -553,8 +703,10 @@ class EncDecSpeakerLabelModel:
             except:
                 continue
 
-        raise ValueError("Not able to download the diarization model, please try again later.")
-    
+        raise ValueError(
+            "Not able to download the diarization model, please try again later."
+        )
+
     @staticmethod
     def unpack_nemo_file(filepath: Path, out_folder: Path) -> str:
         """
