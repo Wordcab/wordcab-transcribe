@@ -211,7 +211,7 @@ def test_audio_response() -> None:
     assert response.no_speech_threshold == 0.4
     assert response.condition_on_previous_text is False
     assert response.process_times == ProcessTimes(
-        total=10.0
+        total=10.0,
         transcription=5.0,
         post_processing=2.0
     )
