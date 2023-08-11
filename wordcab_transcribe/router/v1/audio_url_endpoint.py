@@ -82,11 +82,14 @@ async def inference_with_audio_url(
                 dual_channel=data.dual_channel,
                 source_lang=data.source_lang,
                 timestamps_format=data.timestamps,
-                use_batch=data.use_batch,
                 vocab=data.vocab,
                 word_timestamps=data.word_timestamps,
                 internal_vad=data.internal_vad,
                 repetition_penalty=data.repetition_penalty,
+                compression_ratio_threshold=data.compression_ratio_threshold,
+                log_prob_threshold=data.log_prob_threshold,
+                no_speech_threshold=data.no_speech_threshold,
+                condition_on_previous_text=data.condition_on_previous_text,
             )
         )
         result = await task
@@ -110,9 +113,13 @@ async def inference_with_audio_url(
             dual_channel=data.dual_channel,
             source_lang=data.source_lang,
             timestamps=data.timestamps,
-            use_batch=data.use_batch,
             vocab=data.vocab,
             word_timestamps=data.word_timestamps,
             internal_vad=data.internal_vad,
             repetition_penalty=data.repetition_penalty,
+            compression_ratio_threshold=data.compression_ratio_threshold,
+            log_prob_threshold=data.log_prob_threshold,
+            no_speech_threshold=data.no_speech_threshold,
+            condition_on_previous_text=data.condition_on_previous_text,
+            process_times=process_times,
         )

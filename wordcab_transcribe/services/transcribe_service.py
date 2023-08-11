@@ -87,23 +87,46 @@ class TranscribeService:
         word_timestamps: bool = True,
         internal_vad: bool = False,
         repetition_penalty: float = 1.0,
+        compression_ratio_threshold: float = 2.4,
+        log_prob_threshold: float = -1.0,
+        no_speech_threshold: float = 0.6,
+        condition_on_previous_text: bool = True,
         vad_service: Optional[VadService] = None,
     ) -> Union[List[dict], List[List[dict]]]:
         """
         Run inference with the transcribe model.
 
         Args:
-            audio (Union[str, torch.Tensor, Tuple[str, str], Tuple[torch.Tensor, torch.Tensor]]): Audio file path or
-                audio tensor. If a tuple is passed, the task is assumed to be a dual_channel task and the tuple should
-                contain the paths to the two audio files.
-            source_lang (str): Language of the audio file.
-            model_index (int): Index of the model to use.
-            suppress_blank (bool): Whether to suppress blank at the beginning of the sampling.
-            vocab (Optional[List[str]]): Vocabulary to use during generation if not None.
-            word_timestamps (bool): Whether to return word timestamps.
-            internal_vad (bool): Whether to use faster-whisper's VAD or not.
-            repetition_penalty (float): Repetition penalty to use during generation beamed search.
-            vad_service (Optional[VADService]): VADService to use for voice activity detection in the dual_channel case.
+            audio (Union[str, torch.Tensor, Tuple[str, str], Tuple[torch.Tensor, torch.Tensor]]):
+                Audio file path or audio tensor. If a tuple is passed, the task is assumed 
+                to be a dual_channel task and the tuple should contain the paths to the two audio files.
+            source_lang (str):
+                Language of the audio file.
+            model_index (int):
+                Index of the model to use.
+            suppress_blank (bool):
+                Whether to suppress blank at the beginning of the sampling.
+            vocab (Optional[List[str]]):
+                Vocabulary to use during generation if not None.
+            word_timestamps (bool):
+                Whether to return word timestamps.
+            internal_vad (bool):
+                Whether to use faster-whisper's VAD or not.
+            repetition_penalty (float):
+                Repetition penalty to use during generation beamed search.
+            compression_ratio_threshold (float):
+                If the gzip compression ratio is above this value, treat as failed.
+            log_prob_threshold (float):
+                If the average log probability over sampled tokens is below this value, treat as failed.
+            no_speech_threshold (float):
+                If the no_speech probability is higher than this value AND the average log probability
+                over sampled tokens is below `log_prob_threshold`, consider the segment as silent.
+            condition_on_previous_text (bool):
+                If True, the previous output of the model is provided as a prompt for the next window;
+                disabling may make the text inconsistent across windows, but the model becomes less prone
+                to getting stuck in a failure loop, such as repetition looping or timestamps going out of sync.
+            vad_service (Optional[VADService]):
+                VADService to use for voice activity detection in the dual_channel case.
 
         Returns:
             Union[List[dict], List[List[dict]]]: List of transcriptions. If the task is a dual_channel task,
@@ -158,8 +181,12 @@ class TranscribeService:
                 language=source_lang,
                 initial_prompt=prompt,
                 repetition_penalty=repetition_penalty,
-                suppress_blank=False,
-                word_timestamps=True,
+                compression_ratio_threshold=compression_ratio_threshold,
+                log_prob_threshold=log_prob_threshold,
+                no_speech_threshold=no_speech_threshold,
+                condition_on_previous_text=condition_on_previous_text,
+                suppress_blank=suppress_blank,
+                word_timestamps=word_timestamps,
                 vad_filter=internal_vad,
                 vad_parameters=dict(
                     threshold=0.5,
@@ -180,6 +207,10 @@ class TranscribeService:
                     language=source_lang,
                     initial_prompt=prompt,
                     repetition_penalty=repetition_penalty,
+                    compression_ratio_threshold=compression_ratio_threshold,
+                    log_prob_threshold=log_prob_threshold,
+                    no_speech_threshold=no_speech_threshold,
+                    condition_on_previous_text=condition_on_previous_text,
                     suppress_blank=False,
                     word_timestamps=True,
                     vad_filter=False if internal_vad else True,

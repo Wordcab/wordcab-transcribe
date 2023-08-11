@@ -151,11 +151,14 @@ class ASRAsyncService(ASRService):
                 dual_channel=False,
                 source_lang="en",
                 timestamps_format="s",
-                use_batch=False,
                 vocab=[],
                 word_timestamps=False,
                 internal_vad=False,
                 repetition_penalty=1.0,
+                compression_ratio_threshold=2.4,
+                log_prob_threshold=-1.0,
+                no_speech_threshold=0.6,
+                condition_on_previous_text=True,
             )
 
     async def process_input(
@@ -167,11 +170,14 @@ class ASRAsyncService(ASRService):
         dual_channel: bool,
         source_lang: str,
         timestamps_format: str,
-        use_batch: bool,
         vocab: List[str],
         word_timestamps: bool,
         internal_vad: bool,
         repetition_penalty: float,
+        compression_ratio_threshold: float,
+        log_prob_threshold: float,
+        no_speech_threshold: float,
+        condition_on_previous_text: bool,
     ) -> Union[Tuple[List[dict], Dict[str, float], float], Exception]:
         """Process the input request and return the results.
 
@@ -182,18 +188,39 @@ class ASRAsyncService(ASRService):
         and stored in separated keys in the task dictionary.
 
         Args:
-            filepath (Union[str, Tuple[str, str]]): Path to the audio file or tuple of paths to the audio files.
-            alignment (bool): Whether to do alignment or not.
-            num_speakers (int): The number of oracle speakers.
-            diarization (bool): Whether to do diarization or not.
-            dual_channel (bool): Whether to do dual channel or not.
-            source_lang (str): Source language of the audio file.
-            timestamps_format (str): Timestamps format to use.
-            use_batch (bool): Whether to use batch processing or not.
-            vocab (List[str]): List of words to use for the vocabulary.
-            word_timestamps (bool): Whether to return word timestamps or not.
-            internal_vad (bool): Whether to use faster-whisper's VAD or not.
-            repetition_penalty (float): The repetition penalty to use for the beam search.
+            filepath (Union[str, Tuple[str, str]]):
+                Path to the audio file or tuple of paths to the audio files.
+            alignment (bool):
+                Whether to do alignment or not.
+            num_speakers (int):
+                The number of oracle speakers.
+            diarization (bool):
+                Whether to do diarization or not.
+            dual_channel (bool):
+                Whether to do dual channel or not.
+            source_lang (str):
+                Source language of the audio file.
+            timestamps_format (str):
+                Timestamps format to use.
+            vocab (List[str]):
+                List of words to use for the vocabulary.
+            word_timestamps (bool):
+                Whether to return word timestamps or not.
+            internal_vad (bool):
+                Whether to use faster-whisper's VAD or not.
+            repetition_penalty (float):
+                The repetition penalty to use for the beam search.
+            compression_ratio_threshold (float):
+                If the gzip compression ratio is above this value, treat as failed.
+            log_prob_threshold (float):
+                If the average log probability over sampled tokens is below this value, treat as failed.
+            no_speech_threshold (float):
+                If the no_speech probability is higher than this value AND the average log probability
+                over sampled tokens is below `log_prob_threshold`, consider the segment as silent.
+            condition_on_previous_text (bool):
+                If True, the previous output of the model is provided as a prompt for the next window;
+                disabling may make the text inconsistent across windows, but the model becomes less prone
+                to getting stuck in a failure loop, such as repetition looping or timestamps going out of sync.
 
         Returns:
             Union[Tuple[List[dict], Dict[str, float], float], Exception]:
@@ -226,11 +253,14 @@ class ASRAsyncService(ASRService):
             "dual_channel": dual_channel,
             "source_lang": source_lang,
             "timestamps_format": timestamps_format,
-            "use_batch": use_batch,
             "vocab": vocab,
             "word_timestamps": word_timestamps,
             "internal_vad": internal_vad,
             "repetition_penalty": repetition_penalty,
+            "compression_ratio_threshold": compression_ratio_threshold,
+            "log_prob_threshold": log_prob_threshold,
+            "no_speech_threshold": no_speech_threshold,
+            "condition_on_previous_text": condition_on_previous_text,
             "transcription_result": None,
             "transcription_done": asyncio.Event(),
             "diarization_result": None,
@@ -263,7 +293,7 @@ class ASRAsyncService(ASRService):
                 ),
             )
         else:
-            task["process_times"]["diarization"] = 0
+            task["process_times"]["diarization"] = None
             task["diarization_done"].set()
 
         await task["transcription_done"].wait()
@@ -285,6 +315,7 @@ class ASRAsyncService(ASRService):
                     ),
                 )
             else:
+                task["process_times"]["alignment"] = None
                 task["alignment_done"].set()
 
         await task["alignment_done"].wait()
@@ -339,8 +370,11 @@ class ASRAsyncService(ASRService):
                     word_timestamps=True,
                     internal_vad=task["internal_vad"],
                     repetition_penalty=task["repetition_penalty"],
+                    compression_ratio_threshold=task["compression_ratio_threshold"],
+                    log_prob_threshold=task["log_prob_threshold"],
+                    no_speech_threshold=task["no_speech_threshold"],
+                    condition_on_previous_text=task["condition_on_previous_text"],
                     vad_service=self.services["vad"] if task["dual_channel"] else None,
-                    use_batch=task["use_batch"],
                 ),
                 func_name="transcription",
                 debug_mode=debug_mode,

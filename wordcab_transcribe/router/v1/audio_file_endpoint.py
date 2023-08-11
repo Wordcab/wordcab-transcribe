@@ -51,11 +51,14 @@ async def inference_with_audio(  # noqa: C901
     dual_channel: bool = Form(False),  # noqa: B008
     source_lang: str = Form("en"),  # noqa: B008
     timestamps: str = Form("s"),  # noqa: B008
-    use_batch: bool = Form(False),  # noqa: B008
     vocab: List[str] = Form([]),  # noqa: B008
     word_timestamps: bool = Form(False),  # noqa: B008
     internal_vad: bool = Form(False),  # noqa: B008
     repetition_penalty: float = Form(1.2),  # noqa: B008
+    compression_ratio_threshold: float = Form(2.4),  # noqa: B008
+    log_prob_threshold: float = Form(-1.0),  # noqa: B008
+    no_speech_threshold: float = Form(0.6),  # noqa: B008
+    condition_on_previous_text: bool = Form(True),  # noqa: B008
     file: UploadFile = File(...),  # noqa: B008
 ) -> AudioResponse:
     """Inference endpoint with audio file."""
@@ -74,11 +77,14 @@ async def inference_with_audio(  # noqa: C901
         diarization=diarization,
         source_lang=source_lang,
         timestamps=timestamps,
-        use_batch=use_batch,
         vocab=vocab,
         word_timestamps=word_timestamps,
         internal_vad=internal_vad,
         repetition_penalty=repetition_penalty,
+        compression_ratio_threshold=compression_ratio_threshold,
+        log_prob_threshold=log_prob_threshold,
+        no_speech_threshold=no_speech_threshold,
+        condition_on_previous_text=condition_on_previous_text,
         dual_channel=dual_channel,
     )
 
@@ -110,11 +116,14 @@ async def inference_with_audio(  # noqa: C901
             dual_channel=data.dual_channel,
             source_lang=data.source_lang,
             timestamps_format=data.timestamps,
-            use_batch=data.use_batch,
             vocab=data.vocab,
             word_timestamps=data.word_timestamps,
             internal_vad=data.internal_vad,
             repetition_penalty=data.repetition_penalty,
+            compression_ratio_threshold=data.compression_ratio_threshold,
+            log_prob_threshold=data.log_prob_threshold,
+            no_speech_threshold=data.no_speech_threshold,
+            condition_on_previous_text=data.condition_on_previous_text,
         )
     )
     result = await task
@@ -138,9 +147,13 @@ async def inference_with_audio(  # noqa: C901
             dual_channel=data.dual_channel,
             source_lang=data.source_lang,
             timestamps=data.timestamps,
-            use_batch=data.use_batch,
             vocab=data.vocab,
             word_timestamps=data.word_timestamps,
             internal_vad=data.internal_vad,
             repetition_penalty=data.repetition_penalty,
+            compression_ratio_threshold=data.compression_ratio_threshold,
+            log_prob_threshold=data.log_prob_threshold,
+            no_speech_threshold=data.no_speech_threshold,
+            condition_on_previous_text=data.condition_on_previous_text,
+            process_times=process_times,
         )
