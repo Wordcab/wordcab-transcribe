@@ -59,9 +59,10 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         Returns:
             The response from the next middleware.
         """
+        start_time = time.time()
+        tracing_id = uuid.uuid4()
+
         if request.method == "POST":
-            tracing_id = uuid.uuid4()
-            start_time = time.time()
             logger.info(f"Task [{tracing_id}] | {request.method} {request.url}")
         else:
             logger.info(f"{request.method} {request.url}")
