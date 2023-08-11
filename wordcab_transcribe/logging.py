@@ -20,12 +20,10 @@
 
 """Logging module to add a logging middleware to the Wordcab Transcribe API."""
 
-import asyncio
 import sys
 import time
 import uuid
-from functools import wraps
-from typing import Awaitable, Callable
+from typing import Any, Awaitable, Callable, Tuple
 
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -78,7 +76,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 
-def time_and_tell(func: Callable, debug_mode: bool) -> Callable:
+def time_and_tell(
+    func: Callable, func_name: str, debug_mode: bool
+) -> Tuple[Any, float]:
     """
     This decorator logs the execution time of a function only if the debug setting is True.
 
@@ -89,22 +89,11 @@ def time_and_tell(func: Callable, debug_mode: bool) -> Callable:
     Returns:
         The appropriate wrapper for the function.
     """
+    start_time = time.time()
+    result = func()
+    process_time = time.time() - start_time
 
-    @wraps(func)
-    def sync_wrapper(*args, **kwargs) -> Callable:
-        """Sync wrapper for the decorated function."""
-        start_time = time.time()
+    if debug_mode:
+        logger.debug(f"{func_name} executed in {process_time:.4f} secs")
 
-        result = func(*args, **kwargs)
-
-        process_time = time.time() - start_time
-
-        if debug_mode:
-            logger.debug(f"{func.__name__} executed in {process_time:.4f} secs")
-
-        return result, process_time
-
-    async def async_wrapper(*args, **kwargs) -> Awaitable:
-        """Async wrapper for the decorated function."""
-
-    return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
+    return result, process_time

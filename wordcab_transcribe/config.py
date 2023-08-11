@@ -221,6 +221,8 @@ class Settings:
             )
 
 
+load_dotenv()
+
 # Extra languages
 _extra_languages = getenv("EXTRA_LANGUAGES")
 if _extra_languages is not None:
@@ -288,15 +290,30 @@ settings = Settings(
     svix_app_id=getenv("SVIX_APP_ID", ""),
 )
 
-# Exportable variables
-asr = None
-download_limit = None
+# Define the maximum number of files to pre-download for the async ASR service
+download_limit = asyncio.Semaphore(10)
+
+# Define the ASR service to use depending on the settings
+if settings.asr_type == "live":
+    asr = ASRLiveService()
+elif settings.asr_type == "async":
+    asr = ASRAsyncService(
+        whisper_model=settings.whisper_model,
+        compute_type=settings.compute_type,
+        window_lengths=settings.window_lengths,
+        shift_lengths=settings.shift_lengths,
+        multiscale_weights=settings.multiscale_weights,
+        extra_languages=settings.extra_languages,
+        extra_languages_model_paths=settings.extra_languages_model_paths,
+        debug_mode=settings.debug,
+    )
+else:
+    raise ValueError(f"Invalid ASR type: {settings.asr_type}")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> None:
     """Context manager to handle the startup and shutdown of the application."""
-    load_dotenv()
 
     if retrieve_user_platform() != "linux":
         logger.warning(
@@ -321,31 +338,7 @@ async def lifespan(app: FastAPI) -> None:
             except Exception as e:
                 logger.error(f"Error downloading model for {model}: {e}")
 
-    # Define the maximum number of files to pre-download for the async ASR service
-    download_limit = asyncio.Semaphore(10)
-
-    # Define the ASR service to use depending on the settings
-    if settings.asr_type == "live":
-        asr = ASRLiveService()
-    elif settings.asr_type == "async":
-        asr = ASRAsyncService(
-            whisper_model=settings.whisper_model,
-            compute_type=settings.compute_type,
-            window_lengths=settings.window_lengths,
-            shift_lengths=settings.shift_lengths,
-            multiscale_weights=settings.multiscale_weights,
-            extra_languages=settings.extra_languages,
-            extra_languages_model_paths=settings.extra_languages_model_paths,
-            debug_mode=settings.debug,
-        )
-    else:
-        raise ValueError(f"Invalid ASR type: {settings.asr_type}")
-
     logger.info("Warmup initialization...")
     await asr.inference_warmup()
 
     yield  # This is where the execution of the application starts
-
-    # del asr
-    # del download_limit
-    # del settings

@@ -330,7 +330,7 @@ class ASRAsyncService(ASRService):
         """
         try:
             result, process_time = time_and_tell(
-                self.services["transcription"](
+                lambda: self.services["transcription"](
                     task["input"],
                     source_lang=task["source_lang"],
                     model_index=gpu_index,
@@ -342,6 +342,7 @@ class ASRAsyncService(ASRService):
                     vad_service=self.services["vad"] if task["dual_channel"] else None,
                     use_batch=task["use_batch"],
                 ),
+                func_name="transcription",
                 debug_mode=debug_mode,
             )
 
@@ -372,13 +373,14 @@ class ASRAsyncService(ASRService):
         """
         try:
             result, process_time = time_and_tell(
-                self.services["diarization"](
+                lambda: self.services["diarization"](
                     task["input"],
                     audio_duration=task["duration"],
                     oracle_num_speakers=task["num_speakers"],
                     model_index=gpu_index,
                     vad_service=self.services["vad"],
                 ),
+                func_name="diarization",
                 debug_mode=debug_mode,
             )
 
@@ -407,12 +409,13 @@ class ASRAsyncService(ASRService):
         """
         try:
             result, process_time = time_and_tell(
-                self.services["alignment"](
+                lambda: self.services["alignment"](
                     task["input"],
                     transcript_segments=task["transcription_result"],
                     source_lang=task["source_lang"],
                     gpu_index=gpu_index,
                 ),
+                func_name="alignment",
                 debug_mode=debug_mode,
             )
 
@@ -447,10 +450,11 @@ class ASRAsyncService(ASRService):
             if dual_channel:
                 left_segments, right_segments = task["transcription_result"]
                 utterances, process_time = time_and_tell(
-                    self.services["post_processing"].dual_channel_speaker_mapping(
+                    lambda: self.services["post_processing"].dual_channel_speaker_mapping(
                         left_segments=left_segments,
                         right_segments=right_segments,
                     ),
+                    func_name="dual_channel_speaker_mapping",
                     debug_mode=self.debug_mode,
                 )
                 total_post_process_time += process_time
@@ -463,23 +467,25 @@ class ASRAsyncService(ASRService):
                 )
 
                 formatted_segments, process_time = time_and_tell(
-                    format_segments(
+                    lambda: format_segments(
                         segments=segments,
                         alignment=alignment,
                         use_batch=task["use_batch"],
                         word_timestamps=True,
                     ),
+                    func_name="format_segments",
                     debug_mode=self.debug_mode,
                 )
                 total_post_process_time += process_time
 
                 if diarization:
                     utterances, process_time = time_and_tell(
-                        self.services["post_processing"].single_channel_speaker_mapping(
+                        lambda: self.services["post_processing"].single_channel_speaker_mapping(
                             transcript_segments=formatted_segments,
                             speaker_timestamps=task["diarization_result"],
                             word_timestamps=word_timestamps,
                         ),
+                        func_name="single_channel_speaker_mapping",
                         debug_mode=self.debug_mode,
                     )
                     total_post_process_time += process_time
@@ -487,13 +493,14 @@ class ASRAsyncService(ASRService):
                     utterances = formatted_segments
 
             final_utterances, process_time = time_and_tell(
-                self.services["post_processing"].final_processing_before_returning(
+                lambda: self.services["post_processing"].final_processing_before_returning(
                     utterances=utterances,
                     diarization=diarization,
                     dual_channel=task["dual_channel"],
                     timestamps_format=task["timestamps_format"],
                     word_timestamps=word_timestamps,
                 ),
+                func_name="final_processing_before_returning",
                 debug_mode=self.debug_mode,
             )
             total_post_process_time += process_time
