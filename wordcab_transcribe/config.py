@@ -314,7 +314,6 @@ else:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> None:
     """Context manager to handle the startup and shutdown of the application."""
-
     if retrieve_user_platform() != "linux":
         logger.warning(
             "You are not running the application on Linux.\n"

@@ -484,7 +484,9 @@ class ASRAsyncService(ASRService):
             if dual_channel:
                 left_segments, right_segments = task["transcription_result"]
                 utterances, process_time = time_and_tell(
-                    lambda: self.services["post_processing"].dual_channel_speaker_mapping(
+                    lambda: self.services[
+                        "post_processing"
+                    ].dual_channel_speaker_mapping(
                         left_segments=left_segments,
                         right_segments=right_segments,
                     ),
@@ -513,7 +515,9 @@ class ASRAsyncService(ASRService):
 
                 if diarization:
                     utterances, process_time = time_and_tell(
-                        lambda: self.services["post_processing"].single_channel_speaker_mapping(
+                        lambda: self.services[
+                            "post_processing"
+                        ].single_channel_speaker_mapping(
                             transcript_segments=formatted_segments,
                             speaker_timestamps=task["diarization_result"],
                             word_timestamps=word_timestamps,
@@ -526,7 +530,9 @@ class ASRAsyncService(ASRService):
                     utterances = formatted_segments
 
             final_utterances, process_time = time_and_tell(
-                lambda: self.services["post_processing"].final_processing_before_returning(
+                lambda: self.services[
+                    "post_processing"
+                ].final_processing_before_returning(
                     utterances=utterances,
                     diarization=diarization,
                     dual_channel=task["dual_channel"],

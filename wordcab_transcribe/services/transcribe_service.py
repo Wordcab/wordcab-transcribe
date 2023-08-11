@@ -46,20 +46,26 @@ class TranscribeService:
         compute_type: str,
         device: str,
         device_index: Union[int, List[int]],
-        extra_languages: List[str] = [],
-        extra_languages_model_paths: List[str] = [],
+        extra_languages: Union[List[str], None] = None,
+        extra_languages_model_paths: Union[List[str], None] = None,
     ) -> None:
         """Initialize the Transcribe Service.
 
         This service uses the WhisperModel from faster-whisper to transcribe audio files.
 
         Args:
-            model_path (str): Path to the model checkpoint. This can be a local path or a URL.
-            compute_type (str): Compute type to use for inference. Can be "int8", "int8_float16", "int16" or "float_16".
-            device (str): Device to use for inference. Can be "cpu" or "cuda".
-            device_index (Union[int, List[int]]): Index of the device to use for inference.
-            extra_languages (List[str], optional): List of extra languages to transcribe. Defaults to [].
-            extra_languages_model_paths (List[str], optional): List of paths to the extra language models. Defaults to [].
+            model_path (str):
+                Path to the model checkpoint. This can be a local path or a URL.
+            compute_type (str):
+                Compute type to use for inference. Can be "int8", "int8_float16", "int16" or "float_16".
+            device (str):
+                Device to use for inference. Can be "cpu" or "cuda".
+            device_index (Union[int, List[int]]):
+                Index of the device to use for inference.
+            extra_languages (Union[List[str], None]):
+                List of extra languages to transcribe. Defaults to None.
+            extra_languages_model_paths (Union[List[str], None]):
+                List of paths to the extra language models. Defaults to None.
         """
         self.device = device
         self.compute_type = compute_type
@@ -83,7 +89,7 @@ class TranscribeService:
         source_lang: str,
         model_index: int,
         suppress_blank: bool = False,
-        vocab: Optional[List[str]] = None,
+        vocab: Union[List[str], None] = None,
         word_timestamps: bool = True,
         internal_vad: bool = False,
         repetition_penalty: float = 1.0,
@@ -91,14 +97,14 @@ class TranscribeService:
         log_prob_threshold: float = -1.0,
         no_speech_threshold: float = 0.6,
         condition_on_previous_text: bool = True,
-        vad_service: Optional[VadService] = None,
+        vad_service: Union[VadService, None] = None,
     ) -> Union[List[dict], List[List[dict]]]:
         """
         Run inference with the transcribe model.
 
         Args:
             audio (Union[str, torch.Tensor, Tuple[str, str], Tuple[torch.Tensor, torch.Tensor]]):
-                Audio file path or audio tensor. If a tuple is passed, the task is assumed 
+                Audio file path or audio tensor. If a tuple is passed, the task is assumed
                 to be a dual_channel task and the tuple should contain the paths to the two audio files.
             source_lang (str):
                 Language of the audio file.
@@ -106,8 +112,8 @@ class TranscribeService:
                 Index of the model to use.
             suppress_blank (bool):
                 Whether to suppress blank at the beginning of the sampling.
-            vocab (Optional[List[str]]):
-                Vocabulary to use during generation if not None.
+            vocab (Union[List[str], None]):
+                Vocabulary to use during generation if not None. Defaults to None.
             word_timestamps (bool):
                 Whether to return word timestamps.
             internal_vad (bool):
@@ -125,8 +131,8 @@ class TranscribeService:
                 If True, the previous output of the model is provided as a prompt for the next window;
                 disabling may make the text inconsistent across windows, but the model becomes less prone
                 to getting stuck in a failure loop, such as repetition looping or timestamps going out of sync.
-            vad_service (Optional[VADService]):
-                VADService to use for voice activity detection in the dual_channel case.
+            vad_service (Union[VadService, None]):
+                VADService to use for voice activity detection in the dual_channel case. Defaults to None.
 
         Returns:
             Union[List[dict], List[List[dict]]]: List of transcriptions. If the task is a dual_channel task,
