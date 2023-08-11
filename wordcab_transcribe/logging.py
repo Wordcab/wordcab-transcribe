@@ -23,6 +23,7 @@
 import asyncio
 import sys
 import time
+import uuid
 from functools import wraps
 from typing import Awaitable, Callable
 
@@ -32,21 +33,19 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import ASGIApp
 
-from wordcab_transcribe.config import settings
-
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     """Middleware to log requests, responses, errors and execution time."""
 
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(self, app: ASGIApp, debug_mode: bool) -> None:
         """Initialize the middleware."""
         super().__init__(app)
         logger.remove()
         logger.add(
             sys.stdout,
             level="DEBUG"
-            if settings.debug
-            else "WARNING",  # Avoid logging debug messages in prod
+            if debug_mode
+            else "INFO",  # Avoid logging debug messages in prod
         )
 
     async def dispatch(
@@ -62,25 +61,30 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         Returns:
             The response from the next middleware.
         """
-        start_time = time.time()
-        logger.debug(f"Request: {request.method} {request.url}")
+        if request.method == "POST":
+            tracing_id = uuid.uuid4()
+            start_time = time.time()
+            logger.info(f"Task [{tracing_id}] | {request.method} {request.url}")
+        else:
+            logger.info(f"{request.method} {request.url}")
 
         response = await call_next(request)
 
         process_time = time.time() - start_time
-        logger.debug(
-            f"Response status: {response.status_code}, Process Time: {process_time:.4f} secs"
+        logger.info(
+            f"Task [{tracing_id}] | Status: {response.status_code}, Time: {process_time:.4f} secs"
         )
 
         return response
 
 
-def time_and_tell(func: Callable) -> Callable:
+def time_and_tell(func: Callable, debug_mode: bool) -> Callable:
     """
     This decorator logs the execution time of a function only if the debug setting is True.
 
     Args:
         func: The function to decorate.
+        debug_mode: The debug setting.
 
     Returns:
         The appropriate wrapper for the function.
@@ -89,30 +93,18 @@ def time_and_tell(func: Callable) -> Callable:
     @wraps(func)
     def sync_wrapper(*args, **kwargs) -> Callable:
         """Sync wrapper for the decorated function."""
-        if settings.debug:
-            start_time = time.time()
+        start_time = time.time()
 
-            result = func(*args, **kwargs)
+        result = func(*args, **kwargs)
 
-            process_time = time.time() - start_time
+        process_time = time.time() - start_time
+
+        if debug_mode:
             logger.debug(f"{func.__name__} executed in {process_time:.4f} secs")
-        else:
-            result = func(*args, **kwargs)
 
-        return result
+        return result, process_time
 
     async def async_wrapper(*args, **kwargs) -> Awaitable:
         """Async wrapper for the decorated function."""
-        if settings.debug:
-            start_time = time.time()
-
-            result = await func(*args, **kwargs)
-
-            process_time = time.time() - start_time
-            logger.debug(f"{func.__name__} executed in {process_time:.4f} secs")
-        else:
-            result = await func(*args, **kwargs)
-
-        return result
 
     return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper

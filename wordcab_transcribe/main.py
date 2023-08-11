@@ -24,7 +24,7 @@ from fastapi import Depends, FastAPI
 from fastapi import status as http_status
 from fastapi.responses import HTMLResponse
 
-from wordcab_transcribe.config import settings
+from wordcab_transcribe.config import lifespan, settings
 from wordcab_transcribe.logging import LoggingMiddleware
 from wordcab_transcribe.router.authentication import get_current_user
 from wordcab_transcribe.router.v1.endpoints import (
@@ -32,7 +32,6 @@ from wordcab_transcribe.router.v1.endpoints import (
     auth_router,
     cortex_router,
 )
-from wordcab_transcribe.config import lifespan
 
 
 # Main application instance creation
@@ -45,7 +44,7 @@ app = FastAPI(
 )
 
 # Add logging middleware
-app.add_middleware(LoggingMiddleware)
+app.add_middleware(LoggingMiddleware, debug_mode=settings.debug)
 
 # Include the appropiate routers based on the settings
 if settings.debug is False:

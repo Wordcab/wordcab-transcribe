@@ -76,7 +76,7 @@ async def inference_with_youtube(
             detail=str(result),
         )
     else:
-        utterances, audio_duration = result
+        utterances, process_times, audio_duration = result
         return YouTubeResponse(
             utterances=utterances,
             audio_duration=audio_duration,

@@ -38,8 +38,6 @@ from faster_whisper.transcribe import get_ctranslate2_storage
 from loguru import logger
 from torch.utils.data import DataLoader, IterableDataset
 
-from wordcab_transcribe.config import settings
-from wordcab_transcribe.logging import time_and_tell
 from wordcab_transcribe.services.vad_service import VadService
 from wordcab_transcribe.utils import enhance_audio
 
@@ -169,7 +167,6 @@ class AudioDataset(IterableDataset):
 
         return wav.squeeze(0)
 
-    @time_and_tell
     def create_chunks(
         self, waveform: Union[torch.Tensor, List[DualChannelInput]]
     ) -> Tuple[
@@ -284,6 +281,8 @@ class TranscribeService:
         compute_type: str,
         device: str,
         device_index: Union[int, List[int]],
+        extra_languages: List[str] = [],
+        extra_languages_model_paths: List[str] = [],
     ) -> None:
         """Initialize the Transcribe Service.
 
@@ -294,21 +293,13 @@ class TranscribeService:
             compute_type (str): Compute type to use for inference. Can be "int8", "int8_float16", "int16" or "float_16".
             device (str): Device to use for inference. Can be "cpu" or "cuda".
             device_index (Union[int, List[int]]): Index of the device to use for inference.
+            extra_languages (List[str], optional): List of extra languages to transcribe. Defaults to [].
+            extra_languages_model_paths (List[str], optional): List of paths to the extra language models. Defaults to [].
         """
         self.device = device
         self.compute_type = compute_type
         self.model_path = model_path
-        # self.models = {}
 
-        # for idx in device_index:
-        #     model = WhisperModel(
-        #         self.model_path,
-        #         device=self.device,
-        #         device_index=idx,
-        #         compute_type=self.compute_type,
-        #     )
-        #     self.models[idx] = FasterWhisperModel(model=model, lang="multi")
-        # logger.debug(f"Loaded {len(self.models)} models for transcription.")
         self.model = WhisperModel(
             self.model_path,
             device=self.device,
@@ -316,29 +307,8 @@ class TranscribeService:
             compute_type=self.compute_type,
         )
 
-        self.extra_lang = settings.extra_languages
-        self.extra_lang_models = settings.extra_languages_model_paths
-
-        self._batch_size = 8  # TODO: Make this configurable
-        self.sample_rate = 16000
-
-        self.n_fft = 400
-        self.n_mels = 80
-        self.chunk_size = 30
-        self.hop_length = 160
-
-        self.n_samples = self.sample_rate * self.chunk_size
-        self.tokens_per_second = self.sample_rate // self.hop_length
-
-        assets_dir = Path(__file__).parent.parent / "assets" / "mel_filters.npz"
-        with np.load(str(assets_dir)) as f:
-            self.mel_filters = torch.from_numpy(f[f"mel_{self.n_mels}"])
-
-        self.compression_ratio_threshold = 2.4
-        self.log_probability_threshold = -0.8
-
-        self.prepend_punctuation = "\"'“¿([{-"
-        self.append_punctuation = "\"'.。,，!！?？:：”)]}、"
+        self.extra_lang = extra_languages
+        self.extra_lang_models = extra_languages_model_paths
 
     def __call__(
         self,
@@ -508,7 +478,6 @@ class TranscribeService:
 
         return outputs
 
-    @time_and_tell
     def pipeline(
         self,
         model: WhisperModel,
@@ -616,7 +585,6 @@ class TranscribeService:
 
     # This is an adapted version of the faster-whisper transcription pipeline:
     # https://github.com/guillaumekln/faster-whisper/blob/master/faster_whisper/transcribe.py
-    @time_and_tell
     def _generate_segment_batched(
         self,
         model: WhisperModel,
@@ -1035,7 +1003,6 @@ class TranscribeService:
 
         return final_transcript
 
-    @time_and_tell
     def _add_word_timestamps(
         self,
         outputs: List[dict],

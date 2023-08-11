@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from dotenv import load_dotenv
+from fastapi import FastAPI
 from faster_whisper.utils import _MODELS
 from loguru import logger
 from pydantic import field_validator
@@ -220,14 +221,80 @@ class Settings:
             )
 
 
+# Extra languages
+_extra_languages = getenv("EXTRA_LANGUAGES")
+if _extra_languages is not None:
+    extra_languages = _extra_languages.split(",")
+else:
+    extra_languages = []
+
+# Diarization scales
+_window_lengths = getenv("WINDOW_LENGTHS")
+if _window_lengths is not None:
+    window_lengths = [float(x) for x in _window_lengths.split(",")]
+else:
+    window_lengths = [1.5, 1.25, 1.0, 0.75, 0.5]
+
+_shift_lengths = getenv("SHIFT_LENGTHS")
+if _shift_lengths is not None:
+    shift_lengths = [float(x) for x in _shift_lengths.split(",")]
+else:
+    shift_lengths = [0.75, 0.625, 0.5, 0.375, 0.25]
+
+_multiscale_weights = getenv("MULTISCALE_WEIGHTS")
+if _multiscale_weights is not None:
+    multiscale_weights = [float(x) for x in _multiscale_weights.split(",")]
+else:
+    multiscale_weights = [1.0, 1.0, 1.0, 1.0, 1.0]
+
+settings = Settings(
+    # General configuration
+    project_name=getenv("PROJECT_NAME", "Wordcab Transcribe"),
+    version=getenv("VERSION", "0.3.0"),
+    description=getenv(
+        "DESCRIPTION",
+        "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering for diarization.",
+    ),
+    api_prefix=getenv("API_PREFIX", "/api/v1"),
+    debug=getenv("DEBUG", True),
+    # Models configuration
+    # Whisper
+    whisper_model=getenv("WHISPER_MODEL", "large-v2"),
+    compute_type=getenv("COMPUTE_TYPE", "int8_float16"),
+    extra_languages=extra_languages,
+    extra_languages_model_paths={lang: "" for lang in extra_languages},
+    # NeMo
+    window_lengths=window_lengths,
+    shift_lengths=shift_lengths,
+    multiscale_weights=multiscale_weights,
+    # ASR type
+    asr_type=getenv("ASR_TYPE", "async"),
+    # Endpoints configuration
+    audio_file_endpoint=getenv("AUDIO_FILE_ENDPOINT", True),
+    audio_url_endpoint=getenv("AUDIO_URL_ENDPOINT", True),
+    cortex_endpoint=getenv("CORTEX_ENDPOINT", True),
+    youtube_endpoint=getenv("YOUTUBE_ENDPOINT", True),
+    live_endpoint=getenv("LIVE_ENDPOINT", False),
+    # API authentication configuration
+    username=getenv("USERNAME", "admin"),
+    password=getenv("PASSWORD", "admin"),
+    openssl_key=getenv("OPENSSL_KEY", "0123456789abcdefghijklmnopqrstuvwyz"),
+    openssl_algorithm=getenv("OPENSSL_ALGORITHM", "HS256"),
+    access_token_expire_minutes=getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30),
+    # Cortex configuration
+    cortex_api_key=getenv("WORDCAB_TRANSCRIBE_API_KEY", ""),
+    # Svix configuration
+    svix_api_key=getenv("SVIX_API_KEY", ""),
+    svix_app_id=getenv("SVIX_APP_ID", ""),
+)
+
 # Exportable variables
 asr = None
 download_limit = None
-settings = None
 
 
 @asynccontextmanager
-async def lifespan(*args, **kwargs) -> None:
+async def lifespan(app: FastAPI) -> None:
     """Context manager to handle the startup and shutdown of the application."""
     load_dotenv()
 
@@ -257,78 +324,20 @@ async def lifespan(*args, **kwargs) -> None:
     # Define the maximum number of files to pre-download for the async ASR service
     download_limit = asyncio.Semaphore(10)
 
-    # Extra languages
-    _extra_languages = getenv("EXTRA_LANGUAGES")
-    if _extra_languages is not None:
-        extra_languages = _extra_languages.split(",")
-    else:
-        extra_languages = []
-
-    # Diarization scales
-    _window_lengths = getenv("WINDOW_LENGTHS")
-    if _window_lengths is not None:
-        window_lengths = [float(x) for x in _window_lengths.split(",")]
-    else:
-        window_lengths = [1.5, 1.25, 1.0, 0.75, 0.5]
-
-    _shift_lengths = getenv("SHIFT_LENGTHS")
-    if _shift_lengths is not None:
-        shift_lengths = [float(x) for x in _shift_lengths.split(",")]
-    else:
-        shift_lengths = [0.75, 0.625, 0.5, 0.375, 0.25]
-
-    _multiscale_weights = getenv("MULTISCALE_WEIGHTS")
-    if _multiscale_weights is not None:
-        multiscale_weights = [float(x) for x in _multiscale_weights.split(",")]
-    else:
-        multiscale_weights = [1.0, 1.0, 1.0, 1.0, 1.0]
-
-    settings = Settings(
-        # General configuration
-        project_name=getenv("PROJECT_NAME", "Wordcab Transcribe"),
-        version=getenv("VERSION", "0.3.0"),
-        description=getenv(
-            "DESCRIPTION",
-            "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering for diarization.",
-        ),
-        api_prefix=getenv("API_PREFIX", "/api/v1"),
-        debug=getenv("DEBUG", True),
-        # Models configuration
-        # Whisper
-        whisper_model=getenv("WHISPER_MODEL", "large-v2"),
-        compute_type=getenv("COMPUTE_TYPE", "int8_float16"),
-        extra_languages=extra_languages,
-        extra_languages_model_paths={lang: "" for lang in extra_languages},
-        # NeMo
-        window_lengths=window_lengths,
-        shift_lengths=shift_lengths,
-        multiscale_weights=multiscale_weights,
-        # ASR type
-        asr_type=getenv("ASR_TYPE", "async"),
-        # Endpoints configuration
-        audio_file_endpoint=getenv("AUDIO_FILE_ENDPOINT", True),
-        audio_url_endpoint=getenv("AUDIO_URL_ENDPOINT", True),
-        cortex_endpoint=getenv("CORTEX_ENDPOINT", True),
-        youtube_endpoint=getenv("YOUTUBE_ENDPOINT", True),
-        live_endpoint=getenv("LIVE_ENDPOINT", False),
-        # API authentication configuration
-        username=getenv("USERNAME", "admin"),
-        password=getenv("PASSWORD", "admin"),
-        openssl_key=getenv("OPENSSL_KEY", "0123456789abcdefghijklmnopqrstuvwyz"),
-        openssl_algorithm=getenv("OPENSSL_ALGORITHM", "HS256"),
-        access_token_expire_minutes=getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30),
-        # Cortex configuration
-        cortex_api_key=getenv("WORDCAB_TRANSCRIBE_API_KEY", ""),
-        # Svix configuration
-        svix_api_key=getenv("SVIX_API_KEY", ""),
-        svix_app_id=getenv("SVIX_APP_ID", ""),
-    )
-
     # Define the ASR service to use depending on the settings
     if settings.asr_type == "live":
         asr = ASRLiveService()
     elif settings.asr_type == "async":
-        asr = ASRAsyncService()
+        asr = ASRAsyncService(
+            whisper_model=settings.whisper_model,
+            compute_type=settings.compute_type,
+            window_lengths=settings.window_lengths,
+            shift_lengths=settings.shift_lengths,
+            multiscale_weights=settings.multiscale_weights,
+            extra_languages=settings.extra_languages,
+            extra_languages_model_paths=settings.extra_languages_model_paths,
+            debug_mode=settings.debug,
+        )
     else:
         raise ValueError(f"Invalid ASR type: {settings.asr_type}")
 
@@ -337,6 +346,6 @@ async def lifespan(*args, **kwargs) -> None:
 
     yield  # This is where the execution of the application starts
 
-    del asr
-    del download_limit
-    del settings
+    # del asr
+    # del download_limit
+    # del settings

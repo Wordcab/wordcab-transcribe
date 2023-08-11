@@ -35,4 +35,4 @@ COPY ./.env /app/.env
 
 WORKDIR /app
 
-CMD ["uvicorn", "--reload", "--host=0.0.0.0", "--port=5001", "wordcab_transcribe.main:app"]
+CMD ["uvicorn", "--host=0.0.0.0", "--port=5001", "wordcab_transcribe.main:app"]

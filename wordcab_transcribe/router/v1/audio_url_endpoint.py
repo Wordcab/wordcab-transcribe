@@ -100,7 +100,7 @@ async def inference_with_audio_url(
             detail=str(result),
         )
     else:
-        utterances, audio_duration = result
+        utterances, process_times, audio_duration = result
         return AudioResponse(
             utterances=utterances,
             audio_duration=audio_duration,
