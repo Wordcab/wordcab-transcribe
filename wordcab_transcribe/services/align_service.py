@@ -35,7 +35,7 @@
 # https://arxiv.org/abs/2303.00747.pdf and the implementation from
 # https://github.com/m-bain/whisperX
 
-# Code from this module is heavily based on the m-bain's WhisperX implementation:
+# Code from this module is heavily based on the Max Bain's WhisperX implementation:
 # https://github.com/m-bain/whisperX/blob/main/whisperx/alignment.py
 """Alignment Service for transcribed audio files."""
 
