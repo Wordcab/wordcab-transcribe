@@ -157,6 +157,8 @@ class DiarizeService:
         _outputs = self.get_contiguous_stamps(clustering_outputs)
         outputs = self.merge_stamps(_outputs)
 
+        print(outputs)
+
         return outputs
 
     @staticmethod

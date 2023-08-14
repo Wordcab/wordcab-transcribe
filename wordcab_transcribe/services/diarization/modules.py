@@ -1129,40 +1129,6 @@ class JasperBlock(nn.Module):
         # compute the output
         out = self.mout(out)
 
-        # Support ASR Adapters
-        if self.is_adapter_available():
-            # Check for all available and enabled adapters
-            adapter_names = self.get_enabled_adapters()
-
-            if len(adapter_names) > 0:
-                out = out.transpose(1, 2)  # (B, T, C)
-
-                # Call the adapters
-                out = self.forward_enabled_adapters(out)
-
-                out = out.transpose(1, 2)  # (B, C, T)
-
-        if self.is_access_enabled():
-            # for adapters
-            if self.access_cfg.get("save_encoder_tensors", False):
-                self.register_accessible_tensor(name="encoder", tensor=out)
-            # for interctc - even though in some cases it's the same, we
-            # want to register separate key to be able to modify it later
-            # during interctc processing, if required
-            if self.interctc_should_capture is None:
-                capture_layers = self.access_cfg.get("interctc", {}).get(
-                    "capture_layers", []
-                )
-                self.interctc_should_capture = self.layer_idx in capture_layers
-            if self.interctc_should_capture:
-                # shape is the same as the shape of audio_signal output, i.e. [B, D, T]
-                self.register_accessible_tensor(
-                    name=f"interctc/layer_output_{self.layer_idx}", tensor=out
-                )
-                self.register_accessible_tensor(
-                    name=f"interctc/layer_length_{self.layer_idx}", tensor=lens
-                )
-
         if self.res is not None and self.dense_residual:
             return xs + [out], lens
 

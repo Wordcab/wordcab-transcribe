@@ -165,6 +165,7 @@ class ConvASREncoder(nn.Module):
         frame_splicing: int = 1,
         init_mode: Optional[str] = "xavier_uniform",
         quantize: bool = False,
+        **kwargs,
     ):
         super().__init__()
 
@@ -288,7 +289,7 @@ class ConvASREncoder(nn.Module):
 
 
 # This code is from NVIDIA NeMo toolkit package `FilterbankFeaturesTA` class:
-# https://github.com/NVIDIA/NeMo/blob/main/nemo/collections/asr/parts/preprocessing/features.py#L469
+# https://github.com/NVIDIA/NeMo/blob/main/nemo/collections/asr/parts/preprocessing/features.py#L229
 class MelSpectrogramPreprocessor(nn.Module):
     """Mel Spectrogram extraction."""
 
@@ -317,6 +318,7 @@ class MelSpectrogramPreprocessor(nn.Module):
         rng=None,
         nb_augmentation_prob=0.0,
         nb_max_freq=4000,
+        **kwargs,
     ):
         super().__init__()
 
@@ -534,8 +536,10 @@ class SpeakerDecoder(nn.Module):
         angular: bool = False,
         attention_channels: int = 128,
         init_mode: str = "xavier_uniform",
+        **kwargs,
     ):
         super().__init__()
+
         self.angular = angular
         self.emb_id = 2
         bias = False if self.angular else True
@@ -612,10 +616,10 @@ class SpeakerDecoder(nn.Module):
 
 # Inspired from NVIDIA NeMo's EncDecSpeakerLabelModel
 # https://github.com/NVIDIA/NeMo/blob/main/nemo/collections/asr/models/label_models.py#L67
-class EncDecSpeakerLabelModel:
+class EncDecSpeakerLabelModel(nn.Module):
     """The EncDecSpeakerLabelModel class encapsulates the encoder-decoder speaker label model."""
 
-    def __init__(self, model_name: str = "titanet_large") -> None:
+    def __init__(self, device: str, model_name: str = "titanet_large") -> None:
         """Initialize the EncDecSpeakerLabelModel class.
 
         The EncDecSpeakerLabelModel class encapsulates the encoder-decoder speaker label model.
@@ -623,17 +627,22 @@ class EncDecSpeakerLabelModel:
         For more models: https://github.com/NVIDIA/NeMo/blob/main/nemo/collections/asr/models/label_models.py#L59
 
         Args:
+            device (str): The device to use for the model.
             model_name (str, optional): The name of the model to use. Defaults to "titanet_large".
 
         Raises:
             ValueError: If the model name is not supported.
         """
+        super().__init__()
+
         if model_name != "titanet_large":
             raise ValueError(
                 f"Unknown model name: {model_name}. Only 'titanet_large' is supported at the moment."
             )
 
+        self.device = device
         self.model_name = model_name
+
         self.location_in_the_cloud = "https://api.ngc.nvidia.com/v2/models/nvidia/nemo/titanet_large/versions/v1/files/titanet-l.nemo"
         self.cache_dir = Path.joinpath(resolve_diarization_cache_dir(), "titanet-l")
         cache_subfolder = hashlib.md5(
@@ -655,13 +664,31 @@ class EncDecSpeakerLabelModel:
         with open(model_config_file_path, "r") as config_file:
             model_config = yaml.safe_load(config_file)
 
-        self.preprocessor = MelSpectrogramPreprocessor(**model_config["preprocessor"])
-        self.encoder = ConvASREncoder(**model_config["encoder"])
-        self.decoder = SpeakerDecoder(**model_config["decoder"])
+        self.preprocessor = MelSpectrogramPreprocessor(**model_config["preprocessor"]).to(self.device)
+        self.encoder = ConvASREncoder(**model_config["encoder"]).to(self.device)
+        self.decoder = SpeakerDecoder(**model_config["decoder"]).to(self.device)
 
-    def forward() -> None:
-        """Forward pass of the model."""
-        pass
+    def forward(
+        self, input_signal: torch.Tensor, input_signal_length: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Forward pass of the model.
+
+        Uses the preprocessor, encoder and decoder to perform the forward pass on the input signal.
+
+        Args:
+            input_signal (torch.Tensor): The input signal.
+            input_signal_length (torch.Tensor): The length of the input signal.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: The logits and embeddings.
+        """
+        processed_signal, processed_signal_len = self.preprocessor(
+            x=input_signal, seq_len=input_signal_length,
+        )
+        encoded, length = self.encoder(audio_signal=processed_signal, length=processed_signal_len)
+        logits, embs = self.decoder(encoder_output=encoded, length=length)
+
+        return logits, embs
 
     @staticmethod
     def download_model_if_required(
@@ -689,7 +716,7 @@ class EncDecSpeakerLabelModel:
         destination_file = Path.joinpath(destination, filename)
 
         if destination_file.exists():
-            return str(destination_file)
+            return destination, destination_file
 
         i = 0
         while i < 10:  # try 10 times
