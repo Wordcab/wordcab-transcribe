@@ -13,7 +13,6 @@ data = {
     "diarization": False,  # Longer processing time but speaker segment attribution
     "source_lang": "en",  # optional, default is "en"
     "timestamps": "s",  # optional, default is "s". Can be "s", "ms" or "hms".
-    "use_batch": False,  # optional, default is False
     "internal_vad": False,  # optional, default is False
     "word_timestamps": True,  # optional, default is False
 }

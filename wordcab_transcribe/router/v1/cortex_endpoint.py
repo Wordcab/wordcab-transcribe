@@ -76,10 +76,14 @@ async def run_cortex(
                 dual_channel=payload.dual_channel,
                 source_lang=payload.source_lang,
                 timestamps=payload.timestamps,
-                use_batch=payload.use_batch,
                 vocab=payload.vocab,
                 word_timestamps=payload.word_timestamps,
                 internal_vad=payload.internal_vad,
+                repetition_penalty=payload.repetition_penalty,
+                compression_ratio_threshold=payload.compression_ratio_threshold,
+                log_prob_threshold=payload.log_prob_threshold,
+                no_speech_threshold=payload.no_speech_threshold,
+                condition_on_previous_text=payload.condition_on_previous_text,
             )
             response: AudioResponse = await inference_with_audio_url(
                 background_tasks=BackgroundTasks(),
@@ -94,10 +98,14 @@ async def run_cortex(
                 diarization=payload.diarization,
                 source_lang=payload.source_lang,
                 timestamps=payload.timestamps,
-                use_batch=payload.use_batch,
                 vocab=payload.vocab,
                 word_timestamps=payload.word_timestamps,
                 internal_vad=payload.internal_vad,
+                repetition_penalty=payload.repetition_penalty,
+                compression_ratio_threshold=payload.compression_ratio_threshold,
+                log_prob_threshold=payload.log_prob_threshold,
+                no_speech_threshold=payload.no_speech_threshold,
+                condition_on_previous_text=payload.condition_on_previous_text,
             )
             response: YouTubeResponse = await inference_with_youtube(
                 background_tasks=BackgroundTasks(),

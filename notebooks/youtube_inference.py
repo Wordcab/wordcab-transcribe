@@ -7,11 +7,11 @@ headers = {"accept": "application/json", "Content-Type": "application/json"}
 # params = {"url": "https://youtu.be/vAvcxeXtBz0"}
 # params = {"url": "https://youtu.be/pmjrj_TrOEI"}
 # params = {"url": "https://youtu.be/SVwLEocqK0E"}  # 2h - 3 speakers
-# params = {"url": "https://youtu.be/ry9SYnV3svc"}  # eng sample - 2 speakers
+params = {"url": "https://youtu.be/ry9SYnV3svc"}  # eng sample - 2 speakers
 # params = {"url": "https://youtu.be/oAhVu3HvWnw"}
 # params = {"url": "https://youtu.be/sfQMxf9Dm8I"}
 # params = {"url": "https://youtu.be/uLBZf9eS4Y0"}
-params = {"url": "https://youtu.be/JJbtS8CMr80"}  # 4h - multiple speakers
+# params = {"url": "https://youtu.be/JJbtS8CMr80"}  # 4h - multiple speakers
 
 data = {
     "alignment": False,  # Longer processing time but better timestamps
@@ -19,7 +19,6 @@ data = {
     "diarization": True,  # Longer processing time but speaker segment attribution
     "source_lang": "nl",  # optional, default is "en"
     "timestamps": "s",  # optional, default is "s". Can be "s", "ms" or "hms".
-    "use_batch": False,  # optional, default is False
     "internal_vad": False,  # optional, default is False
     "word_timestamps": False,  # optional, default is False
 }
