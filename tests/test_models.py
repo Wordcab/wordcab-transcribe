@@ -30,11 +30,28 @@ from wordcab_transcribe.models import (
     CortexPayload,
     CortexUrlResponse,
     CortexYoutubeResponse,
+    ProcessTimes,
     Timestamps,
     Utterance,
     Word,
     YouTubeResponse,
 )
+
+
+def test_process_times() -> None:
+    """Test the ProcessTimes model."""
+    times = ProcessTimes(
+        total=10.0,
+        transcription=5.0,
+        diarization=None,
+        alignment=None,
+        post_processing=2.0,
+    )
+    assert times.total == 10.0
+    assert times.transcription == 5.0
+    assert times.diarization is None
+    assert times.alignment is None
+    assert times.post_processing == 2.0
 
 
 def test_timestamps() -> None:
@@ -142,11 +159,14 @@ def test_audio_request() -> None:
     assert request.dual_channel is True
     assert request.source_lang == "en"
     assert request.timestamps == "s"
-    assert request.use_batch is False
     assert request.vocab == []
     assert request.word_timestamps is False
     assert request.internal_vad is False
     assert request.repetition_penalty == 1.2
+    assert request.compression_ratio_threshold == 2.4
+    assert request.log_prob_threshold == -1.0
+    assert request.no_speech_threshold == 0.6
+    assert request.condition_on_previous_text is True
 
 
 def test_audio_response() -> None:
@@ -160,11 +180,19 @@ def test_audio_response() -> None:
         dual_channel=False,
         source_lang="en",
         timestamps="s",
-        use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=False,
         internal_vad=False,
         repetition_penalty=1.2,
+        compression_ratio_threshold=1.8,
+        log_prob_threshold=-1.0,
+        no_speech_threshold=0.4,
+        condition_on_previous_text=False,
+        process_times=ProcessTimes(
+            total=10.0,
+            transcription=5.0,
+            post_processing=2.0,
+        ),
     )
     assert response.utterances == []
     assert response.audio_duration == 0.0
@@ -174,11 +202,17 @@ def test_audio_response() -> None:
     assert response.dual_channel is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
-    assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
     assert response.internal_vad is False
     assert response.repetition_penalty == 1.2
+    assert response.compression_ratio_threshold == 1.8
+    assert response.log_prob_threshold == -1.0
+    assert response.no_speech_threshold == 0.4
+    assert response.condition_on_previous_text is False
+    assert response.process_times == ProcessTimes(
+        total=10.0, transcription=5.0, post_processing=2.0
+    )
 
     response = AudioResponse(
         utterances=[
@@ -204,11 +238,19 @@ def test_audio_response() -> None:
         dual_channel=True,
         source_lang="en",
         timestamps="s",
-        use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=True,
         internal_vad=False,
         repetition_penalty=1.2,
+        compression_ratio_threshold=1.8,
+        log_prob_threshold=-1.0,
+        no_speech_threshold=0.4,
+        condition_on_previous_text=False,
+        process_times=ProcessTimes(
+            total=10.0,
+            transcription=5.0,
+            post_processing=2.0,
+        ),
     )
     assert response.utterances == [
         Utterance(
@@ -233,11 +275,17 @@ def test_audio_response() -> None:
     assert response.dual_channel is True
     assert response.source_lang == "en"
     assert response.timestamps == "s"
-    assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is True
     assert response.internal_vad is False
     assert response.repetition_penalty == 1.2
+    assert response.compression_ratio_threshold == 1.8
+    assert response.log_prob_threshold == -1.0
+    assert response.no_speech_threshold == 0.4
+    assert response.condition_on_previous_text is False
+    assert response.process_times == ProcessTimes(
+        total=10.0, transcription=5.0, post_processing=2.0
+    )
 
 
 def test_base_request_valid() -> None:
@@ -261,10 +309,13 @@ def test_base_request_default() -> None:
     assert req.diarization is False
     assert req.source_lang == "en"
     assert req.timestamps == "s"
-    assert req.use_batch is False
     assert req.word_timestamps is False
     assert req.internal_vad is False
     assert req.repetition_penalty == 1.2
+    assert req.compression_ratio_threshold == 2.4
+    assert req.log_prob_threshold == -1.0
+    assert req.no_speech_threshold == 0.6
+    assert req.condition_on_previous_text is True
 
 
 def test_base_request_invalid() -> None:
@@ -298,11 +349,21 @@ def test_base_response() -> None:
         diarization=False,
         source_lang="en",
         timestamps="s",
-        use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=False,
         internal_vad=False,
         repetition_penalty=1.2,
+        compression_ratio_threshold=1.8,
+        log_prob_threshold=-1.0,
+        no_speech_threshold=0.4,
+        condition_on_previous_text=False,
+        process_times=ProcessTimes(
+            total=10.0,
+            transcription=5.0,
+            diarization=2.0,
+            alignment=2.0,
+            post_processing=1.0,
+        ),
     )
     assert response.utterances == [
         Utterance(
@@ -326,11 +387,21 @@ def test_base_response() -> None:
     assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
-    assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
     assert response.internal_vad is False
     assert response.repetition_penalty == 1.2
+    assert response.compression_ratio_threshold == 1.8
+    assert response.log_prob_threshold == -1.0
+    assert response.no_speech_threshold == 0.4
+    assert response.condition_on_previous_text is False
+    assert response.process_times == ProcessTimes(
+        total=10.0,
+        transcription=5.0,
+        diarization=2.0,
+        alignment=2.0,
+        post_processing=1.0,
+    )
 
 
 def test_cortex_error() -> None:
@@ -353,7 +424,6 @@ def test_cortex_payload() -> None:
         dual_channel=False,
         source_lang="en",
         timestamps="s",
-        use_batch=False,
         word_timestamps=False,
         internal_vad=False,
         repetition_penalty=1.2,
@@ -369,11 +439,14 @@ def test_cortex_payload() -> None:
     assert payload.dual_channel is False
     assert payload.source_lang == "en"
     assert payload.timestamps == "s"
-    assert payload.use_batch is False
     assert payload.vocab == []
     assert payload.word_timestamps is False
     assert payload.internal_vad is False
     assert payload.repetition_penalty == 1.2
+    assert payload.compression_ratio_threshold == 2.4
+    assert payload.log_prob_threshold == -1.0
+    assert payload.no_speech_threshold == 0.6
+    assert payload.condition_on_previous_text is True
     assert payload.job_name == "test_job"
     assert payload.ping is False
 
@@ -403,11 +476,21 @@ def test_cortex_url_response() -> None:
         diarization=False,
         source_lang="en",
         timestamps="s",
-        use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=False,
         internal_vad=False,
         repetition_penalty=1.2,
+        compression_ratio_threshold=1.8,
+        log_prob_threshold=-1.0,
+        no_speech_threshold=0.4,
+        condition_on_previous_text=False,
+        process_times=ProcessTimes(
+            total=10.0,
+            transcription=5.0,
+            diarization=2.0,
+            alignment=2.0,
+            post_processing=1.0,
+        ),
         dual_channel=False,
         job_name="test_job",
         request_id="test_request_id",
@@ -434,11 +517,21 @@ def test_cortex_url_response() -> None:
     assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
-    assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
     assert response.internal_vad is False
     assert response.repetition_penalty == 1.2
+    assert response.compression_ratio_threshold == 1.8
+    assert response.log_prob_threshold == -1.0
+    assert response.no_speech_threshold == 0.4
+    assert response.condition_on_previous_text is False
+    assert response.process_times == ProcessTimes(
+        total=10.0,
+        transcription=5.0,
+        diarization=2.0,
+        alignment=2.0,
+        post_processing=1.0,
+    )
     assert response.dual_channel is False
     assert response.job_name == "test_job"
     assert response.request_id == "test_request_id"
@@ -469,11 +562,21 @@ def test_cortex_youtube_response() -> None:
         diarization=False,
         source_lang="en",
         timestamps="s",
-        use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=False,
         internal_vad=False,
         repetition_penalty=1.2,
+        compression_ratio_threshold=1.8,
+        log_prob_threshold=-1.0,
+        no_speech_threshold=0.4,
+        condition_on_previous_text=False,
+        process_times=ProcessTimes(
+            total=10.0,
+            transcription=5.0,
+            diarization=2.0,
+            alignment=2.0,
+            post_processing=1.0,
+        ),
         video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         job_name="test_job",
         request_id="test_request_id",
@@ -500,11 +603,21 @@ def test_cortex_youtube_response() -> None:
     assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
-    assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
     assert response.internal_vad is False
     assert response.repetition_penalty == 1.2
+    assert response.compression_ratio_threshold == 1.8
+    assert response.log_prob_threshold == -1.0
+    assert response.no_speech_threshold == 0.4
+    assert response.condition_on_previous_text is False
+    assert response.process_times == ProcessTimes(
+        total=10.0,
+        transcription=5.0,
+        diarization=2.0,
+        alignment=2.0,
+        post_processing=1.0,
+    )
     assert response.video_url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     assert response.job_name == "test_job"
     assert response.request_id == "test_request_id"
@@ -535,11 +648,21 @@ def test_youtube_response() -> None:
         diarization=False,
         source_lang="en",
         timestamps="s",
-        use_batch=False,
         vocab=["custom company", "custom product"],
         word_timestamps=False,
         internal_vad=False,
         repetition_penalty=1.2,
+        compression_ratio_threshold=1.8,
+        log_prob_threshold=-1.0,
+        no_speech_threshold=0.4,
+        condition_on_previous_text=False,
+        process_times=ProcessTimes(
+            total=10.0,
+            transcription=5.0,
+            diarization=2.0,
+            alignment=2.0,
+            post_processing=1.0,
+        ),
         video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     )
     assert response.utterances == [
@@ -564,9 +687,19 @@ def test_youtube_response() -> None:
     assert response.diarization is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
-    assert response.use_batch is False
     assert response.vocab == ["custom company", "custom product"]
     assert response.word_timestamps is False
     assert response.internal_vad is False
     assert response.repetition_penalty == 1.2
+    assert response.compression_ratio_threshold == 1.8
+    assert response.log_prob_threshold == -1.0
+    assert response.no_speech_threshold == 0.4
+    assert response.condition_on_previous_text is False
+    assert response.process_times == ProcessTimes(
+        total=10.0,
+        transcription=5.0,
+        diarization=2.0,
+        alignment=2.0,
+        post_processing=1.0,
+    )
     assert response.video_url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"

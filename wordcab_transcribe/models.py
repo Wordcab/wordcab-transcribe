@@ -20,9 +20,19 @@
 """Models module of the Wordcab Transcribe."""
 
 from enum import Enum
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Union
 
 from pydantic import BaseModel, field_validator
+
+
+class ProcessTimes(BaseModel):
+    """The execution times of the different processes."""
+
+    total: float
+    transcription: float
+    diarization: Union[float, None]
+    alignment: Union[float, None]
+    post_processing: float
 
 
 class Timestamps(str, Enum):
@@ -62,11 +72,15 @@ class BaseResponse(BaseModel):
     diarization: bool
     source_lang: str
     timestamps: str
-    use_batch: bool
     vocab: List[str]
     word_timestamps: bool
     internal_vad: bool
     repetition_penalty: float
+    compression_ratio_threshold: float
+    log_prob_threshold: float
+    no_speech_threshold: float
+    condition_on_previous_text: bool
+    process_times: ProcessTimes
 
 
 class AudioResponse(BaseResponse):
@@ -99,7 +113,6 @@ class AudioResponse(BaseResponse):
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
-                "use_batch": False,
                 "vocab": [
                     "custom company name",
                     "custom product name",
@@ -108,6 +121,17 @@ class AudioResponse(BaseResponse):
                 "word_timestamps": False,
                 "internal_vad": False,
                 "repetition_penalty": 1.2,
+                "compression_ratio_threshold": 2.4,
+                "log_prob_threshold": -1.0,
+                "no_speech_threshold": 0.6,
+                "condition_on_previous_text": True,
+                "process_times": {
+                    "total": 2.678,
+                    "transcription": 2.439,
+                    "diarization": None,
+                    "alignment": None,
+                    "post_processing": 0.239,
+                },
                 "dual_channel": False,
             }
         }
@@ -143,7 +167,6 @@ class YouTubeResponse(BaseResponse):
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
-                "use_batch": False,
                 "vocab": [
                     "custom company name",
                     "custom product name",
@@ -152,6 +175,17 @@ class YouTubeResponse(BaseResponse):
                 "word_timestamps": False,
                 "internal_vad": False,
                 "repetition_penalty": 1.2,
+                "compression_ratio_threshold": 2.4,
+                "log_prob_threshold": -1.0,
+                "no_speech_threshold": 0.6,
+                "condition_on_previous_text": True,
+                "process_times": {
+                    "total": 2.678,
+                    "transcription": 2.439,
+                    "diarization": None,
+                    "alignment": None,
+                    "post_processing": 0.239,
+                },
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             }
         }
@@ -184,11 +218,14 @@ class CortexPayload(BaseModel):
     dual_channel: Optional[bool] = False
     source_lang: Optional[str] = "en"
     timestamps: Optional[Timestamps] = Timestamps.seconds
-    use_batch: Optional[bool] = False
     vocab: Optional[List[str]] = []
     word_timestamps: Optional[bool] = False
     internal_vad: Optional[bool] = False
     repetition_penalty: Optional[float] = 1.2
+    compression_ratio_threshold: Optional[float] = 2.4
+    log_prob_threshold: Optional[float] = -1.0
+    no_speech_threshold: Optional[float] = 0.6
+    condition_on_previous_text: Optional[bool] = True
     job_name: Optional[str] = None
     ping: Optional[bool] = False
 
@@ -206,7 +243,6 @@ class CortexPayload(BaseModel):
                 "dual_channel": False,
                 "source_lang": "en",
                 "timestamps": "s",
-                "use_batch": False,
                 "vocab": [
                     "custom company name",
                     "custom product name",
@@ -215,6 +251,10 @@ class CortexPayload(BaseModel):
                 "word_timestamps": False,
                 "internal_vad": False,
                 "repetition_penalty": 1.2,
+                "compression_ratio_threshold": 2.4,
+                "log_prob_threshold": -1.0,
+                "no_speech_threshold": 0.6,
+                "condition_on_previous_text": True,
                 "job_name": "job_abc123",
                 "ping": False,
             }
@@ -252,7 +292,6 @@ class CortexUrlResponse(AudioResponse):
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
-                "use_batch": False,
                 "vocab": [
                     "custom company name",
                     "custom product name",
@@ -261,6 +300,17 @@ class CortexUrlResponse(AudioResponse):
                 "word_timestamps": False,
                 "internal_vad": False,
                 "repetition_penalty": 1.2,
+                "compression_ratio_threshold": 2.4,
+                "log_prob_threshold": -1.0,
+                "no_speech_threshold": 0.6,
+                "condition_on_previous_text": True,
+                "process_times": {
+                    "total": 2.678,
+                    "transcription": 2.439,
+                    "diarization": None,
+                    "alignment": None,
+                    "post_processing": 0.239,
+                },
                 "dual_channel": False,
                 "job_name": "job_name",
                 "request_id": "request_id",
@@ -299,7 +349,6 @@ class CortexYoutubeResponse(YouTubeResponse):
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
-                "use_batch": False,
                 "vocab": [
                     "custom company name",
                     "custom product name",
@@ -308,6 +357,17 @@ class CortexYoutubeResponse(YouTubeResponse):
                 "word_timestamps": False,
                 "internal_vad": False,
                 "repetition_penalty": 1.2,
+                "compression_ratio_threshold": 2.4,
+                "log_prob_threshold": -1.0,
+                "no_speech_threshold": 0.6,
+                "condition_on_previous_text": True,
+                "process_times": {
+                    "total": 2.678,
+                    "transcription": 2.439,
+                    "diarization": None,
+                    "alignment": None,
+                    "post_processing": 0.239,
+                },
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 "job_name": "job_name",
                 "request_id": "request_id",
@@ -323,11 +383,14 @@ class BaseRequest(BaseModel):
     diarization: bool = False
     source_lang: str = "en"
     timestamps: Timestamps = Timestamps.seconds
-    use_batch: bool = False
     vocab: List[str] = []
     word_timestamps: bool = False
     internal_vad: bool = False
     repetition_penalty: float = 1.2
+    compression_ratio_threshold: float = 2.4
+    log_prob_threshold: float = -1.0
+    no_speech_threshold: float = 0.6
+    condition_on_previous_text: bool = True
 
     @field_validator("vocab")
     def validate_each_vocab_value(
@@ -349,7 +412,6 @@ class BaseRequest(BaseModel):
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
-                "use_batch": False,
                 "vocab": [
                     "custom company name",
                     "custom product name",
@@ -358,6 +420,10 @@ class BaseRequest(BaseModel):
                 "word_timestamps": False,
                 "internal_vad": False,
                 "repetition_penalty": 1.2,
+                "compression_ratio_threshold": 2.4,
+                "log_prob_threshold": -1.0,
+                "no_speech_threshold": 0.6,
+                "condition_on_previous_text": True,
             }
         }
 
@@ -377,16 +443,19 @@ class AudioRequest(BaseRequest):
                 "diarization": False,
                 "source_lang": "en",
                 "timestamps": "s",
-                "use_batch": False,
                 "vocab": [
                     "custom company name",
                     "custom product name",
                     "custom co-worker name",
                 ],
                 "word_timestamps": False,
-                "dual_channel": False,
                 "internal_vad": False,
                 "repetition_penalty": 1.2,
+                "compression_ratio_threshold": 2.4,
+                "log_prob_threshold": -1.0,
+                "no_speech_threshold": 0.6,
+                "condition_on_previous_text": True,
+                "dual_channel": False,
             }
         }
 

@@ -19,15 +19,21 @@
 # and limitations under the License.
 """Configuration module of the Wordcab Transcribe."""
 
+import asyncio
+from contextlib import asynccontextmanager
 from os import getenv
 from pathlib import Path
 from typing import Dict, List
 
 from dotenv import load_dotenv
+from fastapi import FastAPI
 from faster_whisper.utils import _MODELS
 from loguru import logger
 from pydantic import field_validator
 from pydantic.dataclasses import dataclass
+
+from wordcab_transcribe.services.asr_service import ASRAsyncService, ASRLiveService
+from wordcab_transcribe.utils import download_model, retrieve_user_platform
 
 
 @dataclass
@@ -283,3 +289,55 @@ settings = Settings(
     svix_api_key=getenv("SVIX_API_KEY", ""),
     svix_app_id=getenv("SVIX_APP_ID", ""),
 )
+
+# Define the maximum number of files to pre-download for the async ASR service
+download_limit = asyncio.Semaphore(10)
+
+# Define the ASR service to use depending on the settings
+if settings.asr_type == "live":
+    asr = ASRLiveService()
+elif settings.asr_type == "async":
+    asr = ASRAsyncService(
+        whisper_model=settings.whisper_model,
+        compute_type=settings.compute_type,
+        window_lengths=settings.window_lengths,
+        shift_lengths=settings.shift_lengths,
+        multiscale_weights=settings.multiscale_weights,
+        extra_languages=settings.extra_languages,
+        extra_languages_model_paths=settings.extra_languages_model_paths,
+        debug_mode=settings.debug,
+    )
+else:
+    raise ValueError(f"Invalid ASR type: {settings.asr_type}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> None:
+    """Context manager to handle the startup and shutdown of the application."""
+    if retrieve_user_platform() != "linux":
+        logger.warning(
+            "You are not running the application on Linux.\n"
+            "The application was tested on Ubuntu 22.04, so we cannot guarantee that it will work on other OS.\n"
+            "Report any issues with your env specs to: https://github.com/Wordcab/wordcab-transcribe/issues"
+        )
+
+    if settings.extra_languages:
+        logger.info("Downloading models for extra languages...")
+        for model in settings.extra_languages:
+            try:
+                model_path = download_model(
+                    compute_type=settings.compute_type, language=model
+                )
+
+                if model_path is not None:
+                    settings.extra_languages_model_paths[model] = model_path
+                else:
+                    raise Exception(f"Coudn't download model for {model}")
+
+            except Exception as e:
+                logger.error(f"Error downloading model for {model}: {e}")
+
+    logger.info("Warmup initialization...")
+    await asr.inference_warmup()
+
+    yield  # This is where the execution of the application starts

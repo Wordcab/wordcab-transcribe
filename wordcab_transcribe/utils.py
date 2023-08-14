@@ -489,7 +489,7 @@ def format_punct(text: str):
 
 
 def format_segments(
-    segments: list, alignment: bool, use_batch: bool, word_timestamps: bool
+    segments: list, alignment: bool, word_timestamps: bool
 ) -> List[dict]:
     """
     Format the segments to a list of dicts with start, end and text keys. Optionally include word timestamps.
@@ -497,7 +497,6 @@ def format_segments(
     Args:
         segments (list): List of segments.
         alignment (bool): Whether the segments have been aligned. Used to format the word timestamps correctly.
-        use_batch (bool): Whether the segments are from a batch. Used to format the word timestamps correctly.
         word_timestamps (bool): Whether to include word timestamps.
 
     Returns:
@@ -515,26 +514,15 @@ def format_segments(
             if alignment:
                 segment_dict["words"] = segment["words"]
             else:
-                if use_batch:
-                    _words = [
-                        {
-                            "word": word["word"].strip(),
-                            "start": word["start"],
-                            "end": word["end"],
-                            "score": round(word["probability"], 2),
-                        }
-                        for word in segment["words"]
-                    ]
-                else:
-                    _words = [
-                        {
-                            "word": word.word.strip(),
-                            "start": word.start,
-                            "end": word.end,
-                            "score": round(word.probability, 2),
-                        }
-                        for word in segment["words"]
-                    ]
+                _words = [
+                    {
+                        "word": word.word.strip(),
+                        "start": word.start,
+                        "end": word.end,
+                        "score": round(word.probability, 2),
+                    }
+                    for word in segment["words"]
+                ]
                 segment_dict["words"] = _words
 
         formatted_segments.append(segment_dict)
