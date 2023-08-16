@@ -217,10 +217,9 @@ poetry run uvicorn wordcab_transcribe.main:app --reload
 
 ### Getting started
 
-1. Ensure you have the following tools :
+1. Ensure you have the `Hatch` installed (with pipx for example):
 
-- [poetry](https://python-poetry.org/)
-- [nox](https://nox.thea.codes/) and [nox-poetry](https://nox-poetry.readthedocs.io/)
+- [hatch](https://hatch.pypa.io/latest/install/)
 
 2. Clone the repo
 
@@ -232,28 +231,20 @@ cd wordcab-transcribe
 3. Install dependencies and start coding
 
 ```bash
-poetry shell
-poetry install --no-cache
-
-# install pre-commit hooks
-nox --session=pre-commit -- install
-
-# open your IDE
-code .
+hatch env create
 ```
 
 4. Run tests
 
 ```bash
-# run all tests
-nox
+# Quality checks without modifying the code
+hatch run quality:check
 
-# run a specific session
-nox --session=tests  # run tests
-nox --session=pre-commit  # run pre-commit hooks
+# Quality checks and auto-formatting
+hatch run quality:format
 
-# run a specific test
-nox --session=tests -- -k test_something
+# Run tests with coverage
+hatch run tests:run
 ```
 
 ### Working workflow
