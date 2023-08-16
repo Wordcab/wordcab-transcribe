@@ -29,6 +29,7 @@ from wordcab_transcribe.config import settings
 from wordcab_transcribe.services.asr_service import ASRAsyncService, ASRLiveService
 from wordcab_transcribe.utils import download_model, retrieve_user_platform
 
+
 # Define the maximum number of files to pre-download for the async ASR service
 download_limit = asyncio.Semaphore(10)
 
