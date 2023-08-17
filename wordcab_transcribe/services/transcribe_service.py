@@ -265,7 +265,6 @@ class TranscribeService:
             audio (Union[str, torch.Tensor]): Audio file path or loaded audio.
             source_lang (str): Language of the audio file.
             speaker_id (int): Speaker ID used in the diarization.
-            vad_service (VadService): VAD service.
             suppress_blank (bool):
                 Whether to suppress blank at the beginning of the sampling.
             word_timestamps (bool):
