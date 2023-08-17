@@ -21,13 +21,11 @@
 
 from typing import List, NamedTuple, Optional, Tuple, Union
 
-import numpy as np
 import torch
 from faster_whisper import WhisperModel
 from loguru import logger
 
 from wordcab_transcribe.services.vad_service import VadService
-from wordcab_transcribe.utils import enhance_audio
 
 
 class FasterWhisperModel(NamedTuple):
@@ -232,7 +230,13 @@ class TranscribeService:
                         audio_file,
                         source_lang=source_lang,
                         speaker_id=audio_index,
-                        vad_service=vad_service,
+                        suppress_blank=suppress_blank,
+                        word_timestamps=word_timestamps,
+                        internal_vad=internal_vad,
+                        repetition_penalty=repetition_penalty,
+                        compression_ratio_threshold=compression_ratio_threshold,
+                        log_prob_threshold=log_prob_threshold,
+                        no_speech_threshold=no_speech_threshold,
                         prompt=prompt,
                     )
                 )
@@ -244,7 +248,14 @@ class TranscribeService:
         audio: Union[str, torch.Tensor],
         source_lang: str,
         speaker_id: int,
-        vad_service: VadService,
+        suppress_blank: bool = False,
+        word_timestamps: bool = True,
+        internal_vad: bool = True,
+        repetition_penalty: float = 1.0,
+        compression_ratio_threshold: float = 2.4,
+        log_prob_threshold: float = -1.0,
+        no_speech_threshold: float = 0.6,
+        condition_on_previous_text: bool = False,
         prompt: Optional[str] = None,
     ) -> List[dict]:
         """
@@ -255,68 +266,78 @@ class TranscribeService:
             source_lang (str): Language of the audio file.
             speaker_id (int): Speaker ID used in the diarization.
             vad_service (VadService): VAD service.
+            suppress_blank (bool):
+                Whether to suppress blank at the beginning of the sampling.
+            word_timestamps (bool):
+                Whether to return word timestamps.
+            internal_vad (bool):
+                Whether to use faster-whisper's VAD or not.
+            repetition_penalty (float):
+                Repetition penalty to use during generation beamed search.
+            compression_ratio_threshold (float):
+                If the gzip compression ratio is above this value, treat as failed.
+            log_prob_threshold (float):
+                If the average log probability over sampled tokens is below this value, treat as failed.
+            no_speech_threshold (float):
+                If the no_speech probability is higher than this value AND the average log probability
+                over sampled tokens is below `log_prob_threshold`, consider the segment as silent.
+            condition_on_previous_text (bool):
+                If True, the previous output of the model is provided as a prompt for the next window;
+                disabling may make the text inconsistent across windows, but the model becomes less prone
+                to getting stuck in a failure loop, such as repetition looping or timestamps going out of sync.
             prompt (Optional[str]): Initial prompt to use for the generation.
 
         Returns:
             List[dict]: List of transcribed segments.
         """
-        enhanced_audio = enhance_audio(audio, apply_agc=True, apply_bandpass=False)
-        grouped_segments, audio = vad_service(enhanced_audio)
+        if isinstance(audio, torch.Tensor):
+            audio = audio.numpy()
 
         final_transcript = []
-        silence_padding = np.zeros(int(3 * self.sample_rate), dtype=np.float32)
 
-        for group in grouped_segments:
-            audio_segments = []
-            for segment in group:
-                audio_segments.extend(
-                    [audio[segment["start"] : segment["end"]], silence_padding]
+        segments, _ = self.model.transcribe(
+            audio,
+            language=source_lang,
+            initial_prompt=prompt,
+            repetition_penalty=repetition_penalty,
+            compression_ratio_threshold=compression_ratio_threshold,
+            log_prob_threshold=log_prob_threshold,
+            no_speech_threshold=no_speech_threshold,
+            condition_on_previous_text=condition_on_previous_text,
+            suppress_blank=suppress_blank,
+            word_timestamps=word_timestamps,
+            vad_filter=internal_vad,
+            vad_parameters=dict(
+                threshold=0.5,
+                min_speech_duration_ms=250,
+                min_silence_duration_ms=100,
+                speech_pad_ms=30,
+                window_size_samples=512,
+            ),
+        )
+
+        for segment in segments:
+            segment_dict: dict = {
+                "start": None,
+                "end": None,
+                "text": segment.text,
+                "words": [],
+                "speaker": speaker_id,
+            }
+
+            for word in segment.words:
+                segment_dict["words"].append(
+                    dict(
+                        start=word.start,
+                        end=word.end,
+                        word=word.word,
+                        score=word.probability,
+                    )
                 )
 
-            segments, _ = self.model.transcribe(
-                np.concatenate(audio_segments, axis=0),
-                language=source_lang,
-                initial_prompt=prompt,
-                suppress_blank=False,
-                word_timestamps=True,
-            )
-            segments = list(segments)
+            segment_dict["start"] = segment_dict["words"][0]["start"]
+            segment_dict["end"] = segment_dict["words"][-1]["end"]
 
-            group_start = group[0]["start"]
-
-            for segment in segments:
-                segment_dict: dict = {
-                    "start": None,
-                    "end": None,
-                    "text": segment.text,
-                    "words": [],
-                    "speaker": speaker_id,
-                }
-
-                for word in segment.words:
-                    word_start_adjusted = (group_start / self.sample_rate) + word.start
-                    word_end_adjusted = (group_start / self.sample_rate) + word.end
-                    segment_dict["words"].append(
-                        dict(
-                            start=word_start_adjusted,
-                            end=word_end_adjusted,
-                            word=word.word,
-                            score=word.probability,
-                        )
-                    )
-
-                    if (
-                        segment_dict["start"] is None
-                        or word_start_adjusted < segment_dict["start"]
-                    ):
-                        segment_dict["start"] = word_start_adjusted
-
-                    if (
-                        segment_dict["end"] is None
-                        or word_end_adjusted > segment_dict["end"]
-                    ):
-                        segment_dict["end"] = word_end_adjusted
-
-                final_transcript.append(segment_dict)
+            final_transcript.append(segment_dict)
 
         return final_transcript
