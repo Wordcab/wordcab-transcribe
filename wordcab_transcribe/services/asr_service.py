@@ -37,7 +37,7 @@ from wordcab_transcribe.services.gpu_service import GPUService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
 from wordcab_transcribe.services.vad_service import VadService
-from wordcab_transcribe.utils import format_segments, read_audio
+from wordcab_transcribe.utils import early_return, format_segments, read_audio
 
 
 class ASRService(ABC):
@@ -303,6 +303,10 @@ class ASRAsyncService(ASRService):
             self.gpu_handler.release_device(gpu_index)
             return task["diarization_result"]
 
+        if task["diarization_result"] is None:
+            # Empty audio early return
+            return early_return(duration=duration)
+
         if isinstance(task["transcription_result"], Exception):
             self.gpu_handler.release_device(gpu_index)
             return task["transcription_result"]
@@ -337,9 +341,9 @@ class ASRAsyncService(ASRService):
         if isinstance(task["post_processing_result"], Exception):
             return task["post_processing_result"]
 
-        result = task.pop("post_processing_result")
+        result: List[dict] = task.pop("post_processing_result")
         process_times: Dict[str, float] = task.pop("process_times")
-        process_times["total"] = time.time() - start_process_time
+        process_times["total"]: float = time.time() - start_process_time
 
         del task  # Delete the task to free up memory
 
