@@ -303,7 +303,7 @@ class ASRAsyncService(ASRService):
             self.gpu_handler.release_device(gpu_index)
             return task["diarization_result"]
 
-        if task["diarization_result"] is None:
+        if diarization and task["diarization_result"] is None:
             # Empty audio early return
             return early_return(duration=duration)
 
