@@ -410,7 +410,7 @@ def early_return(duration: float) -> Tuple[List[dict], dict, float]:
     return (
         [
             {
-                "text": "Empty audio",
+                "text": "<EMPTY AUDIO>",
                 "start": 0,
                 "end": duration,
                 "speaker": None,
