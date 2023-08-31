@@ -67,7 +67,7 @@ class ASRService(ABC):
         self.needs_processing_timer = None  # the timer to schedule processing
 
     @abstractmethod
-    async def process_input(self) -> None:
+    async def process_input(self) -> None:  # noqa: C901
         """Process the input request by creating a task and adding it to the appropriate queues."""
         raise NotImplementedError("This method should be implemented in subclasses.")
 
@@ -161,7 +161,7 @@ class ASRAsyncService(ASRService):
                 condition_on_previous_text=True,
             )
 
-    async def process_input(
+    async def process_input(  # noqa: C901
         self,
         filepath: Union[str, Tuple[str, str]],
         alignment: bool,
@@ -272,82 +272,93 @@ class ASRAsyncService(ASRService):
             "process_times": {},
         }
 
-        # Pick the first available GPU for the task
-        gpu_index = await self.gpu_handler.get_device() if self.device == "cuda" else 0
-        logger.info(f"Using GPU {gpu_index} for the task")
+        gpu_index = -1  # Placeholder to track if GPU is acquired
 
-        start_process_time = time.time()
+        try:
+            # If GPU is required, acquire one
+            if self.device == "cuda":
+                gpu_index = await self.gpu_handler.get_device()
+                logger.info(f"Using GPU {gpu_index} for the task")
 
-        asyncio.get_event_loop().run_in_executor(
-            None,
-            functools.partial(
-                self.process_transcription, task, gpu_index, self.debug_mode
-            ),
-        )
+            start_process_time = time.time()
 
-        if diarization and dual_channel is False:
             asyncio.get_event_loop().run_in_executor(
                 None,
                 functools.partial(
-                    self.process_diarization, task, gpu_index, self.debug_mode
+                    self.process_transcription, task, gpu_index, self.debug_mode
                 ),
             )
-        else:
-            task["process_times"]["diarization"] = None
-            task["diarization_done"].set()
 
-        await task["transcription_done"].wait()
-        await task["diarization_done"].wait()
-
-        if isinstance(task["diarization_result"], Exception):
-            self.gpu_handler.release_device(gpu_index)
-            return task["diarization_result"]
-
-        if diarization and task["diarization_result"] is None:
-            # Empty audio early return
-            return early_return(duration=duration)
-
-        if isinstance(task["transcription_result"], Exception):
-            self.gpu_handler.release_device(gpu_index)
-            return task["transcription_result"]
-        else:
-            if alignment and dual_channel is False:
+            if diarization and dual_channel is False:
                 asyncio.get_event_loop().run_in_executor(
                     None,
                     functools.partial(
-                        self.process_alignment, task, gpu_index, self.debug_mode
+                        self.process_diarization, task, gpu_index, self.debug_mode
                     ),
                 )
             else:
-                task["process_times"]["alignment"] = None
-                task["alignment_done"].set()
+                task["process_times"]["diarization"] = None
+                task["diarization_done"].set()
 
-        await task["alignment_done"].wait()
+            await task["transcription_done"].wait()
+            await task["diarization_done"].wait()
 
-        if isinstance(task["alignment_result"], Exception):
-            logger.error(f"Alignment failed: {task['alignment_result']}")
-            # Failed alignment should not fail the whole request anymore, as not critical
-            # So we keep processing the request and return the transcription result
-            # return task["alignment_result"]
+            if isinstance(task["diarization_result"], Exception):
+                self.gpu_handler.release_device(gpu_index)
+                return task["diarization_result"]
 
-        self.gpu_handler.release_device(gpu_index)  # Release the GPU
+            if diarization and task["diarization_result"] is None:
+                # Empty audio early return
+                return early_return(duration=duration)
 
-        asyncio.get_event_loop().run_in_executor(
-            None, functools.partial(self.process_post_processing, task)
-        )
+            if isinstance(task["transcription_result"], Exception):
+                self.gpu_handler.release_device(gpu_index)
+                return task["transcription_result"]
+            else:
+                if alignment and dual_channel is False:
+                    asyncio.get_event_loop().run_in_executor(
+                        None,
+                        functools.partial(
+                            self.process_alignment, task, gpu_index, self.debug_mode
+                        ),
+                    )
+                else:
+                    task["process_times"]["alignment"] = None
+                    task["alignment_done"].set()
 
-        await task["post_processing_done"].wait()
+            await task["alignment_done"].wait()
 
-        if isinstance(task["post_processing_result"], Exception):
-            return task["post_processing_result"]
+            if isinstance(task["alignment_result"], Exception):
+                logger.error(f"Alignment failed: {task['alignment_result']}")
+                # Failed alignment should not fail the whole request anymore, as not critical
+                # So we keep processing the request and return the transcription result
+                # return task["alignment_result"]
 
-        result: List[dict] = task.pop("post_processing_result")
-        process_times: Dict[str, float] = task.pop("process_times")
-        process_times["total"]: float = time.time() - start_process_time
+            self.gpu_handler.release_device(gpu_index)  # Release the GPU
 
-        del task  # Delete the task to free up memory
+            asyncio.get_event_loop().run_in_executor(
+                None, functools.partial(self.process_post_processing, task)
+            )
 
-        return result, process_times, duration
+            await task["post_processing_done"].wait()
+
+            if isinstance(task["post_processing_result"], Exception):
+                return task["post_processing_result"]
+
+            result: List[dict] = task.pop("post_processing_result")
+            process_times: Dict[str, float] = task.pop("process_times")
+            process_times["total"]: float = time.time() - start_process_time
+
+            del task  # Delete the task to free up memory
+
+            return result, process_times, duration
+        except Exception as e:
+            logger.error(f"Error processing input: {e}")
+            return e
+        finally:
+            # Ensure GPU is released if it was acquired
+            if gpu_index != -1:
+                self.gpu_handler.release_device(gpu_index)
 
     def process_transcription(
         self, task: dict, gpu_index: int, debug_mode: bool
@@ -470,7 +481,7 @@ class ASRAsyncService(ASRService):
 
     def process_post_processing(self, task: dict) -> None:
         """
-        Process a task of post processing.
+        Process a task of post-processing.
 
         Args:
             task (dict): The task and its parameters.
