@@ -5,6 +5,7 @@
 # or
 # https://github.com/NVIDIA/NeMo/blob/main/nemo/collections/asr/parts/submodules/tdnn_attention.py
 
+import math
 from typing import Callable, Iterable, List, Optional, Tuple
 
 from numpy import inf

@@ -30,15 +30,9 @@ from pathlib import Path
 from typing import List, NamedTuple, Optional, Tuple, Union
 
 import librosa
-from loguru import logger
-
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-
-from nemo.collections.asr.modules import AudioToMelSpectrogramPreprocessor
-from nemo.collections.asr.modules import SpeakerDecoder as NeMoSpeakerDecoder
-from nemo.collections.asr.modules import ConvASREncoder as NeMoConvASREncoder
 
 from wordcab_transcribe.services.diarization.utils import resolve_diarization_cache_dir
 from wordcab_transcribe.services.diarization.modules import (
@@ -621,7 +615,7 @@ class SpeakerDecoder(nn.Module):
 
 
 # Inspired from NVIDIA NeMo's EncDecSpeakerLabelModel
-# https://github.com/NVIDIA/NeMo/blob/main/nemo/collections/asr/models/label_models.py#L67
+# https://github.com/NVIDIA/NeMo/blob/main/nemo/collections/asr/models/label_models.py
 class EncDecSpeakerLabelModel(nn.Module):
     """The EncDecSpeakerLabelModel class encapsulates the encoder-decoder speaker label model."""
 
@@ -674,12 +668,22 @@ class EncDecSpeakerLabelModel(nn.Module):
         self.encoder = ConvASREncoder(**model_config["encoder"]).to(self.device)
         self.decoder = SpeakerDecoder(**model_config["decoder"]).to(self.device)
 
-        preprocessor_cfg = {k: v for k, v in model_config["preprocessor"].items() if k != "_target_"}
-        self.nemo_preprocessor = AudioToMelSpectrogramPreprocessor(**preprocessor_cfg).to(self.device)
-        encoder_cfg = {k: v for k, v in model_config["encoder"].items() if k != "_target_"}
-        self.nemo_encoder = NeMoConvASREncoder(**encoder_cfg).to(self.device)
-        decoder_cfg = {k: v for k, v in model_config["decoder"].items() if k != "_target_"}
-        self.nemo_decoder = NeMoSpeakerDecoder(**decoder_cfg).to(self.device)
+        model_weights_file_path = Path.joinpath(self.model_files, "model_weights.ckpt")
+        model_weights = torch.load(model_weights_file_path, map_location=self.device)
+
+        for key, value in model_weights.items():
+            if key.startswith("encoder."):
+                self.encoder.state_dict()[key.replace("encoder.", "", 1)].copy_(value)
+            elif key.startswith("decoder."):
+                self.decoder.state_dict()[key.replace("decoder.", "", 1)].copy_(value)
+            elif key.startswith("preprocessor."):
+                self.preprocessor.state_dict()[
+                    key.replace("preprocessor.featurizer.", "")
+                ].copy_(value)
+
+        self.preprocessor.eval()
+        self.encoder.eval()
+        self.decoder.eval()
 
     def forward(
         self, input_signal: torch.Tensor, input_signal_length: torch.Tensor
@@ -695,32 +699,11 @@ class EncDecSpeakerLabelModel(nn.Module):
         Returns:
             Tuple[torch.Tensor, torch.Tensor]: The logits and embeddings.
         """
-        logger.debug("Processor")
         processed_signal, processed_signal_len = self.preprocessor(
             x=input_signal, seq_len=input_signal_length,
         )
-        nemo_processed_signal, nemo_processed_signal_len = self.nemo_preprocessor(
-            input_signal=input_signal, length=input_signal_length,
-        )
-        assert torch.allclose(processed_signal, nemo_processed_signal, rtol=1e-05, atol=1e-08)
-        assert torch.allclose(processed_signal_len, nemo_processed_signal_len, rtol=1e-05, atol=1e-08)
-
-        logger.debug("Encoder")
-        # encoded, length = self.encoder(audio_signal=processed_signal, length=processed_signal_len)
-        encoded, length = self.nemo_encoder(audio_signal=processed_signal, length=processed_signal_len)
-        nemo_encoded, nemo_length = self.nemo_encoder(audio_signal=nemo_processed_signal, length=nemo_processed_signal_len)
-        # logger.debug(f"encoded: {encoded}")
-        # logger.debug(f"nemo_encoded: {nemo_encoded}")
-        assert torch.allclose(encoded, nemo_encoded, rtol=1e-05, atol=1e-08)
-        assert torch.allclose(length, nemo_length, rtol=1e-05, atol=1e-08)
-
-        logger.debug("Decoder")
+        encoded, length = self.encoder(audio_signal=processed_signal, length=processed_signal_len)
         logits, embs = self.decoder(encoder_output=encoded, length=length)
-        nemo_logits, nemo_embs = self.nemo_decoder(encoder_output=nemo_encoded, length=nemo_length)
-        logger.debug(f"logits: {logits}")
-        logger.debug(f"nemo_logits: {nemo_logits}")
-        assert torch.allclose(logits, nemo_logits, rtol=1e-05, atol=1e-08)
-        assert torch.allclose(embs, nemo_embs, rtol=1e-05, atol=1e-08)
 
         return logits, embs
 

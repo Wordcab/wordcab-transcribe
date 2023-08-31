@@ -23,7 +23,6 @@ import math
 from typing import Dict, List, Tuple
 
 import torch
-# from nemo.collections.asr.models import EncDecSpeakerLabelModel
 from torch.cuda.amp import autocast
 from torch.utils.data import Dataset
 
@@ -85,11 +84,8 @@ class SegmentationModule:
         Args:
             device (str): Device to use for inference. Can be "cpu" or "cuda".
         """
-        # self.speaker_model = EncDecSpeakerLabelModel.from_pretrained(
-        #     model_name="titanet_large", map_location=None
-        # ).to(device)
         self.speaker_model = EncDecSpeakerLabelModel(device=device)
-        self.speaker_model.eval()
+
 
     def __call__(
         self,
