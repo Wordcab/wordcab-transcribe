@@ -305,6 +305,7 @@ class ASRAsyncService(ASRService):
 
             if isinstance(task["diarization_result"], Exception):
                 self.gpu_handler.release_device(gpu_index)
+                gpu_index = -1
                 return task["diarization_result"]
 
             if diarization and task["diarization_result"] is None:
