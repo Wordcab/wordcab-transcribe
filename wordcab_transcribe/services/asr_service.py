@@ -314,6 +314,7 @@ class ASRAsyncService(ASRService):
 
             if isinstance(task["transcription_result"], Exception):
                 self.gpu_handler.release_device(gpu_index)
+                gpu_index = -1
                 return task["transcription_result"]
             else:
                 if alignment and dual_channel is False:
