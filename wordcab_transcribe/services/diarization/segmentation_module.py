@@ -86,7 +86,6 @@ class SegmentationModule:
         """
         self.speaker_model = EncDecSpeakerLabelModel(device=device)
 
-
     def __call__(
         self,
         waveform: torch.Tensor,

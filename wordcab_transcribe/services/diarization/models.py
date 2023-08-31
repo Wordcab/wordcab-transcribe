@@ -664,7 +664,9 @@ class EncDecSpeakerLabelModel(nn.Module):
         with open(model_config_file_path, "r") as config_file:
             model_config = yaml.safe_load(config_file)
 
-        self.preprocessor = MelSpectrogramPreprocessor(**model_config["preprocessor"]).to(self.device)
+        self.preprocessor = MelSpectrogramPreprocessor(
+            **model_config["preprocessor"]
+        ).to(self.device)
         self.encoder = ConvASREncoder(**model_config["encoder"]).to(self.device)
         self.decoder = SpeakerDecoder(**model_config["decoder"]).to(self.device)
 
@@ -700,9 +702,12 @@ class EncDecSpeakerLabelModel(nn.Module):
             Tuple[torch.Tensor, torch.Tensor]: The logits and embeddings.
         """
         processed_signal, processed_signal_len = self.preprocessor(
-            x=input_signal, seq_len=input_signal_length,
+            x=input_signal,
+            seq_len=input_signal_length,
         )
-        encoded, length = self.encoder(audio_signal=processed_signal, length=processed_signal_len)
+        encoded, length = self.encoder(
+            audio_signal=processed_signal, length=processed_signal_len
+        )
         logits, embs = self.decoder(encoder_output=encoded, length=length)
 
         return logits, embs
