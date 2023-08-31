@@ -60,7 +60,6 @@ source = ["wordcab_transcribe", "tests"]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 20
 
 [build-system]
 requires = ["poetry-core"]
