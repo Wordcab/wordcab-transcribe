@@ -254,12 +254,12 @@ settings = Settings(
     api_prefix=getenv("API_PREFIX", "/api/v1"),
     debug=getenv("DEBUG", True),
     # Models configuration
-    # Whisper
+    # Transcription
     whisper_model=getenv("WHISPER_MODEL", "large-v2"),
     compute_type=getenv("COMPUTE_TYPE", "int8_float16"),
     extra_languages=extra_languages,
     extra_languages_model_paths={lang: "" for lang in extra_languages},
-    # NeMo
+    # Diarization
     window_lengths=window_lengths,
     shift_lengths=shift_lengths,
     multiscale_weights=multiscale_weights,
