@@ -353,7 +353,6 @@ class ASRAsyncService(ASRService):
 
             return result, process_times, duration
         except Exception as e:
-            logger.error(f"Error processing input: {e}")
             return e
         finally:
             # Ensure GPU is released if it was acquired
