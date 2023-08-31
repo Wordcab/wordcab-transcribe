@@ -396,6 +396,38 @@ def delete_file(filepath: Union[str, Tuple[str, Optional[str]]]) -> None:
             Path(path).unlink(missing_ok=True)
 
 
+def early_return(duration: float) -> Tuple[List[dict], dict, float]:
+    """
+    Early return for empty audio files.
+
+    Args:
+        duration (float): Duration of the audio file.
+
+    Returns:
+        Tuple[List[dict], dict, float]:
+            Empty segments, process times and audio duration.
+    """
+    return (
+        [
+            {
+                "text": "<EMPTY AUDIO>",
+                "start": 0,
+                "end": duration,
+                "speaker": None,
+                "words": None,
+            }
+        ],
+        {
+            "total": 0,
+            "transcription": 0,
+            "alignment": None,
+            "diarization": None,
+            "post_processing": 0,
+        },
+        duration,
+    )
+
+
 def enhance_audio(
     audio: Union[str, torch.Tensor],
     apply_agc: Optional[bool] = True,
