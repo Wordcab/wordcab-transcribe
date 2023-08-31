@@ -336,7 +336,8 @@ class ASRAsyncService(ASRService):
                 # So we keep processing the request and return the transcription result
                 # return task["alignment_result"]
 
-            self.gpu_handler.release_device(gpu_index)  # Release the GPU
+            self.gpu_handler.release_device(gpu_index)
+            gpu_index = -1
 
             asyncio.get_event_loop().run_in_executor(
                 None, functools.partial(self.process_post_processing, task)
