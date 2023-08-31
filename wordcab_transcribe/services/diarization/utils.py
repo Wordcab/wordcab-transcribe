@@ -583,7 +583,7 @@ def resolve_diarization_cache_dir() -> Path:
     Returns:
         Path: The path to the cache directory.
     """
-    path = Path.joinpath(Path.home(), f".cache/torch/diarization")
+    path = Path.joinpath(Path.home(), ".cache/torch/diarization")
 
     return path
 

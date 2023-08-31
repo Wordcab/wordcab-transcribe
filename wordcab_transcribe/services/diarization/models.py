@@ -24,17 +24,17 @@ import math
 import os
 import random
 import tarfile
-import wget
-import yaml
 from pathlib import Path
 from typing import List, NamedTuple, Optional, Tuple, Union
 
 import librosa
 import torch
 import torch.nn as nn
-from torch.nn import functional as F
+import wget
+import yaml
+from loguru import logger
+from torch.nn import functional as F  # noqa: N812
 
-from wordcab_transcribe.services.diarization.utils import resolve_diarization_cache_dir
 from wordcab_transcribe.services.diarization.modules import (
     AttentivePoolLayer,
     JasperBlock,
@@ -43,6 +43,7 @@ from wordcab_transcribe.services.diarization.modules import (
     StatsPoolLayer,
     init_weights,
 )
+from wordcab_transcribe.services.diarization.utils import resolve_diarization_cache_dir
 
 
 ACTIVATION_REGISTRY = {
@@ -109,7 +110,7 @@ def normalize_batch(x, seq_len, normalize_type):
 
 # https://github.com/NVIDIA/NeMo/blob/main/nemo/collections/asr/parts/preprocessing/features.py#L117
 def splice_frames(x, frame_splicing):
-    """Stacks frames together across feature dim
+    """Stacks frames together across feature dim.
 
     input is batch_size, feature_dim, num_frames
     output is batch_size, feature_dim*frame_splicing, num_frames
@@ -140,9 +141,16 @@ class ConvASREncoder(nn.Module):
         https://arxiv.org/pdf/1910.10261.pdf
     """
 
-    def input_example(self, max_batch=1, max_dim=8192):
+    def input_example(
+        self, max_batch: int = 1, max_dim: int = 8192
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Generates input examples for tracing etc.
+
+        Args:
+            max_batch: Maximum batch size.
+            max_dim: Maximum dimension of the input sequence.
+
         Returns:
             A tuple of input examples.
         """
@@ -151,6 +159,7 @@ class ConvASREncoder(nn.Module):
         lens = torch.full(
             size=(input_example.shape[0],), fill_value=max_dim, device=device
         )
+
         return tuple([input_example, lens])
 
     def __init__(
@@ -167,6 +176,7 @@ class ConvASREncoder(nn.Module):
         quantize: bool = False,
         **kwargs,
     ):
+        """Initializes ConvASREncoder object."""
         super().__init__()
 
         activation = ACTIVATION_REGISTRY[activation]()
@@ -241,6 +251,7 @@ class ConvASREncoder(nn.Module):
         self.max_audio_length = 0
 
     def forward(self, audio_signal, length):
+        """Pass the audio signal through the encoder."""
         self.update_max_sequence_length(
             seq_length=audio_signal.size(2), device=audio_signal.device
         )
@@ -250,7 +261,8 @@ class ConvASREncoder(nn.Module):
 
         return s_input[-1], length
 
-    def update_max_sequence_length(self, seq_length: int, device):
+    def update_max_sequence_length(self, seq_length: int, device) -> None:
+        """Update the max sequence length seen by the model."""
         # Find global max audio length across all nodes
         if torch.distributed.is_initialized():
             global_max_len = torch.tensor(
@@ -320,6 +332,7 @@ class MelSpectrogramPreprocessor(nn.Module):
         nb_max_freq=4000,
         **kwargs,
     ):
+        """Initialize MelSpectrogramPreprocessor module."""
         super().__init__()
 
         self.log_zero_guard_value = log_zero_guard_value
@@ -404,6 +417,7 @@ class MelSpectrogramPreprocessor(nn.Module):
         self.log_zero_guard_type = log_zero_guard_type
 
     def log_zero_guard_value_fn(self, x):
+        """Return the log zero guard value."""
         if isinstance(self.log_zero_guard_value, str):
             if self.log_zero_guard_value == "tiny":
                 return torch.finfo(x.dtype).tiny
@@ -419,6 +433,7 @@ class MelSpectrogramPreprocessor(nn.Module):
             return self.log_zero_guard_value
 
     def get_seq_len(self, seq_len):
+        """Get the length of a sequence."""
         # Assuming that center is True is stft_pad_amount = 0
         pad_amount = (
             self.stft_pad_amount * 2
@@ -430,9 +445,11 @@ class MelSpectrogramPreprocessor(nn.Module):
 
     @property
     def filter_banks(self):
+        """Return the filter banks."""
         return self.fb
 
-    def forward(self, x, seq_len, linear_spec=False):
+    def forward(self, x, seq_len, linear_spec=False):  # noqa: C901
+        """Forward pass of the MelSpectrogramPreprocessor module."""
         seq_len = self.get_seq_len(seq_len.float())
 
         if self.stft_pad_amount is not None:
@@ -538,6 +555,7 @@ class SpeakerDecoder(nn.Module):
         init_mode: str = "xavier_uniform",
         **kwargs,
     ):
+        """Initialize SpeakerDecoder object."""
         super().__init__()
 
         self.angular = angular
@@ -580,6 +598,7 @@ class SpeakerDecoder(nn.Module):
         learn_mean=True,
         affine_type="conv",
     ):
+        """Create affine layer."""
         if affine_type == "conv":
             layer = nn.Sequential(
                 nn.BatchNorm1d(inp_shape, affine=True, track_running_stats=True),
@@ -596,6 +615,7 @@ class SpeakerDecoder(nn.Module):
         return layer
 
     def forward(self, encoder_output, length=None):
+        """Forward pass of the SpeakerDecoder module."""
         pool = self._pooling(encoder_output, length)
         embs = []
 
@@ -643,10 +663,11 @@ class EncDecSpeakerLabelModel(nn.Module):
         self.device = device
         self.model_name = model_name
 
-        self.location_in_the_cloud = "https://api.ngc.nvidia.com/v2/models/nvidia/nemo/titanet_large/versions/v1/files/titanet-l.nemo"
+        self.location_in_the_cloud = "https://api.ngc.nvidia.com/v2/models/nvidia/nemo/titanet_large/versions/v1/files/titanet-l.nemo"  # noqa: B950
         self.cache_dir = Path.joinpath(resolve_diarization_cache_dir(), "titanet-l")
         cache_subfolder = hashlib.md5(
-            (self.location_in_the_cloud).encode("utf-8")
+            (self.location_in_the_cloud).encode("utf-8"),
+            usedforsecurity=False,
         ).hexdigest()
 
         self.nemo_model_folder, self.nemo_model_file = self.download_model_if_required(
@@ -661,7 +682,7 @@ class EncDecSpeakerLabelModel(nn.Module):
             self.unpack_nemo_file(self.nemo_model_file, self.model_files)
 
         model_config_file_path = Path.joinpath(self.model_files, "model_config.yaml")
-        with open(model_config_file_path, "r") as config_file:
+        with open(model_config_file_path) as config_file:
             model_config = yaml.safe_load(config_file)
 
         self.preprocessor = MelSpectrogramPreprocessor(
@@ -749,8 +770,10 @@ class EncDecSpeakerLabelModel(nn.Module):
                 if os.path.exists(destination_file):
                     return destination, destination_file
 
-            except:
-                continue
+            except Exception:
+                logger.info(
+                    f"Download attempt {i} failed. Trying again in 5 seconds..."
+                )
 
         raise ValueError(
             "Not able to download the diarization model, please try again later."
@@ -773,5 +796,5 @@ class EncDecSpeakerLabelModel(nn.Module):
         except tarfile.ReadError:
             tar = tarfile.open(filepath, "r:gz")  # try compressed
         finally:
-            tar.extractall(path=out_folder)
+            tar.extractall(path=out_folder)  # noqa: S202
             tar.close()

@@ -8,13 +8,12 @@
 import math
 from typing import Callable, Iterable, List, Optional, Tuple
 
-from numpy import inf
-from loguru import logger as logging
-
 import torch
 import torch.nn as nn
+from loguru import logger as logging
+from numpy import inf
 from torch import Tensor
-from torch.nn import functional as F
+from torch.nn import functional as F  # noqa: N812
 from torch.nn.init import _calculate_correct_fan
 
 
@@ -27,6 +26,7 @@ except ImportError:
 
 
 def compute_new_kernel_size(kernel_size, kernel_width):
+    """Compute new kernel size based on kernel width."""
     new_kernel_size = max(int(kernel_size * kernel_width), 1)
     # If kernel is even shape, round up to make it odd
     if new_kernel_size % 2 == 0:
@@ -35,6 +35,7 @@ def compute_new_kernel_size(kernel_size, kernel_width):
 
 
 def get_asymtric_padding(kernel_size, stride, dilation, future_context):
+    """Asymmetric padding for future context."""
     if stride > 1 and dilation > 1:
         raise ValueError("Only stride OR dilation may be greater than 1")
 
@@ -71,6 +72,7 @@ def get_asymtric_padding(kernel_size, stride, dilation, future_context):
 
 
 def get_same_padding(kernel_size, stride, dilation) -> int:
+    """Same padding calculation."""
     if stride > 1 and dilation > 1:
         raise ValueError("Only stride OR dilation may be greater than 1")
     return (dilation * (kernel_size - 1)) // 2
@@ -80,7 +82,8 @@ def get_statistics_with_mask(
     x: torch.Tensor, m: torch.Tensor, dim: int = 2, eps: float = 1e-10
 ):
     """
-    compute mean and standard deviation of input(x) provided with its masking labels (m)
+    Compute mean and standard deviation of input(x) provided with its masking labels (m).
+
     input:
         x: feature input
         m: averaged mask labels
@@ -93,7 +96,8 @@ def get_statistics_with_mask(
     return mean, std
 
 
-def init_weights(m, mode: Optional[str] = "xavier_uniform"):
+def init_weights(m, mode: Optional[str] = "xavier_uniform"):  # noqa: C901
+    """Initialize weights of the model."""
     if isinstance(m, MaskedConv1d):
         init_weights(m.conv, mode)
     if isinstance(m, (nn.Conv1d, nn.Linear)):
@@ -111,7 +115,7 @@ def init_weights(m, mode: Optional[str] = "xavier_uniform"):
             elif mode == "tds_normal":
                 tds_normal_(m.weight)
             else:
-                raise ValueError("Unknown Initialization mode: {0}".format(mode))
+                raise ValueError(f"Unknown Initialization mode: {mode}")
     elif isinstance(m, nn.BatchNorm1d):
         if m.track_running_stats:
             m.running_mean.zero_()
@@ -123,9 +127,11 @@ def init_weights(m, mode: Optional[str] = "xavier_uniform"):
 
 
 def lens_to_mask(lens: List[int], max_len: int, device: str = None):
-    """
-    outputs masking labels for list of lengths of audio features, with max length of any
-    mask as max_len
+    """Outputs masking labels.
+
+    Outputs masking labels for list of lengths of audio features, with max length of any
+    mask as max_len.
+
     input:
         lens: list of lens
         max_len: max length of any audio feature
@@ -144,6 +150,7 @@ def lens_to_mask(lens: List[int], max_len: int, device: str = None):
 def _masked_conv_init_lens(
     lens: torch.Tensor, current_maxlen: int, original_maxlen: torch.Tensor
 ):
+    """Masked Conv Init Lens."""
     if current_maxlen > original_maxlen:
         new_lens = torch.arange(current_maxlen)
         new_max_lens = torch.tensor(current_maxlen)
@@ -160,6 +167,7 @@ def make_seq_mask_like(
     valid_ones: bool = True,
     time_dim: int = -1,
 ) -> torch.Tensor:
+    """Make sequence mask like."""
     mask = (
         torch.arange(like.shape[time_dim], device=like.device)
         .repeat(lengths.shape[0], 1)
@@ -215,8 +223,8 @@ def _se_pool_step_script_infer(
 def _se_pool_step_script_train(
     x: torch.Tensor, context_window: int, mask: torch.Tensor
 ):
-    """
-    Calculates the masked average over padded limited context segment during training mode.
+    """Calculates the masked average over padded limited context segment during training mode.
+
     Randomly slices a segment of length `context_window` from signal+padded input tensor across all channels and
     uses it for computing masked limited context.
 
@@ -250,10 +258,12 @@ def _se_pool_step_script_train(
 
 
 def tds_uniform_(tensor, mode="fan_in"):
-    """
-    Uniform Initialization from the paper [Sequence-to-Sequence Speech Recognition with Time-Depth Separable Convolutions](https://www.isca-speech.org/archive/Interspeech_2019/pdfs/2460.pdf)
-    Normalized to -
+    r"""TDS Uniform Initialization.
 
+    Uniform Initialization from the paper
+    Sequence-to-Sequence Speech Recognition with Time-Depth Separable Convolutions:
+    https://www.isca-speech.org/archive/Interspeech_2019/pdfs/2460.pdf
+    Normalized to -
     .. math::
         \\text{bound} = \\text{2} \\times \\sqrt{\\frac{1}{\\text{fan\\_mode}}}
 
@@ -273,10 +283,12 @@ def tds_uniform_(tensor, mode="fan_in"):
 
 
 def tds_normal_(tensor, mode="fan_in"):
-    """
-    Normal Initialization from the paper [Sequence-to-Sequence Speech Recognition with Time-Depth Separable Convolutions](https://www.isca-speech.org/archive/Interspeech_2019/pdfs/2460.pdf)
-    Normalized to -
+    r"""TDS Normal.
 
+    Normal Initialization from the paper
+    Sequence-to-Sequence Speech Recognition with Time-Depth Separable Convolutions
+    https://www.isca-speech.org/archive/Interspeech_2019/pdfs/2460.pdf
+    Normalized to -
     .. math::
         \\text{bound} = \\text{2} \\times \\sqrt{\\frac{1}{\\text{fan\\_mode}}}
 
@@ -296,6 +308,8 @@ def tds_normal_(tensor, mode="fan_in"):
 
 
 class MaskedConv1d(nn.Module):
+    """Masked Convolution Module."""
+
     __constants__ = ["use_conv_mask", "real_out_channels", "heads"]
 
     def __init__(
@@ -312,7 +326,8 @@ class MaskedConv1d(nn.Module):
         use_mask=True,
         quantize=False,
     ):
-        super(MaskedConv1d, self).__init__()
+        """Initialize the module."""
+        super().__init__()
 
         if not (heads == -1 or groups == in_channels):
             raise ValueError("Only use heads for depthwise convolutions")
@@ -384,6 +399,7 @@ class MaskedConv1d(nn.Module):
             self.lens = torch.tensor(0)
 
     def get_seq_len(self, lens):
+        """Get sequence length after convolution."""
         if self.same_padding or self.same_padding_asymmetric:
             return lens
 
@@ -413,6 +429,7 @@ class MaskedConv1d(nn.Module):
             )
 
     def forward(self, x, lens):
+        """Forward pass."""
         if self.use_mask:
             # Generally will be called by ConvASREncoder, but kept as single gpu backup.
             if x.size(2) > self.max_len:
@@ -438,6 +455,7 @@ class MaskedConv1d(nn.Module):
         return out, lens
 
     def update_masked_length(self, max_len, seq_range=None, device=None):
+        """Updates the cached masked length."""
         if seq_range is None:
             self.lens, self.max_len = _masked_conv_init_lens(
                 self.lens, max_len, self.max_len
@@ -448,6 +466,7 @@ class MaskedConv1d(nn.Module):
             self.max_len = max_len
 
     def mask_input(self, x, lens):
+        """Mask input."""
         max_len = x.size(2)
         mask = self.lens[:max_len].unsqueeze(0).to(lens.device) < lens.unsqueeze(1)
         x = x * mask.unsqueeze(1).to(device=x.device)
@@ -455,13 +474,17 @@ class MaskedConv1d(nn.Module):
 
 
 class GroupShuffle(nn.Module):
+    """Group Shuffle Module."""
+
     def __init__(self, groups, channels):
-        super(GroupShuffle, self).__init__()
+        """Initialize the module."""
+        super().__init__()
 
         self.groups = groups
         self.channels_per_group = channels // groups
 
     def forward(self, x):
+        """Forward pass."""
         sh = x.shape
 
         x = x.view(-1, self.groups, self.channels_per_group, sh[-1])
@@ -474,6 +497,8 @@ class GroupShuffle(nn.Module):
 
 
 class SqueezeExcite(nn.Module):
+    """Squeeze Excite Module."""
+
     def __init__(
         self,
         channels: int,
@@ -498,8 +523,9 @@ class SqueezeExcite(nn.Module):
                 `bilinear`, `area`
             activation: Intermediate activation function used. Must be a
                 callable activation function.
+            quantize: Wether to quantize or not.
         """
-        super(SqueezeExcite, self).__init__()
+        super().__init__()
         self.interpolation_mode = interpolation_mode
         self._quantize = quantize
 
@@ -534,14 +560,16 @@ class SqueezeExcite(nn.Module):
         self.set_max_len(16)
 
     def forward(self, x, lengths):
+        """Forward pass."""
         return self.forward_for_export(x, lengths)
 
     def forward_for_export(self, x, lengths):
+        """Forward pass for export."""
         # The use of negative indices on the transpose allow for expanded SqueezeExcite
         max_len = x.shape[-1]
         if max_len > self.max_len:
             self.set_max_len(max_len)
-        dtype = x.dtype
+
         # Computes in float32 to avoid instabilities during training with AMP.
         with torch.cuda.amp.autocast(enabled=False):
             # Create sample mask - 1 represents value, 0 represents pad
@@ -565,6 +593,7 @@ class SqueezeExcite(nn.Module):
         return y, lengths
 
     def _se_pool_step(self, x, mask):
+        """Performs the Squeeze and Excitation pooling step."""
         # Negate mask back to represent 1 for signal and 0 for padded timestep.
         mask = ~mask
 
@@ -585,6 +614,7 @@ class SqueezeExcite(nn.Module):
 
     def set_max_len(self, max_len, seq_range=None):
         """Sets maximum input length.
+
         Pre-calculates internal seq_range mask.
         """
         self.max_len = max_len
@@ -613,12 +643,10 @@ class SqueezeExcite(nn.Module):
         return mask
 
     def change_context_window(self, context_window: int):
-        """
-        Update the context window of the SqueezeExcitation module, in-place if possible.
+        """Update the context window of the SqueezeExcitation module, in-place if possible.
 
         Will update the pooling layer to either nn.AdaptiveAvgPool1d() (for global SE) or nn.AvgPool1d()
         (for limited context SE).
-
         If only the context window is changing but still a limited SE context block - then
         the earlier instance of nn.AvgPool1d() will be updated.
 
@@ -639,19 +667,10 @@ class SqueezeExcite(nn.Module):
 
 
 class JasperBlock(nn.Module):
-    """
+    """Jasper Block Module.
+
     Constructs a single "Jasper" block. With modified parameters, also constructs other blocks for models
     such as `QuartzNet` and `Citrinet`.
-
-    - For `Jasper`    : `separable` flag should be False
-    - For `QuartzNet` : `separable` flag should be True
-    - For `Citrinet`  : `separable` flag and `se` flag should be True
-
-    Note that above are general distinctions, each model has intricate differences that expand over
-    multiple such blocks.
-
-    For further information about the differences between models which use JasperBlock, please review
-    the configs for ASR models found in the ASR examples directory.
 
     Args:
         inplanes: Number of input channels.
@@ -703,58 +722,13 @@ class JasperBlock(nn.Module):
             (stride of S when this flag is True).
         future_context: Int value that determins how many "right" / "future" context frames will be utilized
             when calculating the output of the conv kernel. All calculations are done for odd kernel sizes only.
-
-            By default, this is -1, which is recomputed as the symmetric padding case.
-
-            When future_context >= 0, will compute the asymmetric padding as follows :
-            (left context, right context) = [K - 1 - future_context, future_context]
-
-            Determining an exact formula to limit future context is dependent on global layout of the model.
-            As such, we provide both "local" and "global" guidelines below.
-
-            Local context limit (should always be enforced)
-            - future context should be <= half the kernel size for any given layer
-            - future context > kernel size defaults to symmetric kernel
-            - future context of layer = number of future frames * width of each frame (dependent on stride)
-
-            Global context limit (should be carefully considered)
-            - future context should be layed out in an ever reducing pattern. Initial layers should restrict
-            future context less than later layers, since shallow depth (and reduced stride) means each frame uses
-            less amounts of future context.
-            - Beyond a certain point, future context should remain static for a given stride level. This is
-            the upper bound of the amount of future context that can be provided to the model on a global scale.
-            - future context is calculated (roughly) as - (2 ^ stride) * (K // 2) number of future frames.
-            This resultant value should be bound to some global maximum number of future seconds of audio (in ms).
-
-            Note: In the special case where K < future_context, it is assumed that the kernel is too small to limit
-            its future context, so symmetric padding is used instead.
-
-            Note: There is no explicit limitation on the amount of future context used, as long as
-            K > future_context constraint is maintained. This might lead to cases where future_context is
-            more than half the actual kernel size K! In such cases, the conv layer is utilizing more of the future
-            context than its current and past context to compute the output. While this is possible to do,
-            it is not recommended and the layer will raise a warning to notify the user of such cases.
-            It is advised to simply use symmetric padding for such cases.
-
-            Example:
-            Say we have a model that performs 8x stride and receives spectrogram frames with stride of 0.01s.
-            Say we wish to upper bound future context to 80 ms.
-
-            Layer ID, Kernel Size, Stride, Future Context, Global Context
-            0, K=5,  S=1, FC=8, GC= 2 * (2^0) = 2 * 0.01 ms  (special case, K < FC so use symmetric pad)
-            1, K=7,  S=1, FC=3, GC= 3 * (2^0) = 3 * 0.01 ms  (note that symmetric pad here uses 3 FC frames!)
-            2, K=11, S=2, FC=4, GC= 4 * (2^1) = 8 * 0.01 ms  (note that symmetric pad here uses 5 FC frames!)
-            3, K=15, S=1, FC=4, GC= 4 * (2^1) = 8 * 0.01 ms  (note that symmetric pad here uses 7 FC frames!)
-            4, K=21, S=2, FC=2, GC= 2 * (2^2) = 8 * 0.01 ms  (note that symmetric pad here uses 10 FC frames!)
-            5, K=25, S=2, FC=1, GC= 1 * (2^3) = 8 * 0.01 ms  (note that symmetric pad here uses 14 FC frames!)
-            6, K=29, S=1, FC=1, GC= 1 * (2^3) = 8 * 0.01 ms ...
         quantize: Bool flag whether to quantize the Convolutional blocks.
         layer_idx (int, optional): can be specified to allow layer output capture for InterCTC loss. Defaults to -1.
     """
 
     __constants__ = ["conv_mask", "separable", "residual_mode", "res", "mconv"]
 
-    def __init__(
+    def __init__(  # noqa: C901
         self,
         inplanes,
         planes,
@@ -773,7 +747,7 @@ class JasperBlock(nn.Module):
         normalization="batch",
         norm_groups=1,
         residual_mode="add",
-        residual_panes=[],
+        residual_panes=[],  # noqa: B006
         conv_mask=False,
         se=False,
         se_reduction_ratio=16,
@@ -784,7 +758,8 @@ class JasperBlock(nn.Module):
         quantize=False,
         layer_idx: int = -1,  # only used for capturing tensors for interctc loss
     ):
-        super(JasperBlock, self).__init__()
+        """Constructs a Jasper Block."""
+        super().__init__()
 
         if padding != "same":
             raise ValueError("currently only 'same' padding is supported")
@@ -939,6 +914,7 @@ class JasperBlock(nn.Module):
         separable=False,
         quantize=False,
     ):
+        """Get convolution layer."""
         use_mask = self.conv_mask
         if use_mask:
             return MaskedConv1d(
@@ -999,6 +975,7 @@ class JasperBlock(nn.Module):
         norm_groups=1,
         quantize=False,
     ):
+        """Get the Conv layer."""
         if norm_groups == -1:
             norm_groups = out_channels
 
@@ -1066,19 +1043,22 @@ class JasperBlock(nn.Module):
         return layers
 
     def _get_act_dropout_layer(self, drop_prob=0.2, activation=None):
+        """Define activation and dropout layers."""
         if activation is None:
             activation = nn.Hardtanh(min_val=0.0, max_val=20.0)
         layers = [activation, nn.Dropout(p=drop_prob)]
+
         return layers
 
-    def forward(
-        self, input_: Tuple[List[Tensor], Optional[Tensor]]
+    def forward(  # noqa: C901
+        self, input_tuple: Tuple[List[Tensor], Optional[Tensor]]
     ) -> Tuple[List[Tensor], Optional[Tensor]]:
         """
         Forward pass of the module.
 
         Args:
-            input_: The input is a tuple of two values - the preprocessed audio signal as well as the lengths
+            input_tuple:
+                The input is a tuple of two values - the preprocessed audio signal as well as the lengths
                 of the audio signal. The audio signal is padded to the shape [B, D, T] and the lengths are
                 a torch vector of length B.
 
@@ -1087,15 +1067,15 @@ class JasperBlock(nn.Module):
             as well as the lengths of the encoded audio after padding/striding.
         """
         lens_orig = None
-        xs = input_[0]
-        if len(input_) == 2:
-            xs, lens_orig = input_
+        xs = input_tuple[0]
+        if len(input_tuple) == 2:
+            xs, lens_orig = input_tuple
 
         # compute forward convolutions
         out = xs[-1]
 
         lens = lens_orig
-        for i, l in enumerate(self.mconv):
+        for _, l in enumerate(self.mconv):
             # if we're doing masked convolutions, we need to pass in and
             # possibly update the sequence lengths
             # if (i % 4) == 0 and self.conv_mask:
@@ -1106,9 +1086,9 @@ class JasperBlock(nn.Module):
 
         # compute the residuals
         if self.res is not None:
-            for i, layer in enumerate(self.res):
-                res_out = xs[i]
-                for j, res_layer in enumerate(layer):
+            for _i, layer in enumerate(self.res):
+                res_out = xs[_i]
+                for _, res_layer in enumerate(layer):
                     if isinstance(res_layer, MaskedConv1d):
                         res_out, _ = res_layer(res_out, lens_orig)
                     else:
@@ -1138,9 +1118,10 @@ class JasperBlock(nn.Module):
 
 # https://github.com/NVIDIA/NeMo/blob/nemo/nemo/collections/asr/parts/submodules/tdnn_attention.py#L271
 class AttentivePoolLayer(nn.Module):
-    """
-    Attention pooling layer for pooling speaker embeddings
-    Reference: ECAPA-TDNN Embeddings for Speaker Diarization (https://arxiv.org/pdf/2104.01466.pdf)
+    """Attention pooling layer for pooling speaker embeddings.
+
+    Reference: ECAPA-TDNN Embeddings for Speaker Diarization (https://arxiv.org/pdf/2104.01466.pdf).
+
     inputs:
         inp_filters: input feature channel length from encoder
         attention_channels: intermediate attention channel size
@@ -1156,6 +1137,7 @@ class AttentivePoolLayer(nn.Module):
         dilation: int = 1,
         eps: float = 1e-10,
     ):
+        """Initialize Attentive Pooling Layer."""
         super().__init__()
 
         self.feat_in = 2 * inp_filters
@@ -1178,6 +1160,7 @@ class AttentivePoolLayer(nn.Module):
         self.eps = eps
 
     def forward(self, x, length=None):
+        """Forward pass of Attentive Pooling Layer."""
         max_len = x.size(2)
 
         if length is None:
@@ -1204,14 +1187,18 @@ class AttentivePoolLayer(nn.Module):
 # https://github.com/NVIDIA/NeMo/blob/main/nemo/collections/asr/parts/submodules/tdnn_attention.py#L138
 class TDNNModule(nn.Module):
     """
-    Time Delayed Neural Module (TDNN) - 1D
+    Time Delayed Neural Module (TDNN) - 1D.
+
     input:
         inp_filters: input filter channels for conv layer
         out_filters: output filter channels for conv layer
         kernel_size: kernel weight size for conv layer
         dilation: dilation for conv layer
         stride: stride for conv layer
-        padding: padding for conv layer (default None: chooses padding value such that input and output feature shape matches)
+        padding:
+            padding for conv layer (default None: chooses padding value such
+            that input and output feature shape matches)
+
     output:
         tdnn layer output
     """
@@ -1225,6 +1212,7 @@ class TDNNModule(nn.Module):
         stride: int = 1,
         padding: int = None,
     ):
+        """Initialize the module."""
         super().__init__()
         if padding is None:
             padding = get_same_padding(kernel_size, stride=stride, dilation=dilation)
@@ -1241,14 +1229,16 @@ class TDNNModule(nn.Module):
         self.bn = nn.BatchNorm1d(out_filters)
 
     def forward(self, x, length=None):
+        """Forward pass of TDNNModule."""
         x = self.conv_layer(x)
         x = self.activation(x)
+
         return self.bn(x)
 
 
 # https://github.com/NVIDIA/NeMo/blob/main/nemo/collections/asr/parts/submodules/tdnn_attention.py#L25
 class StatsPoolLayer(nn.Module):
-    """Statistics and time average pooling (TAP) layer
+    """Statistics and time average pooling (TAP) layer.
 
     This computes mean and, optionally, standard deviation statistics across the time dimension.
 
@@ -1274,11 +1264,12 @@ class StatsPoolLayer(nn.Module):
         eps: float = 1e-10,
         biased: bool = True,
     ):
+        """Initialize the module."""
         super().__init__()
         supported_modes = {"xvector", "tap"}
         if pool_mode not in supported_modes:
             raise ValueError(
-                f"Pool mode must be one of {supported_modes}; got '{pool_mode}'"
+                f"Pool mode must be one of {supported_modes}; got {pool_mode}"
             )
         self.pool_mode = pool_mode
         self.feat_in = feat_in
@@ -1289,6 +1280,7 @@ class StatsPoolLayer(nn.Module):
             self.feat_in *= 2
 
     def forward(self, encoder_output, length=None):
+        """Forward pass of StatsPoolLayer."""
         if length is None:
             mean = encoder_output.mean(dim=-1)  # Time Axis
             if self.pool_mode == "xvector":
