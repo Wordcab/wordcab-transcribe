@@ -33,6 +33,7 @@ dependencies = [
   "loguru>=0.6.0",
   "pydantic>=1.10.9",
   "python-dotenv>=1.0.0",
+  "yt-dlp>=2023.3.4",
 ]
 
 [project.urls]
@@ -66,7 +67,6 @@ runtime = [
   "svix>=0.85.1",
   "uvicorn>=0.21.1",
   "wordcab_transcribe[inference]",
-  "yt-dlp>=2023.3.4",
 ]
 quality = [
   "black>=22.10.0",
