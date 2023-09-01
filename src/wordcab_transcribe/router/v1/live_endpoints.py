@@ -17,24 +17,14 @@
 #
 # See the License for the specific language governing permissions
 # and limitations under the License.
-"""Test important files are present in the project."""
+"""Live endpoints for the Wordcab Transcribe API."""
 
-import pathlib
+from fastapi import APIRouter
 
-important_files = [
-    ".github",
-    ".gitignore",
-    ".pre-commit-config.yaml",
-    "tests",
-    "src/wordcab_transcribe",
-    "pyproject.toml",
-    "Dockerfile",
-    "LICENSE",
-    "README.md",
-]
+router = APIRouter()
 
 
-def test_important_files_present():
-    """Test important files are present in the project."""
-    for file in important_files:
-        assert pathlib.Path(file).exists()
+@router.post("")
+async def live() -> None:
+    """Live endpoint for the API."""
+    pass

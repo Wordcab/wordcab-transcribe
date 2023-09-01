@@ -1,4 +1,20 @@
-# Wordcab Transcribe 💬
+<h1 align="center">Wordcab Transcribe</h1>
+
+<div align="center">
+	<a  href="https://github.com/Wordcab/wordcab-transcribe/releases" target="_blank">
+		<img src="https://img.shields.io/badge/release-v0.4.0-pink" />
+  </a>
+	<a  href="https://github.com/Wordcab/wordcab-transcribe/actions?workflow=Quality Checks" target="_blank">
+		<img src="https://github.com/Wordcab/wordcab-transcribe/workflows/Quality Checks/badge.svg" />
+	</a>
+	<a  href="https://github.com/pypa/hatch" target="_blank">
+		<img src="https://img.shields.io/badge/%F0%9F%A5%9A-Hatch-4051b5.svg" />
+	</a>
+</div>
+
+<p align="center"><em>💬 Speech recognition is now a commodity</em></p>
+
+---
 
 FastAPI based API for transcribing audio files using [`faster-whisper`](https://github.com/guillaumekln/faster-whisper)
 and [Auto-Tuning-Spectral-Clustering](https://arxiv.org/pdf/2003.02405.pdf) for diarization
@@ -17,14 +33,25 @@ More details on this project on this [blog post](https://wordcab.github.io/wordc
 
 ## Requirements
 
-- Linux _(tested on Ubuntu Server 22.04)_
-- Python 3.9
-- Docker
-- NVIDIA GPU + NVIDIA Container Toolkit
+### Local development
 
-To learn more about the prerequisites to run the API, check out the [Prerequisites](https://wordcab.github.io/wordcab-posts/blog/2023/03/31/wordcab-transcribe/#prerequisites) section of the blog post.
+- Linux _(tested on Ubuntu Server 20.04/22.04)_
+- Python >=3.8, <3.12
+- [Hatch](https://hatch.pypa.io/en/latest/)
+- [FFmpeg](https://ffmpeg.org/download.html)
 
-## Docker commands
+#### Run the API locally
+
+```bash
+hatch run runtime:launch
+```
+
+### Deployment
+
+- [Docker](https://docs.docker.com/engine/install/ubuntu/) _(optional for deployment)_
+- NVIDIA GPU + [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) _(optional for deployment)_
+
+#### Run the API using Docker
 
 Build the image.
 
@@ -146,7 +173,6 @@ import requests
 
 filepath = "/path/to/audio/file.wav"  # or any other convertible format by ffmpeg
 data = {
-  "alignment": True,  # Longer processing time but better timestamps
   "num_speakers": -1,  # # Leave at -1 to guess the number of speakers
   "diarization": True,  # Longer processing time but speaker segment attribution
   "dual_channel": False,  # Only for stereo audio files with one speaker per channel
@@ -179,7 +205,6 @@ import requests
 headers = {"accept": "application/json", "Content-Type": "application/json"}
 params = {"url": "https://youtu.be/JZ696sbfPHs"}
 data = {
-  "alignment": True,  # Longer processing time but better timestamps
   "diarization": True,  # Longer processing time but speaker segment attribution
   "source_lang": "en",  # optional, default is "en"
   "timestamps": "s",  # optional, default is "s". Can be "s", "ms" or "hms".
@@ -217,10 +242,9 @@ poetry run uvicorn wordcab_transcribe.main:app --reload
 
 ### Getting started
 
-1. Ensure you have the following tools :
+1. Ensure you have the `Hatch` installed (with pipx for example):
 
-- [poetry](https://python-poetry.org/)
-- [nox](https://nox.thea.codes/) and [nox-poetry](https://nox-poetry.readthedocs.io/)
+- [hatch](https://hatch.pypa.io/latest/install/)
 
 2. Clone the repo
 
@@ -232,28 +256,20 @@ cd wordcab-transcribe
 3. Install dependencies and start coding
 
 ```bash
-poetry shell
-poetry install --no-cache
-
-# install pre-commit hooks
-nox --session=pre-commit -- install
-
-# open your IDE
-code .
+hatch env create
 ```
 
 4. Run tests
 
 ```bash
-# run all tests
-nox
+# Quality checks without modifying the code
+hatch run quality:check
 
-# run a specific session
-nox --session=tests  # run tests
-nox --session=pre-commit  # run pre-commit hooks
+# Quality checks and auto-formatting
+hatch run quality:format
 
-# run a specific test
-nox --session=tests -- -k test_something
+# Run tests with coverage
+hatch run tests:run
 ```
 
 ### Working workflow

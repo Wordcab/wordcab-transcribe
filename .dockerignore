@@ -6,8 +6,16 @@ __pycache__
 .nox
 .pre-commit-config.yaml
 .pytest_cache
+.ruff_cache
+convert_whisper_model.py
+data
 dist
+LICENSE
+nginx.conf
+notebooks
 noxfile.py
 test.py
+tests
 whisper_model
 whisper_model_he
+wordcab_transcribe/**/__pycache__

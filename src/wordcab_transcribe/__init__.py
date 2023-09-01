@@ -17,24 +17,6 @@
 #
 # See the License for the specific language governing permissions
 # and limitations under the License.
-"""Test important files are present in the project."""
+"""Main module of the Wordcab ASR API."""
 
-import pathlib
-
-important_files = [
-    ".github",
-    ".gitignore",
-    ".pre-commit-config.yaml",
-    "tests",
-    "src/wordcab_transcribe",
-    "pyproject.toml",
-    "Dockerfile",
-    "LICENSE",
-    "README.md",
-]
-
-
-def test_important_files_present():
-    """Test important files are present in the project."""
-    for file in important_files:
-        assert pathlib.Path(file).exists()
+__version__ = "0.5.0"

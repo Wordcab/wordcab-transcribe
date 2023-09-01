@@ -1,66 +1,150 @@
-[tool.poetry]
-name = "wordcab-transcribe"
-version = "0.4.0"
-description = "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering for diarization."
-authors = ["Wordcab <info@wordcab.com>"]
-readme = "README.md"
-
-[tool.poetry.dependencies]
-python = ">=3.10"
-aiohttp = ">=3.8.4"
-aiofiles = ">=23.1.0"
-argon2-cffi = ">=21.3.0"
-ctranslate2 = ">=3.18.0"
-fastapi = ">=0.96.0"
-faster-whisper = { git = "https://github.com/Wordcab/faster-whisper.git", branch = "master" }
-ffmpeg-python = ">=0.2.0"
-librosa = ">=0.9.0"
-loguru = ">=0.6.0"
-nltk = ">=3.6.0"
-numpy = "==1.23.1"
-onnxruntime = ">=1.15.0"
-pandas = ">=1.3.0"
-pydantic = ">=1.10.9"
-python-dotenv = ">=1.0.0"
-python-jose = { extras = ["cryptography"], version = ">=3.3.0" }
-python-multipart = ">=0.0.6"
-shortuuid = ">=1.0.0"
-svix = ">=0.85.1"
-torch = "2.0.0"
-torchaudio = "2.0.1"
-transformers = ">=4.32.1"
-uvicorn = ">=0.21.1"
-yt-dlp = ">=2023.3.4"
-wget = ">=3.2.0"
-
-[tool.poetry.group.test.dependencies]
-black = ">=23.1.0"
-coverage = { extras = ["toml"], version = ">=7.2.1" }
-flake8 = ">=6.0.0"
-flake8-bandit = ">=4.1.1"
-flake8-bugbear = ">=23.2.13"
-flake8-docstrings = ">=1.7.0"
-httpx = ">=0.23.3"
-isort = ">=5.12.0"
-pre-commit = ">=3.2.0"
-pre-commit-hooks = ">=4.4.0"
-pytest = ">=7.2.2"
-pytest-asyncio = ">=0.20.3"
-pytest-mock = ">=3.10.0"
-pyupgrade = ">=3.3.1"
-
-[tool.isort]
-profile = "black"
-force_single_line = false
-lines_after_imports = 2
-
-[tool.coverage.run]
-branch = true
-source = ["wordcab_transcribe", "tests"]
-
-[tool.coverage.report]
-show_missing = true
-
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[project]
+name = "wordcab-transcribe"
+dynamic = ["version"]
+description = "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering for diarization."
+readme = "README.md"
+requires-python = ">=3.8,<3.12"
+keywords = ["asr", "fastapi", "faster-whisper", "diarization", "wordcab"]
+authors = [
+  { name = "Aleksander Smechov", email = "aleks@wordcab.com" },
+  { name = "Thomas Chaigneau", email = "thomas@wordcab.com" },
+]
+classifiers = [
+  "Topic :: Internet",
+  "Topic :: Software Development",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+  "aiohttp>=3.8.4",
+  "aiofiles>=23.1.0",
+  "argon2-cffi>=21.3.0",
+  "ctranslate2>=3.18.0",
+  "fastapi>=0.96.0",
+  "faster-whisper @ git+https://github.com/Wordcab/faster-whisper@master",
+  "ffmpeg-python>=0.2.0",
+  "librosa>=0.9.0",
+  "loguru>=0.6.0",
+  "numpy==1.23.1",
+  "onnxruntime>=1.15.0",
+  "pydantic>=1.10.9",
+  "python-dotenv>=1.0.0",
+  "python-jose[cryptography]>=3.3.0",
+  "python-multipart>=0.0.6",
+  "shortuuid>=1.0.0",
+  "svix>=0.85.1",
+  "torch>=2.0.0",
+  "torchaudio>=2.0.1",
+  "yt-dlp>=2023.3.4",
+  "wget>=3.2.0",
+]
+
+[project.urls]
+Documentation = "https://github.com/Wordcab/wordcab-transcribe/blob/main/README.md"
+Issues = "https://github.com/Wordcab/wordcab-transcribe/issues"
+Source = "https://github.com/Wordcab/wordcab-transcribe"
+
+[tool.hatch.version]
+path = "src/wordcab_transcribe/__init__.py"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[project.optional-dependencies]
+runtime = ["uvicorn>=0.21.1"]
+quality = [
+  "black>=22.10.0",
+  "ruff>=0.0.263",
+  "pre-commit>=2.20.0",
+]
+tests = [
+  "httpx>=0.23.3",
+  "pytest>=7.4",
+  "pytest-asyncio>=0.21.1",
+  "pytest-cov>=4.1",
+]
+dev = [
+  "black>=22.10.0",
+  "httpx>=0.23.3",
+  "pre-commit>=2.20.0",
+  "pytest>=7.4",
+  "pytest-cov>=4.1",
+  "ruff>=0.0.263",
+]
+
+[tool.hatch.envs.runtime]
+features = [
+  "runtime",
+]
+
+[tool.hatch.envs.runtime.scripts]
+launch = "uvicorn --host=0.0.0.0 --port=5001 src.wordcab_transcribe.main:app"
+
+[tool.hatch.envs.quality]
+features = [
+  "quality",
+]
+
+[tool.hatch.envs.quality.scripts]
+check = [
+  "black --check --diff --preview src tests",
+  "ruff src tests",
+]
+format = [
+  "black --preview src tests",
+  "ruff --fix src tests",
+  "check",
+]
+
+[tool.ruff]
+ignore = [
+  "E501", # line too long, handled by black
+  "B008", # do not perform function calls in argument defaults
+  "C901", # too complex
+]
+select = [
+  "E", # pycodestyle errors
+  "W", # pycodestyle warnings
+  "F", # pyflakes
+  "I", # isort
+  "C", # flake8-comprehensions
+  "B", # flake8-bugbear
+]
+
+[tool.ruff.isort]
+known-first-party = ["wordcab_transcribe"]
+
+[tool.hatch.envs.tests]
+features = [
+  "tests",
+]
+
+[tool.hatch.envs.tests.scripts]
+run = "pytest --cov=wordcab_transcribe --cov-report=term-missing tests/ --durations 0 -s -vv"
+
+[[tool.hatch.envs.tests.matrix]]
+python = ["310"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/.github",
+  "/.vscode",
+  "/docs",
+  "/.devcontainer",
+  "/.pre-commit-config.yaml",
+  "/.gitignore",
+  "/tests",
+  "/Dockerfile",
+  "/.dockerignore",
+]

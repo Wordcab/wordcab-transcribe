@@ -23,6 +23,7 @@ from collections import OrderedDict
 
 import pytest
 
+from wordcab_transcribe import __version__
 from wordcab_transcribe.config import Settings, settings
 
 
@@ -31,8 +32,11 @@ def default_settings() -> OrderedDict:
     """Return the default settings."""
     return OrderedDict(
         project_name="Wordcab Transcribe",
-        version="0.4.0",
-        description="💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering for diarization.",
+        version=__version__,
+        description=(
+            "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral"
+            " Clustering for diarization."
+        ),
         api_prefix="/api/v1",
         debug=True,
         whisper_model="large-v2",
@@ -62,10 +66,11 @@ def default_settings() -> OrderedDict:
 def test_config() -> None:
     """Test default config settings with the .env file."""
     assert settings.project_name == "Wordcab Transcribe"
-    assert settings.version == "0.4.0"
+    assert settings.version == __version__
     assert (
         settings.description
-        == "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering for diarization."
+        == "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral"
+        " Clustering for diarization."
     )
     assert settings.api_prefix == "/api/v1"
     assert settings.debug is True

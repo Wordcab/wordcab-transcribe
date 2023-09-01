@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04 AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
@@ -9,30 +9,11 @@ RUN apt-get update && apt-get install -y \
     software-properties-common \
     python3-pip
 
-ENV PYTHONFAULTHANDLER=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONHASHSEED=random \
-    PIP_NO_CACHE_DIR=off \
-    PIP_DISABLE_PIP_VERSION_CHECK=on \
-    PIP_DEFAULT_TIMEOUT=100 \
-    POETRY_VERSION=1.4.2 \
-    POETRY_HOME="/opt/poetry" \
-    POETRY_VIRTUALENVS_IN_PROJECT=true \
-    POETRY_NO_INTERACTION=1 \
-    PYSETUP_PATH="/opt/pysetup" \
-    VENV_PATH="/opt/pysetup/.venv"
-ENV PATH="$POETRY_HOME/bin:$VENV_PATH/bin:$PATH"
-
-RUN pip install "poetry==$POETRY_VERSION"
-
-WORKDIR $PYSETUP_PATH
-COPY ./poetry.lock ./pyproject.toml ./
-RUN poetry install --only main
-
-COPY ./wordcab_transcribe /app/wordcab_transcribe
-COPY ./.env /app/.env
+ENV PYTHONUNBUFFERED=1
+RUN python3 -m pip install pip --upgrade \
+    && python3 -m pip install hatch
 
 WORKDIR /app
+COPY . .
 
-CMD ["uvicorn", "--host=0.0.0.0", "--port=5001", "wordcab_transcribe.main:app"]
+CMD ["hatch", "run", "runtime:launch"]

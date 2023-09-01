@@ -1,171 +1,66 @@
 name: Quality Checks
 
 on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
-  pull_request:
     paths:
-      - "wordcab_transcribe/**"
-      - "tests/**"
-  workflow_dispatch:
+      - .github/workflows/ci-cd.yaml
+      - src/**
+      - tests/**
+  release:
+    types:
+      - published
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
-  quality:
-    name: ${{ matrix.session }} ${{ matrix.python }} / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - { python: "3.9", os: "ubuntu-latest", session: "pre-commit" }
-    env:
-      NOXSESSION: ${{ matrix.session }}
-      FORCE_COLOR: "1"
-      PRE_COMMIT_COLOR: "always"
-    steps:
-      - name: Check out the repository
-        uses: actions/checkout@v3
-
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python }}
-
-      - name: Upgrade pip
-        run: |
-          pip install --constraint=.github/workflows/constraints.txt pip
-          pip --version
-      - name: Upgrade pip in virtual environments
-        shell: python
-        run: |
-          import os
-          import pip
-          with open(os.environ["GITHUB_ENV"], mode="a") as io:
-              print(f"VIRTUALENV_PIP={pip.__version__}", file=io)
-      - name: Install Poetry
-        run: |
-          pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
-          poetry --version
-      - name: Install Nox
-        run: |
-          pipx install --pip-args=--constraint=.github/workflows/constraints.txt nox
-          pipx inject --pip-args=--constraint=.github/workflows/constraints.txt nox nox-poetry
-          nox --version
-      - name: Compute pre-commit cache key
-        if: matrix.session == 'pre-commit'
-        id: pre-commit-cache
-        shell: python
-        run: |
-          import hashlib
-          import sys
-          python = "py{}.{}".format(*sys.version_info[:2])
-          payload = sys.version.encode() + sys.executable.encode()
-          digest = hashlib.sha256(payload).hexdigest()
-          result = "${{ runner.os }}-{}-{}-pre-commit".format(python, digest[:8])
-          print("::set-output name=result::{}".format(result))
-      - name: Restore pre-commit cache
-        uses: actions/cache@v3
-        if: matrix.session == 'pre-commit'
-        with:
-          path: ~/.cache/pre-commit
-          key: ${{ steps.pre-commit-cache.outputs.result }}-${{ hashFiles('.pre-commit-config.yaml') }}
-          restore-keys: |
-            ${{ steps.pre-commit-cache.outputs.result }}-
-      - name: Run Nox
-        run: |
-          nox --python=${{ matrix.python }}
-  tests:
-    name: ${{ matrix.session }} ${{ matrix.python }} / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    needs: [quality]
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - { python: "3.9", os: "ubuntu-latest", session: "tests" }
-    env:
-      NOXSESSION: ${{ matrix.session }}
-      FORCE_COLOR: "1"
-      PRE_COMMIT_COLOR: "always"
-      WORDCAB_API_KEY: ${{ secrets.WORDCAB_API_KEY }}
-
-    steps:
-      - name: Check out the repository
-        uses: actions/checkout@v3
-
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python }}
-
-      - name: Upgrade pip
-        run: |
-          pip install --constraint=.github/workflows/constraints.txt pip
-          pip --version
-      - name: Upgrade pip in virtual environments
-        shell: python
-        run: |
-          import os
-          import pip
-          with open(os.environ["GITHUB_ENV"], mode="a") as io:
-              print(f"VIRTUALENV_PIP={pip.__version__}", file=io)
-      - name: Install Poetry
-        run: |
-          pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
-          poetry --version
-      - name: Install Nox
-        run: |
-          pipx install --pip-args=--constraint=.github/workflows/constraints.txt nox
-          pipx inject --pip-args=--constraint=.github/workflows/constraints.txt nox nox-poetry
-          nox --version
-      - name: Run Nox
-        run: |
-          nox --python=${{ matrix.python }}
-      - name: Upload coverage data
-        if: always() && matrix.session == 'tests'
-        uses: "actions/upload-artifact@v3"
-        with:
-          name: coverage-data
-          path: ".coverage.*"
-
-  coverage:
+  check-quality:
     runs-on: ubuntu-latest
-    needs: tests
+
     steps:
-      - name: Check out the repository
+      - name: checkout
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: setup-python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: 3.8
 
-      - name: Upgrade pip
+      - name: install-dependencies
         run: |
-          pip install --constraint=.github/workflows/constraints.txt pip
-          pip --version
-      - name: Install Poetry
+          python -m pip install --upgrade pip
+          pip install ".[quality]"
+
+      - name: check-quality
         run: |
-          pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
-          poetry --version
-      - name: Install Nox
-        run: |
-          pipx install --pip-args=--constraint=.github/workflows/constraints.txt nox
-          pipx inject --pip-args=--constraint=.github/workflows/constraints.txt nox nox-poetry
-          nox --version
-      - name: Download coverage data
-        uses: actions/download-artifact@v3
+          black --check --diff --preview src tests
+          ruff src tests
+
+  run-tests:
+    needs: check-quality
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+
+      - name: setup-python
+        uses: actions/setup-python@v4
         with:
-          name: coverage-data
+          python-version: 3.8
 
-      - name: Combine coverage data and display human readable report
+      - name: install-dependencies
         run: |
-          nox --session=coverage
-      - name: Create coverage report
-        run: |
-          nox --session=coverage -- xml
+          python -m pip install --upgrade pip
+          pip install ".[tests]"
+
+      - name: run-tests
+        run: pytest --cov=wordcab_transcribe --cov-report=term-missing tests/ -s --durations 0
