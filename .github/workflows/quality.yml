@@ -40,8 +40,8 @@ jobs:
 
       - name: check-quality
         run: |
-          black --check --diff --preview wordcab_transcribe tests
-          ruff wordcab_transcribe tests
+          black --check --diff --preview src tests
+          ruff src tests
 
   run-tests:
     needs: check-quality
