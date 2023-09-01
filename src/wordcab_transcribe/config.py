@@ -266,7 +266,7 @@ settings = Settings(
     # Models configuration
     # Transcription
     whisper_model=getenv("WHISPER_MODEL", "large-v2"),
-    compute_type=getenv("COMPUTE_TYPE", "int8_float16"),
+    compute_type=getenv("COMPUTE_TYPE", "float16"),
     extra_languages=extra_languages,
     extra_languages_model_paths={lang: "" for lang in extra_languages},
     # Diarization
