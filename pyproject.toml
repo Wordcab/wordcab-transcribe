@@ -10,7 +10,7 @@ authors = [
     {name = "Thomas Chaigneau", email = "thomas@wordcab.com"},
 ]
 readme = "README.md"
-requires-python = ">=3.8.1,<3.12"
+requires-python = ">=3.10,<4.0"
 dynamic = ["version"]
 classifiers = [
   "Topic :: Internet",
@@ -41,10 +41,12 @@ dependencies = [
   "fastapi>=0.96.0",
   "faster-whisper @ git+https://github.com/Wordcab/faster-whisper@master",
   "ffmpeg-python>=0.2.0",
+  "librosa>=0.9.0",
   "loguru>=0.6.0",
-  # "nemo-toolkit[asr]==1.20.0",
+  "nltk>=3.6.0",
   "numpy==1.23.1",
   "onnxruntime>=1.15.0",
+  "pandas>=1.3.0",
   "pydantic>=1.10.9",
   "python-dotenv>=1.0.0",
   "python-jose[cryptography]>=3.3.0",
@@ -55,8 +57,8 @@ dependencies = [
   "torch>=2.0.0",
   "torchaudio>=2.0.1",
   "uvicorn>=0.21.1",
-  # "youtokentome @ git+https://github.com/gbeckenkamp/YouTokenToMe@add_minimum_requirements",
   "yt-dlp>=2023.3.4",
+  "wget>=3.2.0",
 ]
 
 [project.urls]
@@ -99,12 +101,12 @@ features = [
 
 [tool.hatch.envs.quality.scripts]
 check = [
-  "black --check --diff --preview src tests",
-  "ruff src tests",
+  "black --check --diff --preview wordcab_transcribe tests",
+  "ruff wordcab_transcribe tests",
 ]
 format = [
-  "black --preview src tests",
-  "ruff --fix src tests",
+  "black --preview wordcab_transcribe tests",
+  "ruff --fix wordcab_transcribe tests",
   "check",
 ]
 
@@ -135,7 +137,7 @@ features = [
 run = "pytest --cov=wordcab_transcribe --cov-report=term-missing tests/ --durations 0 -s -vv"
 
 [[tool.hatch.envs.tests.matrix]]
-python = ["38", "39", "310", "311"]
+python = ["310", "311"]
 
 [tool.hatch.build.targets.sdist]
 exclude = [

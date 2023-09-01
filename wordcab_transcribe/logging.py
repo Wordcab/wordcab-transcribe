@@ -41,9 +41,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         logger.remove()
         logger.add(
             sys.stdout,
-            level="DEBUG"
-            if debug_mode
-            else "INFO",  # Avoid logging debug messages in prod
+            level=(
+                "DEBUG" if debug_mode else "INFO"
+            ),  # Avoid logging debug messages in prod
         )
 
     async def dispatch(
@@ -71,7 +71,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
         process_time = time.time() - start_time
         logger.info(
-            f"Task [{tracing_id}] | Status: {response.status_code}, Time: {process_time:.4f} secs"
+            f"Task [{tracing_id}] | Status: {response.status_code}, Time:"
+            f" {process_time:.4f} secs"
         )
 
         return response

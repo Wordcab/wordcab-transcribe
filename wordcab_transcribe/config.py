@@ -144,7 +144,8 @@ class Settings:
         ]
         if value not in compute_type_values:
             raise ValueError(
-                f"{value} is not a valid compute type. Choose one of {compute_type_values}."
+                f"{value} is not a valid compute type. Choose one of"
+                f" {compute_type_values}."
             )
 
         return value
@@ -164,7 +165,8 @@ class Settings:
         """Check that the OpenSSL algorithm is valid."""
         if value not in {"HS256", "HS384", "HS512"}:
             raise ValueError(
-                "openssl_algorithm must be a valid algorithm, please verify the `.env` file."
+                "openssl_algorithm must be a valid algorithm, please verify the `.env`"
+                " file."
             )
 
         return value
@@ -174,7 +176,8 @@ class Settings:
         """Check that the access token expiration is valid. Only if debug is False."""
         if value <= 0:
             raise ValueError(
-                "access_token_expire_minutes must be positive, please verify the `.env` file."
+                "access_token_expire_minutes must be positive, please verify the `.env`"
+                " file."
             )
 
         return value
@@ -194,20 +197,23 @@ class Settings:
         if self.debug is False:
             if self.username == "admin" or self.username is None:  # noqa: S105
                 logger.warning(
-                    f"Username is set to `{self.username}`, which is not secure for production."
+                    f"Username is set to `{self.username}`, which is not secure for"
+                    " production."
                 )
             if self.password == "admin" or self.password is None:  # noqa: S105
                 logger.warning(
-                    f"Password is set to `{self.password}`, which is not secure for production."
+                    f"Password is set to `{self.password}`, which is not secure for"
+                    " production."
                 )
             if (
                 self.openssl_key == "0123456789abcdefghijklmnopqrstuvwyz"  # noqa: S105
                 or self.openssl_key is None
             ):
                 logger.warning(
-                    f"OpenSSL key is set to `{self.openssl_key}`, which is the default encryption key. "
-                    "It's absolutely not secure for production. Please change it in the `.env` file. "
-                    "You can generate a new key with `openssl rand -hex 32`."
+                    f"OpenSSL key is set to `{self.openssl_key}`, which is the default"
+                    " encryption key. It's absolutely not secure for production."
+                    " Please change it in the `.env` file. You can generate a new key"
+                    " with `openssl rand -hex 32`."
                 )
 
         if (
@@ -216,8 +222,9 @@ class Settings:
             != len(self.multiscale_weights)
         ):
             raise ValueError(
-                f"Length of window_lengths, shift_lengths and multiscale_weights must be the same.\n"
-                f"Found: {len(self.window_lengths)}, {len(self.shift_lengths)}, {len(self.multiscale_weights)}"
+                "Length of window_lengths, shift_lengths and multiscale_weights must"
+                f" be the same.\nFound: {len(self.window_lengths)},"
+                f" {len(self.shift_lengths)}, {len(self.multiscale_weights)}"
             )
 
 
@@ -255,7 +262,8 @@ settings = Settings(
     version=getenv("VERSION", "0.3.0"),
     description=getenv(
         "DESCRIPTION",
-        "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering for diarization.",
+        "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering"
+        " for diarization.",
     ),
     api_prefix=getenv("API_PREFIX", "/api/v1"),
     debug=getenv("DEBUG", True),
@@ -316,9 +324,10 @@ async def lifespan(app: FastAPI) -> None:
     """Context manager to handle the startup and shutdown of the application."""
     if retrieve_user_platform() != "linux":
         logger.warning(
-            "You are not running the application on Linux.\n"
-            "The application was tested on Ubuntu 22.04, so we cannot guarantee that it will work on other OS.\n"
-            "Report any issues with your env specs to: https://github.com/Wordcab/wordcab-transcribe/issues"
+            "You are not running the application on Linux.\nThe application was tested"
+            " on Ubuntu 22.04, so we cannot guarantee that it will work on other"
+            " OS.\nReport any issues with your env specs to:"
+            " https://github.com/Wordcab/wordcab-transcribe/issues"
         )
 
     if settings.extra_languages:

@@ -31,7 +31,6 @@ from wordcab_transcribe.router.v1.cortex_endpoint import (  # noqa: F401
 from wordcab_transcribe.router.v1.live_endpoints import router as live_router
 from wordcab_transcribe.router.v1.youtube_endpoint import router as youtube_router
 
-
 api_router = APIRouter()
 
 async_routers = (

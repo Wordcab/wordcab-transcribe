@@ -81,7 +81,8 @@ class DiarizeService:
             self.default_segmentation_batch_size = 256
 
         self.default_scale_dict = {
-            k: (w, s) for k, (w, s) in enumerate(zip(window_lengths, shift_lengths))
+            k: (w, s)
+            for k, (w, s) in enumerate(zip(window_lengths, shift_lengths, strict=True))
         }
 
         for idx in device_index:
@@ -127,7 +128,11 @@ class DiarizeService:
             scale_dict = {
                 k: (w, s)
                 for k, (w, s) in enumerate(
-                    zip([3.0, 2.5, 2.0, 1.5, 1.0], self.default_shift_lengths)
+                    zip(
+                        [3.0, 2.5, 2.0, 1.5, 1.0],
+                        self.default_shift_lengths,
+                        strict=True,
+                    )
                 )
             }
             segmentation_batch_size = 64
@@ -135,7 +140,9 @@ class DiarizeService:
         else:
             scale_dict = {
                 k: (w, s)
-                for k, (w, s) in enumerate(zip([3.0, 2.0, 1.0], [0.75, 0.5, 0.25]))
+                for k, (w, s) in enumerate(
+                    zip([3.0, 2.0, 1.0], [0.75, 0.5, 0.25], strict=True)
+                )
             }
             segmentation_batch_size = 32
             multiscale_weights = [1.0, 1.0, 1.0]

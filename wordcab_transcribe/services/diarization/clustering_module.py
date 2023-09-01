@@ -801,7 +801,10 @@ class SpeakerClustering(torch.nn.Module):
         ).to(self.device)
 
         for embeddings, weight, map_argmin in zip(
-            embeddings_in_scales, multiscale_weights, session_scale_mapping_list
+            embeddings_in_scales,
+            multiscale_weights,
+            session_scale_mapping_list,
+            strict=False,
         ):
             cosine_affinity_matrix = get_cosine_affinity_matrix(
                 embeddings.to(self.device)
@@ -857,13 +860,13 @@ class ClusteringModule:
 
     def __init__(self, device: str, max_num_speakers: int = 8) -> None:
         """Initialize the clustering module."""
-        self.params = dict(
-            max_num_speakers=max_num_speakers,
-            enhanced_count_thres=80,
-            max_rp_threshold=0.25,
-            sparse_search_volume=30,
-            maj_vote_spk_count=False,
-        )
+        self.params = {
+            "max_num_speakers": max_num_speakers,
+            "enhanced_count_thres": 80,
+            "max_rp_threshold": 0.25,
+            "sparse_search_volume": 30,
+            "maj_vote_spk_count": False,
+        }
         self.clustering_model = SpeakerClustering(device=device, parallelism=False)
 
     def __call__(

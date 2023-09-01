@@ -194,13 +194,13 @@ class TranscribeService:
                 suppress_blank=suppress_blank,
                 word_timestamps=word_timestamps,
                 vad_filter=internal_vad,
-                vad_parameters=dict(
-                    threshold=0.5,
-                    min_speech_duration_ms=250,
-                    min_silence_duration_ms=100,
-                    speech_pad_ms=30,
-                    window_size_samples=512,
-                ),
+                vad_parameters={
+                    "threshold": 0.5,
+                    "min_speech_duration_ms": 250,
+                    "min_silence_duration_ms": 100,
+                    "speech_pad_ms": 30,
+                    "window_size_samples": 512,
+                },
             )
 
             segments = list(segments)
@@ -297,12 +297,12 @@ class TranscribeService:
                     word_start_adjusted = (group_start / self.sample_rate) + word.start
                     word_end_adjusted = (group_start / self.sample_rate) + word.end
                     segment_dict["words"].append(
-                        dict(
-                            start=word_start_adjusted,
-                            end=word_end_adjusted,
-                            word=word.word,
-                            score=word.probability,
-                        )
+                        {
+                            "start": word_start_adjusted,
+                            "end": word_end_adjusted,
+                            "word": word.word,
+                            "score": word.probability,
+                        }
                     )
 
                     if (

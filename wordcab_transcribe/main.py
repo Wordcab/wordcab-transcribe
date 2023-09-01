@@ -33,7 +33,6 @@ from wordcab_transcribe.router.v1.endpoints import (
     cortex_router,
 )
 
-
 # Main application instance creation
 app = FastAPI(
     title=settings.project_name,

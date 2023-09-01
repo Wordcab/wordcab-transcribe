@@ -31,7 +31,6 @@ from loguru import logger
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.models import Token, TokenData
 
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.api_prefix}/auth")
 
 credentials_exception = HTTPException(
@@ -101,8 +100,8 @@ async def get_current_user(
 
         token_data = TokenData(username=username)
 
-    except JWTError:
-        raise credentials_exception
+    except JWTError as e:
+        raise credentials_exception from e
 
     if token_data.username != credentials:
         raise credentials_exception

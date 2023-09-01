@@ -37,7 +37,6 @@ from loguru import logger
 from num2words import num2words
 from yt_dlp import YoutubeDL
 
-
 CURRENCIES_CHARACTERS = [
     "$",
     "€",
@@ -639,13 +638,13 @@ def experimental_num_to_words(sentence: str, model_lang: str) -> str:
         str: The converted sentence.
     """
     for wdx, word in enumerate(sentence):
-        if any([char.isdigit() for char in word]):
+        if any(char.isdigit() for char in word):
             logger.debug(f"Transcript contains digits: {word}")
 
-            if any([char == "%" for char in word]):
+            if any(char == "%" for char in word):
                 word = word.replace("%", "")
                 to_ = "ordinal" if model_lang not in ["ja", "zh"] else "cardinal"
-            elif any([char in CURRENCIES_CHARACTERS for char in word]):
+            elif any(char in CURRENCIES_CHARACTERS for char in word):
                 word = "".join(
                     [char for char in word if char not in CURRENCIES_CHARACTERS]
                 )

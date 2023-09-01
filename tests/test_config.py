@@ -32,7 +32,10 @@ def default_settings() -> OrderedDict:
     return OrderedDict(
         project_name="Wordcab Transcribe",
         version="0.4.0",
-        description="💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering for diarization.",
+        description=(
+            "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral"
+            " Clustering for diarization."
+        ),
         api_prefix="/api/v1",
         debug=True,
         whisper_model="large-v2",
@@ -65,7 +68,8 @@ def test_config() -> None:
     assert settings.version == "0.4.0"
     assert (
         settings.description
-        == "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering for diarization."
+        == "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral"
+        " Clustering for diarization."
     )
     assert settings.api_prefix == "/api/v1"
     assert settings.debug is True

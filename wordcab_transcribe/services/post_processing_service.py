@@ -136,52 +136,52 @@ class PostProcessingService:
                     _splitted_segment = segment_text.split()
 
                     if word_index > 0:
-                        _segment_to_add = dict(
-                            start=words[0]["start"],
-                            end=words[word_index - 1]["end"],
-                            text=" ".join(_splitted_segment[:word_index]),
-                            speaker=speaker,
-                            words=words[:word_index],
-                        )
+                        _segment_to_add = {
+                            "start": words[0]["start"],
+                            "end": words[word_index - 1]["end"],
+                            "text": " ".join(_splitted_segment[:word_index]),
+                            "speaker": speaker,
+                            "words": words[:word_index],
+                        }
 
                     else:
-                        _segment_to_add = dict(
-                            start=words[0]["start"],
-                            end=words[0]["end"],
-                            text=_splitted_segment[0],
-                            speaker=speaker,
-                            words=words[:1],
-                        )
+                        _segment_to_add = {
+                            "start": words[0]["start"],
+                            "end": words[0]["end"],
+                            "text": _splitted_segment[0],
+                            "speaker": speaker,
+                            "words": words[:1],
+                        }
 
                     segment_speaker_mapping.append(_segment_to_add)
                     transcript_segments.insert(
                         segment_index + 1,
-                        dict(
-                            start=words[word_index]["start"],
-                            end=segment_end,
-                            text=" ".join(_splitted_segment[word_index:]),
-                            words=words[word_index:],
-                        ),
+                        {
+                            "start": words[word_index]["start"],
+                            "end": segment_end,
+                            "text": " ".join(_splitted_segment[word_index:]),
+                            "words": words[word_index:],
+                        },
                     )
                 else:
                     segment_speaker_mapping.append(
-                        dict(
-                            start=segment_start,
-                            end=segment_end,
-                            text=segment_text,
-                            speaker=speaker,
-                            words=words,
-                        )
+                        {
+                            "start": segment_start,
+                            "end": segment_end,
+                            "text": segment_text,
+                            "speaker": speaker,
+                            "words": words,
+                        }
                     )
             else:
                 segment_speaker_mapping.append(
-                    dict(
-                        start=segment_start,
-                        end=segment_end,
-                        text=segment_text,
-                        speaker=speaker,
-                        words=segment["words"],
-                    )
+                    {
+                        "start": segment_start,
+                        "end": segment_end,
+                        "text": segment_text,
+                        "speaker": speaker,
+                        "words": segment["words"],
+                    }
                 )
 
             segment_index += 1

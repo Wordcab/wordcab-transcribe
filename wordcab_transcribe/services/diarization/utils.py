@@ -107,7 +107,8 @@ def cosine_similarity(
     """
     if emb_a.shape[0] == 1 or emb_b.shape[0] == 1:
         raise ValueError(
-            f"Number of feature vectors should be greater than 1 but got {emb_a.shape} and {emb_b.shape}"
+            "Number of feature vectors should be greater than 1 but got"
+            f" {emb_a.shape} and {emb_b.shape}"
         )
 
     if eps is None:
@@ -587,7 +588,7 @@ def segmentation_collate_fn(
     Returns:
         Tuple[torch.Tensor, torch.Tensor]: Tuple of the audio segments and their lengths.
     """
-    _, audio_lengths = zip(*batch)
+    _, audio_lengths = zip(*batch, strict=True)
 
     if not audio_lengths[0]:
         return None, None

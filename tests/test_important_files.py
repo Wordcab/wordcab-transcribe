@@ -21,7 +21,6 @@
 
 import pathlib
 
-
 important_files = [
     ".darglint",
     ".flake8",

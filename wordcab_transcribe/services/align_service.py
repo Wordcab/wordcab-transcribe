@@ -40,11 +40,11 @@
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 # DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER 
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE 
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 # USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Alignment module is based on the paper
@@ -68,7 +68,6 @@ from loguru import logger
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 
 from wordcab_transcribe.utils import interpolate_nans
-
 
 MODEL_MAPPING = OrderedDict(
     # (language, model_name, source)
@@ -381,7 +380,7 @@ class AlignService:
 
             clean_wdx = []
             for wdx, wrd in enumerate(per_word):
-                if any([c in model_dictionary.keys() for c in wrd]):
+                if any(c in model_dictionary.keys() for c in wrd):
                     clean_wdx.append(wdx)
 
             sentence_spans = list(
@@ -414,15 +413,16 @@ class AlignService:
             # check we can align
             if len(segment["clean_char"]) == 0:
                 logger.debug(
-                    f"Failed to align segment ({segment['text']}): no characters in this segment "
-                    "found in model dictionary, resorting to original..."
+                    f"Failed to align segment ({segment['text']}): no characters in"
+                    " this segment found in model dictionary, resorting to original..."
                 )
                 aligned_segments.append(aligned_seg)
                 continue
 
             if t1 >= max_duration or t2 - t1 < 0.02:
                 logger.debug(
-                    "Failed to align segment: original start time longer than audio duration, skipping..."
+                    "Failed to align segment: original start time longer than audio"
+                    " duration, skipping..."
                 )
                 aligned_segments.append(aligned_seg)
                 continue
@@ -459,7 +459,8 @@ class AlignService:
 
             if path is None:
                 logger.debug(
-                    f'Failed to align segment ({segment["text"]}): backtrack failed, resorting to original...'
+                    f'Failed to align segment ({segment["text"]}): backtrack failed,'
+                    " resorting to original..."
                 )
                 aligned_segments.append(aligned_seg)
                 continue
@@ -513,8 +514,8 @@ class AlignService:
                 ] = sdx
 
                 sentence_text = text[sstart:send]
-                sentence_start = curr_chars["start"].min()
-                sentence_end = curr_chars["end"].max()
+                curr_chars["start"].min()
+                curr_chars["end"].max()
                 sentence_words = []
 
                 for word_idx in curr_chars["word-idx"].unique():

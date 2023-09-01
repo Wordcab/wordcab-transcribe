@@ -42,7 +42,6 @@ from wordcab_transcribe.models import (
 from wordcab_transcribe.router.v1.audio_url_endpoint import inference_with_audio_url
 from wordcab_transcribe.router.v1.youtube_endpoint import inference_with_youtube
 
-
 router = APIRouter()
 
 
@@ -115,7 +114,10 @@ async def run_cortex(
 
         else:
             return CortexError(
-                message="Invalid url_type parameter. Supported values are 'audio_url' and 'youtube'"
+                message=(
+                    "Invalid url_type parameter. Supported values are 'audio_url' and"
+                    " 'youtube'"
+                )
             )
 
     except Exception as e:
@@ -179,5 +181,6 @@ async def send_update_with_svix(
         )
     else:
         logger.warning(
-            "Svix API key and app ID are not set. Cannot send the status update to Svix."
+            "Svix API key and app ID are not set. Cannot send the status update to"
+            " Svix."
         )
