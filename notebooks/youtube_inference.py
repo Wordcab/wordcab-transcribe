@@ -17,7 +17,7 @@ data = {
     "alignment": False,  # Longer processing time but better timestamps
     "num_speakers": -1,  # Leave at -1 to guess the number of speakers
     "diarization": True,  # Longer processing time but speaker segment attribution
-    "source_lang": "nl",  # optional, default is "en"
+    "source_lang": "en",  # optional, default is "en"
     "timestamps": "s",  # optional, default is "s". Can be "s", "ms" or "hms".
     "internal_vad": False,  # optional, default is False
     "word_timestamps": False,  # optional, default is False

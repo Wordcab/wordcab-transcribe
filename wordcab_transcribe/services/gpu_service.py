@@ -65,4 +65,5 @@ class GPUService:
         Args:
             device_index (int): Index of the device to add to the available devices list.
         """
-        self.queue.put_nowait(device_index)
+        if not any(item == device_index for item in self.queue._queue):
+            self.queue.put_nowait(device_index)

@@ -120,6 +120,9 @@ class DiarizeService:
         """
         vad_outputs, _ = vad_service(waveform, group_timestamps=False)
 
+        if len(vad_outputs) == 0:  # Empty audio
+            return None
+
         if audio_duration < 3600:
             scale_dict = self.default_scale_dict
             segmentation_batch_size = self.default_segmentation_batch_size

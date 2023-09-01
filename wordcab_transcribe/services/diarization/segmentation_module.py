@@ -23,11 +23,11 @@ import math
 from typing import Dict, List, Tuple
 
 import torch
-from nemo.collections.asr.models import EncDecSpeakerLabelModel
 from torch.cuda.amp import autocast
 from torch.utils.data import Dataset
 
 from wordcab_transcribe.services.diarization.models import (
+    EncDecSpeakerLabelModel,
     MultiscaleEmbeddingsAndTimestamps,
 )
 from wordcab_transcribe.services.diarization.utils import segmentation_collate_fn
@@ -84,10 +84,7 @@ class SegmentationModule:
         Args:
             device (str): Device to use for inference. Can be "cpu" or "cuda".
         """
-        self.speaker_model = EncDecSpeakerLabelModel.from_pretrained(
-            model_name="titanet_large", map_location=None
-        ).to(device)
-        self.speaker_model.eval()
+        self.speaker_model = EncDecSpeakerLabelModel(device=device)
 
     def __call__(
         self,
@@ -206,7 +203,7 @@ class SegmentationModule:
             _batch = [x.to(self.speaker_model.device) for x in batch]
             audio_signal, audio_signal_len = _batch
 
-            with autocast():
+            with torch.no_grad(), autocast():
                 _, embeddings = self.speaker_model.forward(
                     input_signal=audio_signal, input_signal_length=audio_signal_len
                 )

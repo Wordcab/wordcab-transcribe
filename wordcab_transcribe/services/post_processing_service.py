@@ -77,7 +77,19 @@ class PostProcessingService:
         Returns:
             List[dict]: List of sentences with speaker mapping.
         """
-        utterances = self.merge_segments(left_segments, right_segments)
+        words_with_speaker_mapping = []
+
+        for segment in left_segments + right_segments:
+            speaker = segment["speaker"]
+            for word in segment["words"]:
+                word.update({"speaker": speaker})
+                words_with_speaker_mapping.append(word)
+
+        words_with_speaker_mapping.sort(key=lambda word: word["start"])
+
+        utterances = self.reconstruct_dual_channel_utterances(
+            words_with_speaker_mapping
+        )
 
         return utterances
 
@@ -244,6 +256,63 @@ class PostProcessingService:
 
         # Catch the last sentence
         sentences.append(current_sentence)
+
+        return sentences
+
+    def reconstruct_dual_channel_utterances(
+        self,
+        transcript_words: List[dict],
+    ) -> List[dict]:
+        """
+        Reconstruct dual-channel utterances based on the speaker mapping.
+
+        Args:
+            transcript_words (List[dict]): List of transcript words.
+
+        Returns:
+            List[dict]: List of sentences with speaker mapping.
+        """
+        start_t0, end_t0, speaker_t0 = (
+            transcript_words[0]["start"],
+            transcript_words[0]["end"],
+            transcript_words[0]["speaker"],
+        )
+
+        previous_speaker = speaker_t0
+        current_sentence = {
+            "speaker": speaker_t0,
+            "start": start_t0,
+            "end": end_t0,
+            "text": "",
+            "words": [],
+        }
+
+        sentences = []
+        for word in transcript_words:
+            text, speaker = word["word"], word["speaker"]
+            start_t, end_t = word["start"], word["end"]
+
+            if speaker != previous_speaker:
+                sentences.append(current_sentence)
+                current_sentence = dict(
+                    speaker=speaker,
+                    start=start_t,
+                    end=end_t,
+                    text="",
+                )
+                current_sentence["words"] = []
+            else:
+                current_sentence["end"] = end_t
+
+            current_sentence["text"] += text
+            previous_speaker = speaker
+            current_sentence["words"].append(word)
+
+        # Catch the last sentence
+        sentences.append(current_sentence)
+
+        for sentence in sentences:
+            sentence["text"] = sentence["text"].strip()
 
         return sentences
 
