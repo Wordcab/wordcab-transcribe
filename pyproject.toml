@@ -137,7 +137,7 @@ features = [
 run = "pytest --cov=wordcab_transcribe --cov-report=term-missing tests/ --durations 0 -s -vv"
 
 [[tool.hatch.envs.tests.matrix]]
-python = ["310", "311"]
+python = ["310"]
 
 [tool.hatch.build.targets.sdist]
 exclude = [

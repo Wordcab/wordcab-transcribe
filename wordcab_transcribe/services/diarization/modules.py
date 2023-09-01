@@ -16,7 +16,6 @@ from torch import Tensor
 from torch.nn import functional as F  # noqa: N812
 from torch.nn.init import _calculate_correct_fan
 
-
 try:
     from pytorch_quantization import nn as quant_nn
 
@@ -48,19 +47,19 @@ def get_asymtric_padding(kernel_size, stride, dilation, future_context):
         # kernel size is smaller than future context, equivalent to using entire context of kernel
         # simply return symmetric padding for this scenario
         logging.warning(
-            f"Future context window is larger than the kernel size!\n"
-            f"Left context = {left_context} | Right context = greater than {right_context} | "
-            f"Kernel size = {kernel_size}\n"
-            f"Switching to symmetric padding (left context = right context = {symmetric_padding})"
+            "Future context window is larger than the kernel size!\nLeft context ="
+            f" {left_context} | Right context = greater than {right_context} | Kernel"
+            f" size = {kernel_size}\nSwitching to symmetric padding (left context ="
+            f" right context = {symmetric_padding})"
         )
         return symmetric_padding
 
     if left_context < symmetric_padding:
         logging.warning(
-            f"Future context window is larger than half the kernel size!\n"
-            f"Conv layer therefore uses more future information than past to compute its output!\n"
-            f"Left context = {left_context} | Right context = {right_context} | "
-            f"Kernel size = {kernel_size}"
+            "Future context window is larger than half the kernel size!\nConv layer"
+            " therefore uses more future information than past to compute its"
+            f" output!\nLeft context = {left_context} | Right context ="
+            f" {right_context} | Kernel size = {kernel_size}"
         )
 
     if dilation > 1:
@@ -660,7 +659,8 @@ class SqueezeExcite(nn.Module):
         """
         if hasattr(self, "context_window"):
             logging.info(
-                f"Changing Squeeze-Excitation context window from {self.context_window} to {context_window}"
+                "Changing Squeeze-Excitation context window from"
+                f" {self.context_window} to {context_window}"
             )
 
         self.context_window = context_window
@@ -1035,7 +1035,7 @@ class JasperBlock(nn.Module):
         else:
             raise ValueError(
                 f"Normalization method ({normalization}) does not match"
-                f" one of [batch, layer, group, instance]."
+                " one of [batch, layer, group, instance]."
             )
 
         if groups > 1:
@@ -1075,14 +1075,14 @@ class JasperBlock(nn.Module):
         out = xs[-1]
 
         lens = lens_orig
-        for _, l in enumerate(self.mconv):
+        for _, conv_len in enumerate(self.mconv):
             # if we're doing masked convolutions, we need to pass in and
             # possibly update the sequence lengths
             # if (i % 4) == 0 and self.conv_mask:
-            if isinstance(l, (MaskedConv1d, SqueezeExcite)):
-                out, lens = l(out, lens)
+            if isinstance(conv_len, (MaskedConv1d, SqueezeExcite)):
+                out, lens = conv_len(out, lens)
             else:
-                out = l(out)
+                out = conv_len(out)
 
         # compute the residuals
         if self.res is not None:

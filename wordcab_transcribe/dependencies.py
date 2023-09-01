@@ -29,7 +29,6 @@ from wordcab_transcribe.config import settings
 from wordcab_transcribe.services.asr_service import ASRAsyncService, ASRLiveService
 from wordcab_transcribe.utils import download_model, retrieve_user_platform
 
-
 # Define the maximum number of files to pre-download for the async ASR service
 download_limit = asyncio.Semaphore(10)
 
@@ -56,9 +55,10 @@ async def lifespan(app: FastAPI) -> None:
     """Context manager to handle the startup and shutdown of the application."""
     if retrieve_user_platform() != "linux":
         logger.warning(
-            "You are not running the application on Linux.\n"
-            "The application was tested on Ubuntu 22.04, so we cannot guarantee that it will work on other OS.\n"
-            "Report any issues with your env specs to: https://github.com/Wordcab/wordcab-transcribe/issues"
+            "You are not running the application on Linux.\nThe application was tested"
+            " on Ubuntu 22.04, so we cannot guarantee that it will work on other"
+            " OS.\nReport any issues with your env specs to:"
+            " https://github.com/Wordcab/wordcab-transcribe/issues"
         )
 
     if settings.extra_languages:

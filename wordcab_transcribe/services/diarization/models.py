@@ -45,7 +45,6 @@ from wordcab_transcribe.services.diarization.modules import (
 )
 from wordcab_transcribe.services.diarization.utils import resolve_diarization_cache_dir
 
-
 ACTIVATION_REGISTRY = {
     "identity": nn.Identity,
     "hardtanh": nn.Hardtanh,
@@ -73,9 +72,10 @@ def normalize_batch(x, seq_len, normalize_type):
         for i in range(x.shape[0]):
             if x[i, :, : seq_len[i]].shape[1] == 1:
                 raise ValueError(
-                    "normalize_batch with `per_feature` normalize_type received a tensor of length 1. This will result "
-                    "in torch.std() returning nan. Make sure your audio length has enough samples for a single "
-                    "feature (ex. at least `hop_length` for Mel Spectrograms)."
+                    "normalize_batch with `per_feature` normalize_type received a"
+                    " tensor of length 1. This will result in torch.std() returning"
+                    " nan. Make sure your audio length has enough samples for a single"
+                    " feature (ex. at least `hop_length` for Mel Spectrograms)."
                 )
             x_mean[i, :] = x[i, :, : seq_len[i]].mean(dim=1)
             x_std[i, :] = x[i, :, : seq_len[i]].std(dim=1)
@@ -160,7 +160,7 @@ class ConvASREncoder(nn.Module):
             size=(input_example.shape[0],), fill_value=max_dim, device=device
         )
 
-        return tuple([input_example, lens])
+        return (input_example, lens)
 
     def __init__(
         self,
@@ -399,8 +399,8 @@ class MelSpectrogramPreprocessor(nn.Module):
         if log_zero_guard_type not in ["add", "clamp"]:
             raise ValueError(
                 f"{self} received {log_zero_guard_type} for the "
-                f"log_zero_guard_type parameter. It must be either 'add' or "
-                f"'clamp'."
+                "log_zero_guard_type parameter. It must be either 'add' or "
+                "'clamp'."
             )
 
         self.use_grads = use_grads
@@ -426,8 +426,8 @@ class MelSpectrogramPreprocessor(nn.Module):
             else:
                 raise ValueError(
                     f"{self} received {self.log_zero_guard_value} for the "
-                    f"log_zero_guard_type parameter. It must be either a "
-                    f"number, 'tiny', or 'eps'"
+                    "log_zero_guard_type parameter. It must be either a "
+                    "number, 'tiny', or 'eps'"
                 )
         else:
             return self.log_zero_guard_value
@@ -561,7 +561,7 @@ class SpeakerDecoder(nn.Module):
         self.angular = angular
         self.emb_id = 2
         bias = False if self.angular else True
-        emb_sizes = [emb_sizes] if type(emb_sizes) is int else emb_sizes
+        emb_sizes = [emb_sizes] if isinstance(emb_sizes, int) else emb_sizes
 
         self._num_classes = num_classes
         self.pool_mode = pool_mode.lower()
@@ -579,7 +579,7 @@ class SpeakerDecoder(nn.Module):
             shapes.append(int(size))
 
         emb_layers = []
-        for shape_in, shape_out in zip(shapes[:-1], shapes[1:]):
+        for shape_in, shape_out in zip(shapes[:-1], shapes[1:], strict=True):
             layer = self.affine_layer(
                 shape_in, shape_out, learn_mean=False, affine_type=affine_type
             )
@@ -657,7 +657,8 @@ class EncDecSpeakerLabelModel(nn.Module):
 
         if model_name != "titanet_large":
             raise ValueError(
-                f"Unknown model name: {model_name}. Only 'titanet_large' is supported at the moment."
+                f"Unknown model name: {model_name}. Only 'titanet_large' is supported"
+                " at the moment."
             )
 
         self.device = device

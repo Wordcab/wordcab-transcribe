@@ -22,14 +22,11 @@
 import pathlib
 
 important_files = [
-    ".darglint",
-    ".flake8",
     ".github",
     ".gitignore",
     ".pre-commit-config.yaml",
     "tests",
     "wordcab_transcribe",
-    "poetry.lock",
     "pyproject.toml",
     "Dockerfile",
     "LICENSE",

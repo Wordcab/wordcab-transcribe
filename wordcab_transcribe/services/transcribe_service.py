@@ -306,13 +306,13 @@ class TranscribeService:
             suppress_blank=suppress_blank,
             word_timestamps=word_timestamps,
             vad_filter=internal_vad,
-            vad_parameters=dict(
-                threshold=0.5,
-                min_speech_duration_ms=250,
-                min_silence_duration_ms=100,
-                speech_pad_ms=30,
-                window_size_samples=512,
-            ),
+            vad_parameters={
+                "threshold": 0.5,
+                "min_speech_duration_ms": 250,
+                "min_silence_duration_ms": 100,
+                "speech_pad_ms": 30,
+                "window_size_samples": 512,
+            },
         )
 
         for segment in segments:
@@ -326,12 +326,12 @@ class TranscribeService:
 
             for word in segment.words:
                 segment_dict["words"].append(
-                    dict(
-                        start=word.start,
-                        end=word.end,
-                        word=word.word,
-                        score=word.probability,
-                    )
+                    {
+                        "start": word.start,
+                        "end": word.end,
+                        "word": word.word,
+                        "score": word.probability,
+                    }
                 )
 
             segment_dict["start"] = segment_dict["words"][0]["start"]

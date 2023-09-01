@@ -294,12 +294,12 @@ class PostProcessingService:
 
             if speaker != previous_speaker:
                 sentences.append(current_sentence)
-                current_sentence = dict(
-                    speaker=speaker,
-                    start=start_t,
-                    end=end_t,
-                    text="",
-                )
+                current_sentence = {
+                    "speaker": speaker,
+                    "start": start_t,
+                    "end": end_t,
+                    "text": "",
+                }
                 current_sentence["words"] = []
             else:
                 current_sentence["end"] = end_t
