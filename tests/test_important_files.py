@@ -26,7 +26,7 @@ important_files = [
     ".gitignore",
     ".pre-commit-config.yaml",
     "tests",
-    "wordcab_transcribe",
+    "src/wordcab_transcribe",
     "pyproject.toml",
     "Dockerfile",
     "LICENSE",
