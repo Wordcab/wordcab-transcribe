@@ -25,6 +25,7 @@ import os
 import time
 import traceback
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
 import torch
@@ -139,10 +140,12 @@ class ASRAsyncService(ASRService):
 
     async def inference_warmup(self) -> None:
         """Warmup the GPU by loading the models."""
+        sample_path = Path(__file__).parent.parent / "assets/warmup_sample.wav"
+
         for gpu_index in self.gpu_handler.device_index:
             logger.info(f"Warmup GPU {gpu_index}.")
             await self.process_input(
-                "wordcab_transcribe/assets/warmup_sample.wav",
+                filepath=str(sample_path),
                 num_speakers=1,
                 diarization=True,
                 dual_channel=False,

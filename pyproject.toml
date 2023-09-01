@@ -6,8 +6,8 @@ requires = ["hatchling"]
 name = "wordcab-transcribe"
 description = "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering for diarization."
 authors = [
-    {name = "Aleksander Smechov", email = "aleks@wordcab.com"},
-    {name = "Thomas Chaigneau", email = "thomas@wordcab.com"},
+  {name = "Aleksander Smechov", email = "aleks@wordcab.com"},
+  {name = "Thomas Chaigneau", email = "thomas@wordcab.com"},
 ]
 readme = "README.md"
 requires-python = ">=3.10,<4.0"
@@ -66,7 +66,7 @@ Issues = "https://github.com/Wordcab/wordcab-transcribe/issues"
 Source = "https://github.com/Wordcab/wordcab-transcribe"
 
 [tool.hatch.version]
-path = "wordcab_transcribe/__init__.py"
+path = "src/wordcab_transcribe/__init__.py"
 
 [tool.hatch.metadata]
 allow-direct-references = true
@@ -84,7 +84,6 @@ tests = [
   "pytest-asyncio>=0.21.1",
   "pytest-cov>=4.1",
 ]
-# To install all the dependencies for development purposes: pip install ".[dev]"
 dev = [
   "black>=22.10.0",
   "httpx>=0.23.3",
@@ -100,7 +99,7 @@ features = [
 ]
 
 [tool.hatch.envs.runtime.scripts]
-launch = "uvicorn --host=0.0.0.0 --port=5001 wordcab_transcribe.main:app"
+launch = "uvicorn --host=0.0.0.0 --port=5001 src.wordcab_transcribe.main:app"
 
 [tool.hatch.envs.quality]
 features = [
@@ -109,12 +108,12 @@ features = [
 
 [tool.hatch.envs.quality.scripts]
 check = [
-  "black --check --diff --preview wordcab_transcribe tests",
-  "ruff wordcab_transcribe tests",
+  "black --check --diff --preview src tests",
+  "ruff src tests",
 ]
 format = [
-  "black --preview wordcab_transcribe tests",
-  "ruff --fix wordcab_transcribe tests",
+  "black --preview src tests",
+  "ruff --fix src tests",
   "check",
 ]
 

@@ -27,7 +27,11 @@ from loguru import logger
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.services.asr_service import ASRAsyncService, ASRLiveService
-from wordcab_transcribe.utils import download_model, retrieve_user_platform
+from wordcab_transcribe.utils import (
+    check_ffmpeg,
+    download_model,
+    retrieve_user_platform,
+)
 
 # Define the maximum number of files to pre-download for the async ASR service
 download_limit = asyncio.Semaphore(10)
@@ -60,6 +64,13 @@ async def lifespan(app: FastAPI) -> None:
             " OS.\nReport any issues with your env specs to:"
             " https://github.com/Wordcab/wordcab-transcribe/issues"
         )
+
+    if check_ffmpeg() is False:
+        logger.warning(
+            "FFmpeg is not installed on the host machine.\n"
+            "Please install it and try again: `sudo apt-get install ffmpeg`"
+        )
+        exit(1)
 
     if settings.extra_languages:
         logger.info("Downloading models for extra languages...")

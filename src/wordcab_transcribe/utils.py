@@ -36,31 +36,6 @@ from fastapi import UploadFile
 from loguru import logger
 from yt_dlp import YoutubeDL
 
-CURRENCIES_CHARACTERS = [
-    "$",
-    "€",
-    "£",
-    "¥",
-    "₹",
-    "₽",
-    "₱",
-    "฿",
-    "₺",
-    "₴",
-    "₩",
-    "₦",
-    "₫",
-    "₭",
-    "₡",
-    "₲",
-    "₪",
-    "₵",
-    "₸",
-    "₼",
-    "₾",
-    "₿",
-]
-
 
 # pragma: no cover
 async def async_run_subprocess(command: List[str]) -> tuple:
@@ -98,6 +73,22 @@ def run_subprocess(command: List[str]) -> tuple:
     stdout, stderr = process.communicate()
 
     return process.returncode, stdout, stderr
+
+
+def check_ffmpeg() -> bool:
+    """Check if ffmpeg is installed and available on the system."""
+    try:
+        result = run_subprocess(["ffmpeg", "-version"])
+
+        if result[0] != 0:
+            raise subprocess.CalledProcessError(result[0], "ffmpeg")
+
+        return True
+    except (
+        subprocess.CalledProcessError,
+        FileNotFoundError,  # noqa: S404
+    ):
+        return False
 
 
 def check_number_of_segments(chunk_size: int, duration: Union[int, float]) -> int:

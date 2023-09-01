@@ -17,8 +17,8 @@ More details on this project on this [blog post](https://wordcab.github.io/wordc
 
 ## Requirements
 
-- Linux _(tested on Ubuntu Server 22.04)_
-- Python 3.9
+- Linux _(tested on Ubuntu Server 20.04/22.04)_
+- Python 3.10
 - Docker
 - NVIDIA GPU + NVIDIA Container Toolkit
 
@@ -40,7 +40,9 @@ docker run -d --name wordcab-transcribe \
     --shm-size 1g \
     --restart unless-stopped \
     -p 5001:5001 \
-    -v ~/.cache:/root/.cache \
+    -v ~/.cache/pip:/root/.cache/pip \
+    -v ~/.cache/torch:/root/.cache/torch \
+    -v ~/.cache/huggingface:/root/.cache/huggingface \
     wordcab-transcribe:latest
 ```
 
