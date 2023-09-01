@@ -29,7 +29,6 @@ from typing import Awaitable, Dict, List, Optional, Tuple, Union
 import aiofiles
 import aiohttp
 import huggingface_hub
-import pandas as pd
 import torch
 import torchaudio
 from fastapi import UploadFile
@@ -89,22 +88,6 @@ def check_ffmpeg() -> bool:
         FileNotFoundError,  # noqa: S404
     ):
         return False
-
-
-def check_number_of_segments(chunk_size: int, duration: Union[int, float]) -> int:
-    """
-    Check the number of chunks considering the duration of the audio.
-
-    Args:
-        chunk_size (int): Size of each chunk.
-        duration (Union[int, float]): Duration of the audio in milliseconds.
-
-    Returns:
-        int: Number of chunks after ceil the division of the duration by the chunk size.
-    """
-    _duration = _convert_ms_to_s(duration)
-
-    return math.ceil(_duration / chunk_size)
 
 
 def convert_timestamp(
@@ -416,51 +399,6 @@ def early_return(duration: float) -> Tuple[List[dict], dict, float]:
     )
 
 
-def enhance_audio(
-    audio: Union[str, torch.Tensor],
-    apply_agc: Optional[bool] = True,
-    apply_bandpass: Optional[bool] = False,
-) -> torch.Tensor:
-    """
-    Enhance the audio by applying automatic gain control and bandpass filter.
-
-    Args:
-        audio (Union[str, torch.Tensor]): Path to the audio file or the waveform.
-        apply_agc (Optional[bool], optional): Whether to apply automatic gain control. Defaults to True.
-        apply_bandpass (Optional[bool], optional): Whether to apply bandpass filter. Defaults to False.
-
-    Returns:
-        torch.Tensor: The enhanced audio waveform.
-    """
-    if isinstance(audio, str):
-        waveform, sample_rate = torchaudio.load(audio)
-
-        if waveform.size(0) > 1:
-            waveform = waveform.mean(dim=0, keepdim=True)
-
-    else:
-        waveform = audio
-        sample_rate = 16000
-
-    if sample_rate != 16000:
-        transform = torchaudio.transforms.Resample(
-            orig_freq=sample_rate,
-            new_freq=16000,
-        )
-        waveform = transform(waveform)
-        sample_rate = 16000
-
-    if apply_agc:
-        # Volmax normalization to mimic AGC
-        waveform /= waveform.abs().max()
-
-    if apply_bandpass:
-        highpass = torchaudio.functional.highpass_biquad(waveform, sample_rate, 300)
-        waveform = torchaudio.functional.lowpass_biquad(highpass, sample_rate, 3400)
-
-    return waveform
-
-
 def is_empty_string(text: str):
     """
     Checks if a string is empty after removing spaces and periods.
@@ -542,32 +480,6 @@ def format_segments(segments: list, word_timestamps: bool) -> List[dict]:
         formatted_segments.append(segment_dict)
 
     return formatted_segments
-
-
-def get_segment_timestamp_anchor(start: float, end: float, option: str = "start"):
-    """Get the timestamp anchor for a segment."""
-    if option == "end":
-        return end
-    elif option == "mid":
-        return (start + end) / 2
-    return start
-
-
-def interpolate_nans(x: pd.Series, method="nearest") -> pd.Series:
-    """
-    Interpolate NaNs in a pandas Series using a given method.
-
-    Args:
-        x (pd.Series): The Series to interpolate.
-        method (str, optional): The interpolation method. Defaults to "nearest".
-
-    Returns:
-        pd.Series: The interpolated Series.
-    """
-    if x.notnull().sum() > 1:
-        return x.interpolate(method=method).ffill().bfill()
-    else:
-        return x.ffill().bfill()
 
 
 def read_audio(filepath: str, sample_rate: int = 16000) -> Tuple[torch.Tensor, float]:
