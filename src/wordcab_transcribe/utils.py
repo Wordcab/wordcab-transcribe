@@ -24,16 +24,18 @@ import re
 import subprocess  # noqa: S404
 import sys
 from pathlib import Path
-from typing import Awaitable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Awaitable, Dict, List, Optional, Tuple, Union
 
 import aiofiles
 import aiohttp
 import huggingface_hub
 import torch
 import torchaudio
-from fastapi import UploadFile
 from loguru import logger
 from yt_dlp import YoutubeDL
+
+if TYPE_CHECKING:
+    from fastapi import UploadFile
 
 
 # pragma: no cover
@@ -534,7 +536,7 @@ def retrieve_user_platform() -> str:
     return sys.platform
 
 
-async def save_file_locally(filename: str, file: UploadFile) -> bool:
+async def save_file_locally(filename: str, file: "UploadFile") -> bool:
     """
     Save a file locally from an UploadFile object.
 
