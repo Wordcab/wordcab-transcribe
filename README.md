@@ -1,4 +1,20 @@
-# Wordcab Transcribe 💬
+<h1 align="center">Wordcab Transcribe</h1>
+
+<div align="center">
+	<a  href="https://github.com/Wordcab/wordcab-transcribe/releases" target="_blank">
+		<img src="https://img.shields.io/badge/release-v0.4.0-pink" />
+  </a>
+	<a  href="https://github.com/Wordcab/wordcab-transcribe/actions?workflow=Quality Checks" target="_blank">
+		<img src="https://github.com/Wordcab/wordcab-transcribe/workflows/Quality Checks/badge.svg" />
+	</a>
+	<a  href="https://github.com/pypa/hatch" target="_blank">
+		<img src="https://img.shields.io/badge/%F0%9F%A5%9A-Hatch-4051b5.svg" />
+	</a>
+</div>
+
+<p align="center"><em>💬 Speech recognition is now a commodity</em></p>
+
+---
 
 FastAPI based API for transcribing audio files using [`faster-whisper`](https://github.com/guillaumekln/faster-whisper)
 and [Auto-Tuning-Spectral-Clustering](https://arxiv.org/pdf/2003.02405.pdf) for diarization
@@ -17,14 +33,25 @@ More details on this project on this [blog post](https://wordcab.github.io/wordc
 
 ## Requirements
 
+### Local development
+
 - Linux _(tested on Ubuntu Server 20.04/22.04)_
 - Python 3.10
-- Docker
-- NVIDIA GPU + NVIDIA Container Toolkit
+- [Hatch](https://hatch.pypa.io/en/latest/)
+- [FFmpeg](https://ffmpeg.org/download.html)
 
-To learn more about the prerequisites to run the API, check out the [Prerequisites](https://wordcab.github.io/wordcab-posts/blog/2023/03/31/wordcab-transcribe/#prerequisites) section of the blog post.
+#### Run the API locally
 
-## Docker commands
+```bash
+hatch run runtime:launch
+```
+
+### Deployment
+
+- [Docker](https://docs.docker.com/engine/install/ubuntu/) _(optional for deployment)_
+- NVIDIA GPU + [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) _(optional for deployment)_
+
+#### Run the API using Docker
 
 Build the image.
 
@@ -40,9 +67,7 @@ docker run -d --name wordcab-transcribe \
     --shm-size 1g \
     --restart unless-stopped \
     -p 5001:5001 \
-    -v ~/.cache/pip:/root/.cache/pip \
-    -v ~/.cache/torch:/root/.cache/torch \
-    -v ~/.cache/huggingface:/root/.cache/huggingface \
+    -v ~/.cache:/root/.cache \
     wordcab-transcribe:latest
 ```
 
