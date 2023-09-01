@@ -31,7 +31,6 @@ import torch
 from loguru import logger
 
 from wordcab_transcribe.logging import time_and_tell
-from wordcab_transcribe.services.align_service import AlignService
 from wordcab_transcribe.services.diarization.diarize_service import DiarizeService
 from wordcab_transcribe.services.gpu_service import GPUService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
@@ -124,7 +123,6 @@ class ASRAsyncService(ASRService):
                 shift_lengths=shift_lengths,
                 multiscale_weights=multiscale_weights,
             ),
-            "alignment": AlignService(self.device),
             "post_processing": PostProcessingService(),
             "vad": VadService(),
         }
@@ -145,7 +143,6 @@ class ASRAsyncService(ASRService):
             logger.info(f"Warmup GPU {gpu_index}.")
             await self.process_input(
                 "wordcab_transcribe/assets/warmup_sample.wav",
-                alignment=False,
                 num_speakers=1,
                 diarization=True,
                 dual_channel=False,
@@ -164,7 +161,6 @@ class ASRAsyncService(ASRService):
     async def process_input(  # noqa: C901
         self,
         filepath: Union[str, Tuple[str, str]],
-        alignment: bool,
         num_speakers: int,
         diarization: bool,
         dual_channel: bool,
@@ -183,15 +179,13 @@ class ASRAsyncService(ASRService):
 
         This method will create a task and add it to the appropriate queues.
         All tasks are added to the transcription queue, but will be added to the
-        alignment and diarization queues only if the user requested it.
+        diarization queues only if the user requested it.
         Each step will be processed asynchronously and the results will be returned
         and stored in separated keys in the task dictionary.
 
         Args:
             filepath (Union[str, Tuple[str, str]]):
                 Path to the audio file or tuple of paths to the audio files.
-            alignment (bool):
-                Whether to do alignment or not.
             num_speakers (int):
                 The number of oracle speakers.
             diarization (bool):
@@ -247,7 +241,6 @@ class ASRAsyncService(ASRService):
         task = {
             "input": audio,
             "duration": duration,
-            "alignment": alignment,
             "num_speakers": num_speakers,
             "diarization": diarization,
             "dual_channel": dual_channel,
@@ -265,8 +258,6 @@ class ASRAsyncService(ASRService):
             "transcription_done": asyncio.Event(),
             "diarization_result": None,
             "diarization_done": asyncio.Event(),
-            "alignment_result": None,
-            "alignment_done": asyncio.Event(),
             "post_processing_result": None,
             "post_processing_done": asyncio.Event(),
             "process_times": {},
@@ -316,25 +307,6 @@ class ASRAsyncService(ASRService):
                 self.gpu_handler.release_device(gpu_index)
                 gpu_index = -1
                 return task["transcription_result"]
-            else:
-                if alignment and dual_channel is False:
-                    asyncio.get_event_loop().run_in_executor(
-                        None,
-                        functools.partial(
-                            self.process_alignment, task, gpu_index, self.debug_mode
-                        ),
-                    )
-                else:
-                    task["process_times"]["alignment"] = None
-                    task["alignment_done"].set()
-
-            await task["alignment_done"].wait()
-
-            if isinstance(task["alignment_result"], Exception):
-                logger.error(f"Alignment failed: {task['alignment_result']}")
-                # Failed alignment should not fail the whole request anymore, as not critical
-                # So we keep processing the request and return the transcription result
-                # return task["alignment_result"]
 
             self.gpu_handler.release_device(gpu_index)
             gpu_index = -1
@@ -446,41 +418,6 @@ class ASRAsyncService(ASRService):
 
         return None
 
-    def process_alignment(self, task: dict, gpu_index: int, debug_mode: bool) -> None:
-        """
-        Process a task of alignment.
-
-        Args:
-            task (dict): The task and its parameters.
-            gpu_index (int): The GPU index to use for the alignment.
-            debug_mode (bool): Whether to run in debug mode or not.
-
-        Returns:
-            None: The task is updated with the result.
-        """
-        try:
-            result, process_time = time_and_tell(
-                lambda: self.services["alignment"](
-                    task["input"],
-                    transcript_segments=task["transcription_result"],
-                    source_lang=task["source_lang"],
-                    gpu_index=gpu_index,
-                ),
-                func_name="alignment",
-                debug_mode=debug_mode,
-            )
-
-        except Exception as e:
-            result = Exception(f"Error in alignment: {e}\n{traceback.format_exc()}")
-            process_time = None
-
-        finally:
-            task["process_times"]["alignment"] = process_time
-            task["alignment_result"] = result
-            task["alignment_done"].set()
-
-        return None
-
     def process_post_processing(self, task: dict) -> None:
         """
         Process a task of post-processing.
@@ -493,7 +430,6 @@ class ASRAsyncService(ASRService):
         """
         try:
             total_post_process_time = 0
-            alignment = task["alignment"]
             diarization = task["diarization"]
             dual_channel = task["dual_channel"]
             word_timestamps = task["word_timestamps"]
@@ -513,16 +449,9 @@ class ASRAsyncService(ASRService):
                 total_post_process_time += process_time
 
             else:
-                segments = (
-                    task["alignment_result"]
-                    if alignment and not isinstance(task["alignment_result"], Exception)
-                    else task["transcription_result"]
-                )
-
                 formatted_segments, process_time = time_and_tell(
                     lambda: format_segments(
-                        segments=segments,
-                        alignment=alignment,
+                        segments=task["transcription_result"],
                         word_timestamps=True,
                     ),
                     func_name="format_segments",

@@ -31,7 +31,6 @@ class ProcessTimes(BaseModel):
     total: float
     transcription: float
     diarization: Union[float, None]
-    alignment: Union[float, None]
     post_processing: float
 
 
@@ -67,7 +66,6 @@ class BaseResponse(BaseModel):
 
     utterances: List[Utterance]
     audio_duration: float
-    alignment: bool
     num_speakers: int
     diarization: bool
     source_lang: str
@@ -108,7 +106,6 @@ class AudioResponse(BaseResponse):
                     },
                 ],
                 "audio_duration": 2.678,
-                "alignment": False,
                 "num_speakers": -1,
                 "diarization": False,
                 "source_lang": "en",
@@ -129,7 +126,6 @@ class AudioResponse(BaseResponse):
                     "total": 2.678,
                     "transcription": 2.439,
                     "diarization": None,
-                    "alignment": None,
                     "post_processing": 0.239,
                 },
                 "dual_channel": False,
@@ -162,7 +158,6 @@ class YouTubeResponse(BaseResponse):
                     },
                 ],
                 "audio_duration": 2.0,
-                "alignment": False,
                 "num_speakers": -1,
                 "diarization": False,
                 "source_lang": "en",
@@ -183,7 +178,6 @@ class YouTubeResponse(BaseResponse):
                     "total": 2.678,
                     "transcription": 2.439,
                     "diarization": None,
-                    "alignment": None,
                     "post_processing": 0.239,
                 },
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
@@ -212,7 +206,6 @@ class CortexPayload(BaseModel):
     url_type: Literal["audio_url", "youtube"]
     url: Optional[str] = None
     api_key: Optional[str] = None
-    alignment: Optional[bool] = False
     num_speakers: Optional[int] = -1
     diarization: Optional[bool] = False
     dual_channel: Optional[bool] = False
@@ -237,7 +230,6 @@ class CortexPayload(BaseModel):
                 "url_type": "youtube",
                 "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 "api_key": "1234567890",
-                "alignment": False,
                 "num_speakers": -1,
                 "diarization": False,
                 "dual_channel": False,
@@ -287,7 +279,6 @@ class CortexUrlResponse(AudioResponse):
                     },
                 ],
                 "audio_duration": 2.0,
-                "alignment": False,
                 "num_speakers": -1,
                 "diarization": False,
                 "source_lang": "en",
@@ -308,7 +299,6 @@ class CortexUrlResponse(AudioResponse):
                     "total": 2.678,
                     "transcription": 2.439,
                     "diarization": None,
-                    "alignment": None,
                     "post_processing": 0.239,
                 },
                 "dual_channel": False,
@@ -344,7 +334,6 @@ class CortexYoutubeResponse(YouTubeResponse):
                     },
                 ],
                 "audio_duration": 2.0,
-                "alignment": False,
                 "num_speakers": -1,
                 "diarization": False,
                 "source_lang": "en",
@@ -365,7 +354,6 @@ class CortexYoutubeResponse(YouTubeResponse):
                     "total": 2.678,
                     "transcription": 2.439,
                     "diarization": None,
-                    "alignment": None,
                     "post_processing": 0.239,
                 },
                 "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
@@ -378,7 +366,6 @@ class CortexYoutubeResponse(YouTubeResponse):
 class BaseRequest(BaseModel):
     """Base request model for the API."""
 
-    alignment: bool = False
     num_speakers: int = -1
     diarization: bool = False
     source_lang: str = "en"
@@ -407,7 +394,6 @@ class BaseRequest(BaseModel):
 
         json_schema_extra = {
             "example": {
-                "alignment": False,
                 "num_speakers": -1,
                 "diarization": False,
                 "source_lang": "en",
@@ -438,7 +424,6 @@ class AudioRequest(BaseRequest):
 
         json_schema_extra = {
             "example": {
-                "alignment": False,
                 "num_speakers": -1,
                 "diarization": False,
                 "source_lang": "en",

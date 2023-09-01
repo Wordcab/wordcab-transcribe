@@ -44,7 +44,6 @@ router = APIRouter()
 )
 async def inference_with_audio(  # noqa: C901
     background_tasks: BackgroundTasks,
-    alignment: bool = Form(False),  # noqa: B008
     num_speakers: int = Form(-1),  # noqa: B008
     diarization: bool = Form(False),  # noqa: B008
     dual_channel: bool = Form(False),  # noqa: B008
@@ -71,7 +70,6 @@ async def inference_with_audio(  # noqa: C901
     await save_file_locally(filename=filename, file=file)
 
     data = AudioRequest(
-        alignment=alignment,
         num_speakers=num_speakers,
         diarization=diarization,
         source_lang=source_lang,
@@ -109,7 +107,6 @@ async def inference_with_audio(  # noqa: C901
     task = asyncio.create_task(
         asr.process_input(
             filepath=filepath,
-            alignment=data.alignment,
             num_speakers=data.num_speakers,
             diarization=data.diarization,
             dual_channel=data.dual_channel,
@@ -140,7 +137,6 @@ async def inference_with_audio(  # noqa: C901
         return AudioResponse(
             utterances=utterances,
             audio_duration=audio_duration,
-            alignment=data.alignment,
             num_speakers=data.num_speakers,
             diarization=data.diarization,
             dual_channel=data.dual_channel,

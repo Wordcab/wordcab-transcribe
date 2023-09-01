@@ -51,7 +51,6 @@ async def inference_with_youtube(
         task = asyncio.create_task(
             asr.process_input(
                 filepath=filepath,
-                alignment=data.alignment,
                 num_speakers=data.num_speakers,
                 diarization=data.diarization,
                 dual_channel=False,
@@ -82,7 +81,6 @@ async def inference_with_youtube(
         return YouTubeResponse(
             utterances=utterances,
             audio_duration=audio_duration,
-            alignment=data.alignment,
             num_speakers=data.num_speakers,
             diarization=data.diarization,
             source_lang=data.source_lang,

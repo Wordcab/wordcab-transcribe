@@ -56,7 +56,6 @@ dependencies = [
   "svix>=0.85.1",
   "torch>=2.0.0",
   "torchaudio>=2.0.1",
-  "uvicorn>=0.21.1",
   "yt-dlp>=2023.3.4",
   "wget>=3.2.0",
 ]
@@ -73,6 +72,7 @@ path = "wordcab_transcribe/__init__.py"
 allow-direct-references = true
 
 [project.optional-dependencies]
+runtime = ["uvicorn>=0.21.1"]
 quality = [
   "black>=22.10.0",
   "ruff>=0.0.263",
@@ -93,6 +93,14 @@ dev = [
   "pytest-cov>=4.1",
   "ruff>=0.0.263",
 ]
+
+[tool.hatch.envs.runtime]
+features = [
+  "runtime",
+]
+
+[tool.hatch.envs.runtime.scripts]
+launch = "uvicorn --host=0.0.0.0 --port=5001 wordcab_transcribe.main:app"
 
 [tool.hatch.envs.quality]
 features = [

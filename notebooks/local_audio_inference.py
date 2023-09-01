@@ -8,7 +8,6 @@ filepath = "data/HL_Podcast_1.mp3"
 # filepath = "data/1693323170.139915.139915&delay=10.mp3"
 
 data = {
-    "alignment": False,  # Longer processing time but better timestamps
     "num_speakers": 2,  # Leave at -1 to guess the number of speakers
     "diarization": True,  # Longer processing time but speaker segment attribution
     "dual_channel": False,  # Only for stereo audio files with one speaker per channel

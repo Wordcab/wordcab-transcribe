@@ -28,7 +28,6 @@ def run_api_youtube(
     source_lang: str = "en",
     timestamps: str = "s",
     word_timestamps: bool = False,
-    alignment: bool = False,
     diarization: bool = False,
     server_url: Optional[str] = None,
     vocab: Optional[List[str]] = None,
@@ -42,7 +41,6 @@ def run_api_youtube(
         source_lang: language of the URL source (defaulted to English)
         timestamps: time unit of the timestamps (defaulted to seconds)
         word_timestamps: associated words and their timestamps (defaulted to False)
-        alignment: re-align timestamps (defaulted to False)
         diarization: speaker labels for utterances (defaulted to False)
         server_url: the URL used to reach out the API
         vocab: defaulted to empty list
@@ -54,7 +52,6 @@ def run_api_youtube(
     headers = {"accept": "application/json", "Content-Type": "application/json"}
     params = {"url": url}
     data = {
-        "alignment": alignment,
         "diarization": diarization,
         "source_lang": source_lang,
         "timestamps": timestamps,
@@ -96,7 +93,6 @@ def run_audio_url(
     source_lang: str = "en",
     timestamps: str = "s",
     word_timestamps: bool = False,
-    alignment: bool = False,
     diarization: bool = False,
     dual_channel: bool = False,
     server_url: Optional[str] = None,
@@ -111,7 +107,6 @@ def run_audio_url(
         source_lang: language of the URL source (defaulted to English)
         timestamps: time unit of the timestamps (defaulted to seconds)
         word_timestamps: associated words and their timestamps (defaulted to False)
-        alignment: re-align timestamps (defaulted to False)
         diarization: speaker labels for utterances (defaulted to False)
         dual_channel: defaulted to False
         server_url: the URL used to reach out the API
@@ -126,7 +121,6 @@ def run_audio_url(
     params = {"url": url}
 
     data = {
-        "alignment": alignment,
         "diarization": diarization,
         "source_lang": source_lang,
         "timestamps": timestamps,
@@ -168,7 +162,6 @@ def run_api_audio_file(
     source_lang: str = "en",
     timestamps: str = "s",
     word_timestamps: bool = False,
-    alignment: bool = False,
     diarization: bool = False,
     dual_channel: bool = False,
     server_url: Optional[str] = None,
@@ -183,7 +176,6 @@ def run_api_audio_file(
         source_lang: language of the URL source (defaulted to English)
         timestamps: time unit of the timestamps (defaulted to seconds)
         word_timestamps: associated words and their timestamps (defaulted to False)
-        alignment: re-align timestamps (defaulted to False)
         diarization: speaker labels for utterances (defaulted to False)
         dual_channel: defaulted to False
         server_url: the URL used to reach out the API
@@ -194,7 +186,6 @@ def run_api_audio_file(
         AudioResponse
     """
     data = {
-        "alignment": alignment,
         "diarization": diarization,
         "source_lang": source_lang,
         "timestamps": timestamps,
@@ -238,7 +229,6 @@ def run_api(
     source_lang: str = "en",
     timestamps: str = "s",
     word_timestamps: bool = False,
-    alignment: bool = False,
     diarization: bool = False,
     dual_channel: bool = False,
     server_url: Optional[str] = None,
@@ -254,7 +244,6 @@ def run_api(
         source_lang: language of the source (defaulted to English)
         timestamps: time unit of the timestamps (defaulted to seconds)
         word_timestamps: whether the timestamps are represented by words (defaulted to False)
-        alignment: re-align timestamps (defaulted to False)
         diarization: speaker labels for utterances (defaulted to False)
         dual_channel: defaulted to False
         server_url: the URL used to reach out the API
@@ -270,7 +259,6 @@ def run_api(
             source_lang,
             timestamps,
             word_timestamps,
-            alignment,
             diarization,
             server_url,
             vocab,
@@ -282,7 +270,6 @@ def run_api(
             source_lang,
             timestamps,
             word_timestamps,
-            alignment,
             diarization,
             dual_channel,
             server_url,
@@ -295,7 +282,6 @@ def run_api(
             source_lang,
             timestamps,
             word_timestamps,
-            alignment,
             diarization,
             dual_channel,
             server_url,
