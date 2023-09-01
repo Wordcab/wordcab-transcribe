@@ -19,4 +19,4 @@
 # and limitations under the License.
 """Main module of the Wordcab ASR API."""
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
