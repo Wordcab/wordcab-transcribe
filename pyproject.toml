@@ -7,7 +7,7 @@ name = "wordcab-transcribe"
 dynamic = ["version"]
 description = "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering for diarization."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.8,<3.12"
 keywords = ["asr", "fastapi", "faster-whisper", "diarization", "wordcab"]
 authors = [
   { name = "Aleksander Smechov", email = "aleks@wordcab.com" },

@@ -36,7 +36,7 @@ More details on this project on this [blog post](https://wordcab.github.io/wordc
 ### Local development
 
 - Linux _(tested on Ubuntu Server 20.04/22.04)_
-- Python 3.10
+- Python >=3.8, <3.12
 - [Hatch](https://hatch.pypa.io/en/latest/)
 - [FFmpeg](https://ffmpeg.org/download.html)
 
