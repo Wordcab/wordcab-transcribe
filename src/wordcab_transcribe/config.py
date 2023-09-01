@@ -29,6 +29,8 @@ from loguru import logger
 from pydantic import field_validator
 from pydantic.dataclasses import dataclass
 
+from wordcab_transcribe import __version__
+
 
 @dataclass
 class Settings:
@@ -253,7 +255,7 @@ else:
 settings = Settings(
     # General configuration
     project_name=getenv("PROJECT_NAME", "Wordcab Transcribe"),
-    version=getenv("VERSION", "0.3.0"),
+    version=getenv("VERSION", __version__),
     description=getenv(
         "DESCRIPTION",
         "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering"
@@ -264,7 +266,7 @@ settings = Settings(
     # Models configuration
     # Transcription
     whisper_model=getenv("WHISPER_MODEL", "large-v2"),
-    compute_type=getenv("COMPUTE_TYPE", "int8_float16"),
+    compute_type=getenv("COMPUTE_TYPE", "float16"),
     extra_languages=extra_languages,
     extra_languages_model_paths={lang: "" for lang in extra_languages},
     # Diarization
