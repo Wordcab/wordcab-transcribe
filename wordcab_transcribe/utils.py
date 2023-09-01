@@ -517,9 +517,7 @@ def format_punct(text: str):
     return text.strip()
 
 
-def format_segments(
-    segments: list, word_timestamps: bool
-) -> List[dict]:
+def format_segments(segments: list, word_timestamps: bool) -> List[dict]:
     """
     Format the segments to a list of dicts with start, end and text keys. Optionally include word timestamps.
 
