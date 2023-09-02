@@ -1,8 +1,9 @@
 <h1 align="center">Wordcab Transcribe</h1>
+<p align="center"><em>💬 Speech recognition is now a commodity</em></p>
 
 <div align="center">
 	<a  href="https://github.com/Wordcab/wordcab-transcribe/releases" target="_blank">
-		<img src="https://img.shields.io/badge/release-v0.4.0-pink" />
+		<img src="https://img.shields.io/badge/release-v0.5.0-pink" />
   </a>
 	<a  href="https://github.com/Wordcab/wordcab-transcribe/actions?workflow=Quality Checks" target="_blank">
 		<img src="https://github.com/Wordcab/wordcab-transcribe/workflows/Quality Checks/badge.svg" />
@@ -12,7 +13,6 @@
 	</a>
 </div>
 
-<p align="center"><em>💬 Speech recognition is now a commodity</em></p>
 
 ---
 
@@ -37,10 +37,10 @@ More details on this project on this [blog post](https://wordcab.github.io/wordc
 
 - Linux _(tested on Ubuntu Server 20.04/22.04)_
 - Python >=3.8, <3.12
-- [Hatch](https://hatch.pypa.io/en/latest/)
+- [Hatch](https://hatch.pypa.io/latest/)
 - [FFmpeg](https://ffmpeg.org/download.html)
 
-#### Run the API locally
+#### Run the API locally 🚀
 
 ```bash
 hatch run runtime:launch
