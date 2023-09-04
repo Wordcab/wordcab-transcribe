@@ -55,8 +55,8 @@ class Utterance(BaseModel):
     """Utterance model for the API."""
 
     text: str
-    start: float
-    end: float
+    start: Union[float, str]
+    end: Union[float, str]
     speaker: Optional[int]
     words: Optional[List[Word]]
 
@@ -66,6 +66,8 @@ class BaseResponse(BaseModel):
 
     utterances: List[Utterance]
     audio_duration: float
+    offset_start: Union[float, None]
+    offset_end: Union[float, None]
     num_speakers: int
     diarization: bool
     source_lang: str
@@ -106,6 +108,8 @@ class AudioResponse(BaseResponse):
                     },
                 ],
                 "audio_duration": 2.678,
+                "offset_start": None,
+                "offset_end": None,
                 "num_speakers": -1,
                 "diarization": False,
                 "source_lang": "en",
@@ -158,6 +162,8 @@ class YouTubeResponse(BaseResponse):
                     },
                 ],
                 "audio_duration": 2.0,
+                "offset_start": None,
+                "offset_end": None,
                 "num_speakers": -1,
                 "diarization": False,
                 "source_lang": "en",
@@ -206,6 +212,8 @@ class CortexPayload(BaseModel):
     url_type: Literal["audio_url", "youtube"]
     url: Optional[str] = None
     api_key: Optional[str] = None
+    offset_start: Optional[float] = None
+    offset_end: Optional[float] = None
     num_speakers: Optional[int] = -1
     diarization: Optional[bool] = False
     dual_channel: Optional[bool] = False
@@ -230,6 +238,8 @@ class CortexPayload(BaseModel):
                 "url_type": "youtube",
                 "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 "api_key": "1234567890",
+                "offset_start": None,
+                "offset_end": None,
                 "num_speakers": -1,
                 "diarization": False,
                 "dual_channel": False,
@@ -279,6 +289,8 @@ class CortexUrlResponse(AudioResponse):
                     },
                 ],
                 "audio_duration": 2.0,
+                "offset_start": None,
+                "offset_end": None,
                 "num_speakers": -1,
                 "diarization": False,
                 "source_lang": "en",
@@ -334,6 +346,8 @@ class CortexYoutubeResponse(YouTubeResponse):
                     },
                 ],
                 "audio_duration": 2.0,
+                "offset_start": None,
+                "offset_end": None,
                 "num_speakers": -1,
                 "diarization": False,
                 "source_lang": "en",
@@ -366,6 +380,8 @@ class CortexYoutubeResponse(YouTubeResponse):
 class BaseRequest(BaseModel):
     """Base request model for the API."""
 
+    offset_start: Union[float, None] = None
+    offset_end: Union[float, None] = None
     num_speakers: int = -1
     diarization: bool = False
     source_lang: str = "en"
@@ -394,6 +410,8 @@ class BaseRequest(BaseModel):
 
         json_schema_extra = {
             "example": {
+                "offset_start": None,
+                "offset_end": None,
                 "num_speakers": -1,
                 "diarization": False,
                 "source_lang": "en",
@@ -424,6 +442,8 @@ class AudioRequest(BaseRequest):
 
         json_schema_extra = {
             "example": {
+                "offset_start": None,
+                "offset_end": None,
                 "num_speakers": -1,
                 "diarization": False,
                 "source_lang": "en",

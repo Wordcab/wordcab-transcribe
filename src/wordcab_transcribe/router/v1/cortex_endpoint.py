@@ -69,6 +69,8 @@ async def run_cortex(
     try:
         if payload.url_type == "audio_url":
             data = AudioRequest(
+                offset_start=payload.offset_start,
+                offset_end=payload.offset_end,
                 num_speakers=payload.num_speakers,
                 diarization=payload.diarization,
                 dual_channel=payload.dual_channel,
@@ -91,6 +93,8 @@ async def run_cortex(
 
         elif payload.url_type == "youtube":
             data = BaseRequest(
+                offset_start=payload.offset_start,
+                offset_end=payload.offset_end,
                 num_speakers=payload.num_speakers,
                 diarization=payload.diarization,
                 source_lang=payload.source_lang,
@@ -133,7 +137,7 @@ async def run_cortex(
         return CortexError(message=error_message)
 
     _cortex_response = {
-        **response.dict(),
+        **response.model_dump(),
         "job_name": payload.job_name,
         "request_id": request_id,
     }
