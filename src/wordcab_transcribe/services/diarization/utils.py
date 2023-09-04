@@ -601,7 +601,7 @@ def segmentation_collate_fn(
     Returns:
         Tuple[torch.Tensor, torch.Tensor]: Tuple of the audio segments and their lengths.
     """
-    _, audio_lengths = zip(*batch, strict=True)
+    _, audio_lengths = zip(*batch)
 
     if not audio_lengths[0]:
         return None, None

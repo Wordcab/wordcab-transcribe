@@ -579,7 +579,7 @@ class SpeakerDecoder(nn.Module):
             shapes.append(int(size))
 
         emb_layers = []
-        for shape_in, shape_out in zip(shapes[:-1], shapes[1:], strict=True):
+        for shape_in, shape_out in zip(shapes[:-1], shapes[1:]):
             layer = self.affine_layer(
                 shape_in, shape_out, learn_mean=False, affine_type=affine_type
             )
