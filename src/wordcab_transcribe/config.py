@@ -227,26 +227,26 @@ class Settings:
 load_dotenv()
 
 # Extra languages
-_extra_languages = getenv("EXTRA_LANGUAGES")
-if _extra_languages is not None:
+_extra_languages = getenv("EXTRA_LANGUAGES", None)
+if _extra_languages is not None and _extra_languages != "":
     extra_languages = _extra_languages.split(",")
 else:
     extra_languages = []
 
 # Diarization scales
-_window_lengths = getenv("WINDOW_LENGTHS")
+_window_lengths = getenv("WINDOW_LENGTHS", None)
 if _window_lengths is not None:
     window_lengths = [float(x) for x in _window_lengths.split(",")]
 else:
     window_lengths = [1.5, 1.25, 1.0, 0.75, 0.5]
 
-_shift_lengths = getenv("SHIFT_LENGTHS")
+_shift_lengths = getenv("SHIFT_LENGTHS", None)
 if _shift_lengths is not None:
     shift_lengths = [float(x) for x in _shift_lengths.split(",")]
 else:
     shift_lengths = [0.75, 0.625, 0.5, 0.375, 0.25]
 
-_multiscale_weights = getenv("MULTISCALE_WEIGHTS")
+_multiscale_weights = getenv("MULTISCALE_WEIGHTS", None)
 if _multiscale_weights is not None:
     multiscale_weights = [float(x) for x in _multiscale_weights.split(",")]
 else:

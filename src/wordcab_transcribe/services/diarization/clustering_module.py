@@ -804,7 +804,6 @@ class SpeakerClustering(torch.nn.Module):
             embeddings_in_scales,
             multiscale_weights,
             session_scale_mapping_list,
-            strict=False,
         ):
             cosine_affinity_matrix = get_cosine_affinity_matrix(
                 embeddings.to(self.device)
