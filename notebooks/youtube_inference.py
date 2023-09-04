@@ -14,6 +14,8 @@ params = {"url": "https://youtu.be/ry9SYnV3svc"}  # eng sample - 2 speakers
 # params = {"url": "https://youtu.be/JJbtS8CMr80"}  # 4h - multiple speakers
 
 data = {
+    "offset_start": None,
+    "offset_end": None,
     "num_speakers": -1,  # Leave at -1 to guess the number of speakers
     "diarization": True,  # Longer processing time but speaker segment attribution
     "source_lang": "en",  # optional, default is "en"

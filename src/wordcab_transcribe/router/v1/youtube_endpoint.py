@@ -46,11 +46,13 @@ async def inference_with_youtube(
     async with download_limit:
         filepath = await download_audio_file("youtube", url, filename)
 
-        data = BaseRequest() if data is None else BaseRequest(**data.dict())
+        data = BaseRequest() if data is None else BaseRequest(**data.model_dump())
 
         task = asyncio.create_task(
             asr.process_input(
                 filepath=filepath,
+                offset_start=data.offset_start,
+                offset_end=data.offset_end,
                 num_speakers=data.num_speakers,
                 diarization=data.diarization,
                 dual_channel=False,
@@ -81,6 +83,8 @@ async def inference_with_youtube(
         return YouTubeResponse(
             utterances=utterances,
             audio_duration=audio_duration,
+            offset_start=data.offset_start,
+            offset_end=data.offset_end,
             num_speakers=data.num_speakers,
             diarization=data.diarization,
             source_lang=data.source_lang,

@@ -19,7 +19,6 @@
 # and limitations under the License.
 """Utils module of the Wordcab Transcribe."""
 import asyncio
-import math
 import re
 import subprocess  # noqa: S404
 import sys
@@ -121,38 +120,6 @@ def convert_timestamp(
         )
 
 
-def _convert_ms_to_hms(timestamp: float) -> str:
-    """
-    Convert a timestamp from milliseconds to hours, minutes and seconds.
-
-    Args:
-        timestamp (float): Timestamp in milliseconds to convert.
-
-    Returns:
-        str: Hours, minutes and seconds.
-    """
-    hours, remainder = divmod(timestamp / 1000, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    milliseconds = math.floor((seconds % 1) * 1000)
-
-    output = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}.{milliseconds:03}"
-
-    return output
-
-
-def _convert_ms_to_s(timestamp: float) -> float:
-    """
-    Convert a timestamp from milliseconds to seconds.
-
-    Args:
-        timestamp (float): Timestamp in milliseconds to convert.
-
-    Returns:
-        float: Seconds.
-    """
-    return timestamp / 1000
-
-
 def _convert_s_to_ms(timestamp: float) -> float:
     """
     Convert a timestamp from seconds to milliseconds.
@@ -178,8 +145,9 @@ def _convert_s_to_hms(timestamp: float) -> str:
     """
     hours, remainder = divmod(timestamp, 3600)
     minutes, seconds = divmod(remainder, 60)
+    ms = (seconds - int(seconds)) * 1000
 
-    output = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}.000"
+    output = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}.{int(ms):03}"
 
     return output
 
@@ -484,13 +452,24 @@ def format_segments(segments: list, word_timestamps: bool) -> List[dict]:
     return formatted_segments
 
 
-def read_audio(filepath: str, sample_rate: int = 16000) -> Tuple[torch.Tensor, float]:
+def read_audio(
+    filepath: str,
+    offset_start: Union[float, None] = None,
+    offset_end: Union[float, None] = None,
+    sample_rate: int = 16000,
+) -> Tuple[torch.Tensor, float]:
     """
     Read an audio file and return the audio tensor.
 
     Args:
-        filepath (str): Path to the audio file.
-        sample_rate (int): The sample rate of the audio file. Defaults to 16000.
+        filepath (str):
+            Path to the audio file.
+        offset_start (Union[float, None], optional):
+            When to start reading the audio file. Defaults to None.
+        offset_end (Union[float, None], optional):
+            When to stop reading the audio file. Defaults to None.
+        sample_rate (int):
+            The sample rate of the audio file. Defaults to 16000.
 
     Returns:
         Tuple[torch.Tensor, float]: The audio tensor and the audio duration.
@@ -506,6 +485,20 @@ def read_audio(filepath: str, sample_rate: int = 16000) -> Tuple[torch.Tensor, f
         sr = sample_rate
 
     audio_duration = float(wav.shape[1]) / sample_rate
+
+    # Convert start and end times to sample indices based on the new sample rate
+    if offset_start is not None:
+        start_sample = int(offset_start * sr)
+    else:
+        start_sample = 0
+
+    if offset_end is not None:
+        end_sample = int(offset_end * sr)
+    else:
+        end_sample = wav.shape[1]
+
+    # Trim the audio based on the new start and end samples
+    wav = wav[:, start_sample:end_sample]
 
     return wav.squeeze(0), audio_duration
 

@@ -19,7 +19,7 @@
 # and limitations under the License.
 """Post-Processing Service for audio files."""
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 from wordcab_transcribe.utils import convert_timestamp, format_punct, is_empty_string
 
@@ -341,6 +341,7 @@ class PostProcessingService:
         utterances: List[dict],
         diarization: bool,
         dual_channel: bool,
+        offset_start: Union[float, None],
         timestamps_format: str,
         word_timestamps: bool,
     ) -> List[dict]:
@@ -351,18 +352,29 @@ class PostProcessingService:
             utterances (List[dict]): List of utterances.
             diarization (bool): Whether diarization is enabled.
             dual_channel (bool): Whether dual channel is enabled.
+            offset_start (Union[float, None]): Offset start.
             timestamps_format (str): Timestamps format used for conversion.
             word_timestamps (bool): Whether to include word timestamps.
 
         Returns:
             List[dict]: List of utterances with final processing.
         """
+        if offset_start is not None:
+            offset_start = float(offset_start)
+        else:
+            offset_start = 0.0
+
         include_speaker = diarization or dual_channel
+
         _utterances = [
             {
                 "text": format_punct(utterance["text"]),
-                "start": convert_timestamp(utterance["start"], timestamps_format),
-                "end": convert_timestamp(utterance["end"], timestamps_format),
+                "start": convert_timestamp(
+                    (utterance["start"] + offset_start), timestamps_format
+                ),
+                "end": convert_timestamp(
+                    (utterance["end"] + offset_start), timestamps_format
+                ),
                 "speaker": int(utterance["speaker"]) if include_speaker else None,
                 "words": utterance["words"] if word_timestamps else [],
             }

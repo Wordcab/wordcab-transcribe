@@ -146,6 +146,8 @@ class ASRAsyncService(ASRService):
             logger.info(f"Warmup GPU {gpu_index}.")
             await self.process_input(
                 filepath=str(sample_path),
+                offset_start=None,
+                offset_end=None,
                 num_speakers=1,
                 diarization=True,
                 dual_channel=False,
@@ -164,6 +166,8 @@ class ASRAsyncService(ASRService):
     async def process_input(  # noqa: C901
         self,
         filepath: Union[str, Tuple[str, str]],
+        offset_start: Union[float, None],
+        offset_end: Union[float, None],
         num_speakers: int,
         diarization: bool,
         dual_channel: bool,
@@ -189,6 +193,10 @@ class ASRAsyncService(ASRService):
         Args:
             filepath (Union[str, Tuple[str, str]]):
                 Path to the audio file or tuple of paths to the audio files.
+            offset_start (Union[float, None]):
+                The start time of the audio file to process.
+            offset_end (Union[float, None]):
+                The end time of the audio file to process.
             num_speakers (int):
                 The number of oracle speakers.
             diarization (bool):
@@ -230,7 +238,9 @@ class ASRAsyncService(ASRService):
         if isinstance(filepath, tuple):
             audio, duration = [], []
             for path in filepath:
-                _audio, _duration = read_audio(path)
+                _audio, _duration = read_audio(
+                    path, offset_start=offset_start, offset_end=offset_end
+                )
 
                 audio.append(_audio)
                 duration.append(_duration)
@@ -239,10 +249,13 @@ class ASRAsyncService(ASRService):
             duration = sum(duration) / len(duration)
 
         else:
-            audio, duration = read_audio(filepath)
+            audio, duration = read_audio(
+                filepath, offset_start=offset_start, offset_end=offset_end
+            )
 
         task = {
             "input": audio,
+            "offset_start": offset_start,
             "duration": duration,
             "num_speakers": num_speakers,
             "diarization": diarization,
@@ -485,6 +498,7 @@ class ASRAsyncService(ASRService):
                     utterances=utterances,
                     diarization=diarization,
                     dual_channel=task["dual_channel"],
+                    offset_start=task["offset_start"],
                     timestamps_format=task["timestamps_format"],
                     word_timestamps=word_timestamps,
                 ),

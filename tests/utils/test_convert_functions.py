@@ -23,8 +23,6 @@ from typing import Union
 import pytest
 
 from wordcab_transcribe.utils import (
-    _convert_ms_to_hms,
-    _convert_ms_to_s,
     _convert_s_to_hms,
     _convert_s_to_ms,
     convert_timestamp,
@@ -52,21 +50,6 @@ def test_convert_timestamp_raises_error() -> None:
     """Test the convert_timestamp function raises error."""
     with pytest.raises(ValueError):
         convert_timestamp(1000, "invalid_target", False)
-
-
-@pytest.mark.parametrize("ms, expected", [(1000, 1), (3600000, 3600), (3661000, 3661)])
-def test_convert_ms_to_s(ms: float, expected: float) -> None:
-    """Test the _convert_ms_to_s function."""
-    assert _convert_ms_to_s(ms) == expected
-
-
-@pytest.mark.parametrize(
-    "ms, expected",
-    [(1000, "00:00:01.000"), (3600000, "01:00:00.000"), (3661000, "01:01:01.000")],
-)
-def test_convert_ms_to_hms(ms: float, expected: str) -> None:
-    """Test the _convert_ms_to_hms function."""
-    assert _convert_ms_to_hms(ms) == expected
 
 
 @pytest.mark.parametrize("s, expected", [(1, 1000), (3600, 3600000), (3661, 3661000)])
