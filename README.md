@@ -20,7 +20,10 @@ FastAPI based API for transcribing audio files using [`faster-whisper`](https://
 and [Auto-Tuning-Spectral-Clustering](https://arxiv.org/pdf/2003.02405.pdf) for diarization
 (based on this [GitHub implementation](https://github.com/tango4j/Auto-Tuning-Spectral-Clustering)).
 
-More details on this project on this [blog post](https://wordcab.github.io/wordcab-posts/blog/2023/03/31/wordcab-transcribe/).
+# Important Notice <!-- omit in toc -->
+
+> [!IMPORTANT]\
+> If you want to see the great performance of Wordcab-Transcribe compared to all the available ASR tools on the market, please check out our benchmark project: [Rate that ASR](https://github.com/Wordcab/rtasr#readme).
 
 ## Key features
 
