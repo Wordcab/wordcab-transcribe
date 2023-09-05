@@ -315,7 +315,11 @@ class ASRAsyncService(ASRService):
                 gpu_index = -1
                 return task["diarization_result"]
 
-            if diarization and task["diarization_result"] is None:
+            if (
+                diarization
+                and task["diarization_result"] is None
+                and dual_channel is False
+            ):
                 # Empty audio early return
                 return early_return(duration=duration)
 
