@@ -19,12 +19,44 @@
 # and limitations under the License.
 """Live endpoints for the Wordcab Transcribe API."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 router = APIRouter()
 
+class ConnectionManager:
+    """Manage WebSocket connections."""
 
-@router.post("")
-async def live() -> None:
-    """Live endpoint for the API."""
-    pass
+    def __init__(self) -> None:
+        """Initialize the connection manager."""
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket) -> None:
+        """Connect a WebSocket."""
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket) -> None:
+        """Disconnect a WebSocket."""
+        self.active_connections.remove(websocket)
+
+    async def send_personal_message(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
+
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            await connection.send_text(message)
+
+
+manager = ConnectionManager()
+
+@router.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: int) -> None:
+    await manager.connect(websocket)
+
+    try:
+        while True:
+            data = await websocket.receive_bytes()
+            
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
