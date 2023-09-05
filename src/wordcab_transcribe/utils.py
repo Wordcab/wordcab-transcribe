@@ -91,6 +91,32 @@ def check_ffmpeg() -> bool:
         return False
 
 
+async def check_num_channels(filepath: Union[str, Path]) -> int:
+    """Check the number of channels in an audio file."""
+    if isinstance(filepath, str):
+        _filepath = Path(filepath)
+
+    if not _filepath.exists():
+        raise FileNotFoundError(f"File {filepath} does not exist.")
+
+    cmd = [
+        "ffprobe",
+        "-v",
+        "quiet",
+        "-show_streams",
+        filepath,
+    ]
+    returncode, stdout, stderr = await async_run_subprocess(cmd)
+
+    if returncode != 0:
+        raise Exception(f"Error converting file {filepath} to wav format: {stderr}")
+
+    output = stdout.decode("utf-8")
+    for line in output.split("\n"):
+        if line.startswith("channels"):
+            return int(line.split("=")[1])
+
+
 def convert_timestamp(
     timestamp: float, target: str, round_digits: Optional[int] = 3
 ) -> Union[str, float]:
@@ -246,6 +272,7 @@ def _download_file_from_youtube(url: str, filename: str) -> str:
             "format": "bestaudio",
             "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "wav"}],
             "outtmpl": f"{filename}",
+            "quiet": True,
         }
     ) as ydl:
         ydl.download([url])
