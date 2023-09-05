@@ -30,6 +30,7 @@ from loguru import logger
 from wordcab_transcribe.dependencies import asr
 from wordcab_transcribe.models import AudioRequest, AudioResponse
 from wordcab_transcribe.utils import (
+    check_num_channels,
     convert_file_to_wav,
     delete_file,
     save_file_locally,
@@ -89,9 +90,12 @@ async def inference_with_audio(  # noqa: C901
         dual_channel=dual_channel,
     )
 
-    if data.dual_channel:
+    num_channels = await check_num_channels(filename)
+
+    if data.dual_channel or num_channels == 2:
         try:
             filepath = await split_dual_channel_file(filename)
+            data.dual_channel = True
         except Exception as e:
             logger.error(f"{e}\nFallback to single channel mode.")
             data.dual_channel = False

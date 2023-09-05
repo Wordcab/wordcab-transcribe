@@ -30,6 +30,7 @@ from loguru import logger
 from wordcab_transcribe.dependencies import asr, download_limit
 from wordcab_transcribe.models import AudioRequest, AudioResponse
 from wordcab_transcribe.utils import (
+    check_num_channels,
     convert_file_to_wav,
     delete_file,
     download_audio_file,
@@ -53,9 +54,12 @@ async def inference_with_audio_url(
     async with download_limit:
         _filepath = await download_audio_file("url", url, filename)
 
-        if data.dual_channel:
+        num_channels = await check_num_channels(_filepath)
+
+        if data.dual_channel or num_channels == 2:
             try:
                 filepath = await split_dual_channel_file(_filepath)
+                data.dual_channel = True
             except Exception as e:
                 logger.error(f"{e}\nFallback to single channel mode.")
                 data.dual_channel = False
