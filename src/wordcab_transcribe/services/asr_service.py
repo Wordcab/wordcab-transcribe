@@ -67,7 +67,7 @@ class ASRService(ABC):
         self.needs_processing_timer = None  # the timer to schedule processing
 
     @abstractmethod
-    async def process_input(self) -> None:  # noqa: C901
+    async def process_input(self) -> None:
         """Process the input request by creating a task and adding it to the appropriate queues."""
         raise NotImplementedError("This method should be implemented in subclasses.")
 
@@ -531,3 +531,12 @@ class ASRLiveService:
     def __init__(self) -> None:
         """Initialize the ASRLiveService class."""
         super().__init__()
+
+    async def inference_warmup(self) -> None:
+        """Warmup the GPU by loading the models."""
+        sample_path = Path(__file__).parent.parent / "assets/warmup_sample.wav"
+
+    async def process_input(self) -> None:
+        """Process the input request by creating a task and adding it to the appropriate queues."""
+        raise NotImplementedError("This method should be implemented.")
+    
