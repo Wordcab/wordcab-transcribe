@@ -71,7 +71,9 @@ class ASRService(ABC):
         else:
             self.device_index = [0]
 
-        self.gpu_handler = GPUService(device=self.device, device_index=self.device_index)
+        self.gpu_handler = GPUService(
+            device=self.device, device_index=self.device_index
+        )
 
     @abstractmethod
     async def process_input(self) -> None:
@@ -528,9 +530,7 @@ class ASRAsyncService(ASRService):
 class ASRLiveService(ASRService):
     """ASR Service module for live endpoints."""
 
-    def __init__(
-        self, whisper_model: str, compute_type: str, debug_mode: bool
-    ) -> None:
+    def __init__(self, whisper_model: str, compute_type: str, debug_mode: bool) -> None:
         """Initialize the ASRLiveService class."""
         super().__init__()
 
@@ -544,7 +544,12 @@ class ASRLiveService(ASRService):
 
     async def inference_warmup(self) -> None:
         """Warmup the GPU by loading the models."""
-        sample_path = Path(__file__).parent.parent / "assets/warmup_sample.wav"
+        sample_audio = Path(__file__).parent.parent / "assets/warmup_sample.wav"
+        with open(sample_audio, "rb") as audio_file:
+            await self.process_input(
+                data=audio_file.read(),
+                source_lang="en",
+            )
 
     async def process_input(self, data: bytes, source_lang: str) -> Tuple[str, float]:
         """
@@ -572,7 +577,7 @@ class ASRLiveService(ASRService):
                     suppress_blank=False,
                     vocab=None,
                     word_timestamps=False,
-                    internal_vad=False
+                    internal_vad=False,
                 ),
                 func_name="live_transcription",
                 debug_mode=self.debug_mode,
@@ -581,7 +586,9 @@ class ASRLiveService(ASRService):
         except Exception as e:
             result = None
             duration = None
-            logger.error(f"Error in transcription gpu {gpu_index}: {e}\n{traceback.format_exc()}")
+            logger.error(
+                f"Error in transcription gpu {gpu_index}: {e}\n{traceback.format_exc()}"
+            )
 
         finally:
             logger.info(f"Operation took {process_time} seconds")

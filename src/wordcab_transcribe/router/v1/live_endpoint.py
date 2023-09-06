@@ -19,7 +19,6 @@
 # and limitations under the License.
 """Live endpoints for the Wordcab Transcribe API."""
 
-import asyncio
 from datetime import datetime
 from enum import Enum
 from typing import List
@@ -57,16 +56,24 @@ class ConnectionManager:
         self.active_connections: List[WebSocket] = []
         self.live_consumers: List[LiveConsumer] = []
 
-    async def connect(self, websocket: WebSocket, client_id: str, api_key: str) -> LiveConsumer:
+    async def connect(
+        self, websocket: WebSocket, client_id: str, api_key: str
+    ) -> LiveConsumer:
         """Connect a WebSocket."""
         if len(self.active_connections) > 1:
-            await websocket.close(code=1001, reason="Too many connections, try again later.")
+            await websocket.close(
+                code=1001, reason="Too many connections, try again later."
+            )
 
         if True:  # TODO: Check API key for real
             await websocket.accept()
             self.active_connections.append(websocket)
 
-            return LiveConsumer(client_id=client_id, api_key=api_key, status=LiveConnectionStatus.CONNECTED)
+            return LiveConsumer(
+                client_id=client_id,
+                api_key=api_key,
+                status=LiveConnectionStatus.CONNECTED,
+            )
         else:
             await websocket.close(code=1008, reason="Invalid API key.")
 
@@ -78,9 +85,10 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+
 @router.websocket("")
 async def websocket_endpoint(
-    client_id: str, api_key: str, source_lang:str, websocket: WebSocket
+    client_id: str, api_key: str, source_lang: str, websocket: WebSocket
 ) -> None:
     """Handle WebSocket connections."""
     consumer = await manager.connect(websocket, client_id=client_id, api_key=api_key)
