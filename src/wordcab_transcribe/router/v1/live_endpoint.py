@@ -37,13 +37,13 @@ class LiveConnectionStatus(str, Enum):
 
     CONNECTED = "connected"
     DISCONNECTED = "disconnected"
-    TRANSCRIBING = "transcribing"
 
 
 class LiveConsumer(BaseModel):
     """Manage live transcription consumers."""
 
-    client_id: int
+    client_id: str
+    api_key: SecretStr
     status: LiveConnectionStatus
     usage: float = 0.0
     last_connection: datetime = datetime.now()
@@ -57,43 +57,44 @@ class ConnectionManager:
         self.active_connections: List[WebSocket] = []
         self.live_consumers: List[LiveConsumer] = []
 
-    async def connect(self, websocket: WebSocket, client_id: int) -> None:
+    async def connect(self, websocket: WebSocket, client_id: str, api_key: str) -> LiveConsumer:
         """Connect a WebSocket."""
         if len(self.active_connections) > 1:
-            await websocket.close(code=1001)
+            await websocket.close(code=1001, reason="Too many connections, try again later.")
 
-        await websocket.accept()
-        self.active_connections.append(websocket)
-        self.live_consumers.append(
-            LiveConsumer(client_id=client_id, status=LiveConnectionStatus.CONNECTED)
-        )
+        if True:  # TODO: Check API key for real
+            await websocket.accept()
+            self.active_connections.append(websocket)
 
-    def disconnect(self, websocket: WebSocket, client_id: int) -> None:
+            return LiveConsumer(client_id=client_id, api_key=api_key, status=LiveConnectionStatus.CONNECTED)
+        else:
+            await websocket.close(code=1008, reason="Invalid API key.")
+
+    def disconnect(self, websocket: WebSocket, consumer: LiveConsumer) -> None:
         """Disconnect a WebSocket."""
         self.active_connections.remove(websocket)
-        consumer_index = self.live_consumers.index(
-            next(filter(lambda x: x.client_id == client_id, self.live_consumers))
-        )
-        self.live_consumers.index(consumer_index).status = LiveConnectionStatus.DISCONNECTED
+        consumer.status = LiveConnectionStatus.DISCONNECTED
 
 
 manager = ConnectionManager()
 
 @router.websocket("")
-async def websocket_endpoint(websocket: WebSocket) -> None:
+async def websocket_endpoint(
+    client_id: str, api_key: str, source_lang:str, websocket: WebSocket
+) -> None:
     """Handle WebSocket connections."""
-    # await manager.connect(websocket, client_id)
-    await manager.connect(websocket, 1)
+    consumer = await manager.connect(websocket, client_id=client_id, api_key=api_key)
+    await websocket.send_text(f"Welcome back {consumer.client_id}!")
 
     try:
         while True:
-            # data = await websocket.receive_bytes()
-            await asyncio.sleep(1)
-            await websocket.send_text("Hello, world!")
-            await asyncio.sleep(3)
-            await websocket.send_text("Hello, world!")
-            await asyncio.sleep(5)
-            raise WebSocketDisconnect
+            data = await websocket.receive_bytes()
+
+            result = await asr.process_input(data=data, source_lang=source_lang)
+            transcription, duration = result
+
+            await websocket.send_text(transcription[0]["text"])
+            consumer.usage += duration
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket, 1)
+        manager.disconnect(websocket, consumer=consumer)

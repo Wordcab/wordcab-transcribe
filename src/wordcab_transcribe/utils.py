@@ -19,6 +19,7 @@
 # and limitations under the License.
 """Utils module of the Wordcab Transcribe."""
 import asyncio
+import io
 import re
 import subprocess  # noqa: S404
 import sys
@@ -28,6 +29,7 @@ from typing import TYPE_CHECKING, Awaitable, Dict, List, Optional, Tuple, Union
 import aiofiles
 import aiohttp
 import huggingface_hub
+import soundfile as sf
 import torch
 import torchaudio
 from loguru import logger
@@ -480,7 +482,7 @@ def format_segments(segments: list, word_timestamps: bool) -> List[dict]:
 
 
 def read_audio(
-    filepath: str,
+    audio: Union[str, bytes],
     offset_start: Union[float, None] = None,
     offset_end: Union[float, None] = None,
     sample_rate: int = 16000,
@@ -489,8 +491,8 @@ def read_audio(
     Read an audio file and return the audio tensor.
 
     Args:
-        filepath (str):
-            Path to the audio file.
+        audio (Union[str, bytes]):
+            Path to the audio file or the audio bytes.
         offset_start (Union[float, None], optional):
             When to start reading the audio file. Defaults to None.
         offset_end (Union[float, None], optional):
@@ -501,7 +503,12 @@ def read_audio(
     Returns:
         Tuple[torch.Tensor, float]: The audio tensor and the audio duration.
     """
-    wav, sr = torchaudio.load(filepath)
+    if isinstance(audio, str):
+        wav, sr = torchaudio.load(audio, )
+    elif isinstance(audio, bytes):
+        with io.BytesIO(audio) as buffer:
+            wav, sr = sf.read(buffer)
+        wav = torch.from_numpy(wav).unsqueeze(0)
 
     if wav.size(0) > 1:
         wav = wav.mean(dim=0, keepdim=True)

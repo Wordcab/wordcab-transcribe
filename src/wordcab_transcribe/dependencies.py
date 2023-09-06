@@ -38,7 +38,11 @@ download_limit = asyncio.Semaphore(10)
 
 # Define the ASR service to use depending on the settings
 if settings.asr_type == "live":
-    asr = ASRLiveService()
+    asr = ASRLiveService(
+        whisper_model=settings.whisper_model,
+        compute_type=settings.compute_type,
+        debug_mode=settings.debug,
+    )
 elif settings.asr_type == "async":
     asr = ASRAsyncService(
         whisper_model=settings.whisper_model,
