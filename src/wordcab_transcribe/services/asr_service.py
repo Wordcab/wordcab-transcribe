@@ -66,8 +66,17 @@ class ASRService(ABC):
         )
         self.needs_processing_timer = None  # the timer to schedule processing
 
+        if self.num_gpus > 1 and self.device == "cuda":
+            self.device_index = list(range(self.num_gpus))
+        else:
+            self.device_index = [0]
+
+        self.gpu_handler = GPUService(
+            device=self.device, device_index=self.device_index
+        )
+
     @abstractmethod
-    async def process_input(self) -> None:  # noqa: C901
+    async def process_input(self) -> None:
         """Process the input request by creating a task and adding it to the appropriate queues."""
         raise NotImplementedError("This method should be implemented in subclasses.")
 
@@ -101,25 +110,18 @@ class ASRAsyncService(ASRService):
         """
         super().__init__()
 
-        if self.num_gpus > 1 and self.device == "cuda":
-            device_index = list(range(self.num_gpus))
-        else:
-            device_index = [0]
-
-        self.gpu_handler = GPUService(device=self.device, device_index=device_index)
-
         self.services: dict = {
             "transcription": TranscribeService(
                 model_path=whisper_model,
                 compute_type=compute_type,
                 device=self.device,
-                device_index=device_index,
+                device_index=self.device_index,
                 extra_languages=extra_languages,
                 extra_languages_model_paths=extra_languages_model_paths,
             ),
             "diarization": DiarizeService(
                 device=self.device,
-                device_index=device_index,
+                device_index=self.device_index,
                 window_lengths=window_lengths,
                 shift_lengths=shift_lengths,
                 multiscale_weights=multiscale_weights,
@@ -525,9 +527,71 @@ class ASRAsyncService(ASRService):
         return None
 
 
-class ASRLiveService:
+class ASRLiveService(ASRService):
     """ASR Service module for live endpoints."""
 
-    def __init__(self) -> None:
+    def __init__(self, whisper_model: str, compute_type: str, debug_mode: bool) -> None:
         """Initialize the ASRLiveService class."""
         super().__init__()
+
+        self.transcription_service = TranscribeService(
+            model_path=whisper_model,
+            compute_type=compute_type,
+            device=self.device,
+            device_index=self.device_index,
+        )
+        self.debug_mode = debug_mode
+
+    async def inference_warmup(self) -> None:
+        """Warmup the GPU by loading the models."""
+        sample_audio = Path(__file__).parent.parent / "assets/warmup_sample.wav"
+        with open(sample_audio, "rb") as audio_file:
+            await self.process_input(
+                data=audio_file.read(),
+                source_lang="en",
+            )
+
+    async def process_input(self, data: bytes, source_lang: str) -> Tuple[str, float]:
+        """
+        Process the input data and return the results as a tuple of text and duration.
+
+        Args:
+            data (bytes):
+                The raw audio bytes to process.
+            source_lang (str):
+                The source language of the audio data.
+
+        Returns:
+            Tuple[str, float]: The text and duration of the audio data.
+        """
+        gpu_index = await self.gpu_handler.get_device()
+
+        try:
+            waveform, duration = read_audio(data)
+
+            result, process_time = time_and_tell(
+                lambda: self.transcription_service(
+                    waveform,
+                    source_lang=source_lang,
+                    model_index=gpu_index,
+                    suppress_blank=False,
+                    vocab=None,
+                    word_timestamps=False,
+                    internal_vad=False,
+                ),
+                func_name="live_transcription",
+                debug_mode=self.debug_mode,
+            )
+
+        except Exception as e:
+            result = None
+            duration = None
+            logger.error(
+                f"Error in transcription gpu {gpu_index}: {e}\n{traceback.format_exc()}"
+            )
+
+        finally:
+            logger.info(f"Operation took {process_time} seconds")
+            self.gpu_handler.release_device(gpu_index)
+
+        return result, duration
