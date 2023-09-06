@@ -4,7 +4,7 @@ import asyncio
 import websockets
 
 async def test_websocket_endpoint():
-    uri = "ws://localhost:5001/api/v1/live?client_id=123456789&api_key=123&source_lang=en"  # Replace with the actual WebSocket URL
+    uri = "ws://localhost:5001/api/v1/live?source_lang=en"  # Replace with the actual WebSocket URL
     async with websockets.connect(uri) as websocket:
         try:
             with open("src/wordcab_transcribe/assets/warmup_sample.wav", "rb") as audio_file:

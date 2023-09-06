@@ -19,33 +19,13 @@
 # and limitations under the License.
 """Live endpoints for the Wordcab Transcribe API."""
 
-from datetime import datetime
-from enum import Enum
 from typing import List
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel, SecretStr
 
 from wordcab_transcribe.dependencies import asr
 
 router = APIRouter()
-
-
-class LiveConnectionStatus(str, Enum):
-    """Live connection status."""
-
-    CONNECTED = "connected"
-    DISCONNECTED = "disconnected"
-
-
-class LiveConsumer(BaseModel):
-    """Manage live transcription consumers."""
-
-    client_id: str
-    api_key: SecretStr
-    status: LiveConnectionStatus
-    usage: float = 0.0
-    last_connection: datetime = datetime.now()
 
 
 class ConnectionManager:
@@ -54,55 +34,38 @@ class ConnectionManager:
     def __init__(self) -> None:
         """Initialize the connection manager."""
         self.active_connections: List[WebSocket] = []
-        self.live_consumers: List[LiveConsumer] = []
 
-    async def connect(
-        self, websocket: WebSocket, client_id: str, api_key: str
-    ) -> LiveConsumer:
+    async def connect(self, websocket: WebSocket) -> None:
         """Connect a WebSocket."""
         if len(self.active_connections) > 1:
             await websocket.close(
                 code=1001, reason="Too many connections, try again later."
             )
 
-        if True:  # TODO: Check API key for real
+        else:
             await websocket.accept()
             self.active_connections.append(websocket)
 
-            return LiveConsumer(
-                client_id=client_id,
-                api_key=api_key,
-                status=LiveConnectionStatus.CONNECTED,
-            )
-        else:
-            await websocket.close(code=1008, reason="Invalid API key.")
-
-    def disconnect(self, websocket: WebSocket, consumer: LiveConsumer) -> None:
+    def disconnect(self, websocket: WebSocket) -> None:
         """Disconnect a WebSocket."""
         self.active_connections.remove(websocket)
-        consumer.status = LiveConnectionStatus.DISCONNECTED
 
 
 manager = ConnectionManager()
 
 
 @router.websocket("")
-async def websocket_endpoint(
-    client_id: str, api_key: str, source_lang: str, websocket: WebSocket
-) -> None:
+async def websocket_endpoint(source_lang: str, websocket: WebSocket) -> None:
     """Handle WebSocket connections."""
-    consumer = await manager.connect(websocket, client_id=client_id, api_key=api_key)
-    await websocket.send_text(f"Welcome back {consumer.client_id}!")
+    await manager.connect(websocket)
 
     try:
         while True:
             data = await websocket.receive_bytes()
 
             result = await asr.process_input(data=data, source_lang=source_lang)
-            transcription, duration = result
 
-            await websocket.send_text(transcription[0]["text"])
-            consumer.usage += duration
+            await websocket.send_text(result)
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket, consumer=consumer)
+        manager.disconnect(websocket)
