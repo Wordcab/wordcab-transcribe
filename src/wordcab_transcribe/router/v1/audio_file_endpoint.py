@@ -90,7 +90,6 @@ async def inference_with_audio(  # noqa: C901
         dual_channel=dual_channel,
     )
 
-
     if data.dual_channel:
         num_channels = await check_num_channels(filename)
 
@@ -98,7 +97,9 @@ async def inference_with_audio(  # noqa: C901
             filepath = await split_dual_channel_file(filename)
             data.dual_channel = True
         else:
-            logger.error(f"{e}\nFallback to single channel mode.")
+            logger.error(
+                "Only 1 audio channel detected, fallback to single channel mode."
+            )
             data.dual_channel = False
 
     if not data.dual_channel:

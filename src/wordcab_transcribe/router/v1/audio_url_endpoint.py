@@ -61,7 +61,9 @@ async def inference_with_audio_url(
                 filepath = await split_dual_channel_file(filename)
                 data.dual_channel = True
             else:
-                logger.error(f"{e}\nFallback to single channel mode.")
+                logger.error(
+                    "Only 1 audio channel detected, fallback to single channel mode."
+                )
                 data.dual_channel = False
 
         if not data.dual_channel:
