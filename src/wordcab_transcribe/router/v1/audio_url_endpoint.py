@@ -54,13 +54,13 @@ async def inference_with_audio_url(
     async with download_limit:
         _filepath = await download_audio_file("url", url, filename)
 
-        num_channels = await check_num_channels(_filepath)
+        if data.dual_channel:
+            num_channels = await check_num_channels(filename)
 
-        if data.dual_channel or num_channels == 2:
-            try:
-                filepath = await split_dual_channel_file(_filepath)
+            if num_channels == 2:
+                filepath = await split_dual_channel_file(filename)
                 data.dual_channel = True
-            except Exception as e:
+            else:
                 logger.error(f"{e}\nFallback to single channel mode.")
                 data.dual_channel = False
 
