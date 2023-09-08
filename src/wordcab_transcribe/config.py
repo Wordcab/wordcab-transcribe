@@ -120,8 +120,9 @@ class Settings:
         if model_path.exists() is False:
             if value not in _MODELS.keys():
                 raise ValueError(
-                    f"{value} is not a valid model name. Choose one of {_MODELS.keys()}."
-                    "If you want to use a local model, please provide a valid path."
+                    f"{value} is not a valid model name. Choose one of"
+                    f" {_MODELS.keys()}.If you want to use a local model, please"
+                    " provide a valid path."
                 )
 
         return value
