@@ -586,6 +586,7 @@ class ASRLiveService(ASRService):
         except Exception as e:
             result = None
             duration = None
+            process_time = 0
             logger.error(
                 f"Error in transcription gpu {gpu_index}: {e}\n{traceback.format_exc()}"
             )
