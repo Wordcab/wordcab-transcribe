@@ -65,7 +65,11 @@ async def websocket_endpoint(source_lang: str, websocket: WebSocket) -> None:
 
             result = await asr.process_input(data=data, source_lang=source_lang)
 
-            await websocket.send_text(result)
+            full_transcript = ""
+            for out in result[0]:
+                if out["no_speech_prob"] < 0.5:
+                    full_transcript += out["transcript"]
+                    await websocket.send_text(full_transcript.strip())
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
