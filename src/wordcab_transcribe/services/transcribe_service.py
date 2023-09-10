@@ -243,6 +243,24 @@ class TranscribeService:
 
         return outputs
 
+    async def async_live_transcribe(
+        self, audio: torch.Tensor, source_lang: str, model_index: int,
+    ) -> Iterable[dict]:
+        """Async generator for live transcriptions.
+
+        This method wraps the live_transcribe method to make it async.
+
+        Args:
+            audio (torch.Tensor): Audio tensor.
+            source_lang (str): Language of the audio file.
+            model_index (int): Index of the model to use.
+
+        Yields:
+            Iterable[dict]: Iterable of transcribed segments.
+        """
+        for result in self.live_transcribe(audio, source_lang, model_index):
+            yield result
+
     def live_transcribe(
         self,
         audio: torch.Tensor,
@@ -257,11 +275,11 @@ class TranscribeService:
             source_lang (str): Language of the audio file.
             model_index (int): Index of the model to use.
 
-        Returns:
+        Yields:
             Iterable[dict]: Iterable of transcribed segments.
         """
         segments, _ = self.model.transcribe(
-            audio,
+            audio.numpy(),
             language=source_lang,
             suppress_blank=True,
             word_timestamps=False,

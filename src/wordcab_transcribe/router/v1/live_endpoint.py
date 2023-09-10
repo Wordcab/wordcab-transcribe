@@ -63,7 +63,7 @@ async def websocket_endpoint(source_lang: str, websocket: WebSocket) -> None:
         while True:
             data = await websocket.receive_bytes()
 
-            for result in await asr.process_input(data=data, source_lang=source_lang):
+            async for result in asr.process_input(data=data, source_lang=source_lang):
                 await websocket.send_json(result)
                 del result
 

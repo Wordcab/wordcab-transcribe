@@ -546,10 +546,11 @@ class ASRLiveService(ASRService):
         """Warmup the GPU by loading the models."""
         sample_audio = Path(__file__).parent.parent / "assets/warmup_sample.wav"
         with open(sample_audio, "rb") as audio_file:
-            await self.process_input(
+            async for _ in self.process_input(
                 data=audio_file.read(),
                 source_lang="en",
-            )
+            ):
+                pass
 
     async def process_input(self, data: bytes, source_lang: str) -> Iterable[dict]:
         """
@@ -561,7 +562,7 @@ class ASRLiveService(ASRService):
             source_lang (str):
                 The source language of the audio data.
 
-        Returns:
+        Yields:
             Iterable[dict]: The results of the ASR pipeline.
         """
         gpu_index = await self.gpu_handler.get_device()
@@ -569,8 +570,8 @@ class ASRLiveService(ASRService):
         try:
             waveform, _ = read_audio(data)
 
-            for result in self.transcription_service.live_transcribe(
-                waveform=waveform, source_lang=source_lang, model_index=gpu_index
+            async for result in self.transcription_service.async_live_transcribe(
+                audio=waveform, source_lang=source_lang, model_index=gpu_index
             ):
                 yield result
 
