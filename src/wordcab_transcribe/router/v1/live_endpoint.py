@@ -55,9 +55,7 @@ manager = ConnectionManager()
 
 
 @router.websocket("")
-async def websocket_endpoint(
-    source_lang: str, websocket: WebSocket, no_speech_threshold: float = 0.6
-) -> None:
+async def websocket_endpoint(source_lang: str, websocket: WebSocket) -> None:
     """Handle WebSocket connections."""
     await manager.connect(websocket)
 
@@ -65,17 +63,9 @@ async def websocket_endpoint(
         while True:
             data = await websocket.receive_bytes()
 
-            result = await asr.process_input(data=data, source_lang=source_lang)
-
-            full_transcript = ""
-            for out in result[0]:
-                if out["no_speech_prob"] < no_speech_threshold:
-                    full_transcript += out["text"]
-                else:
-                    full_transcript += "<EMPTY AUDIO>"
-
-            await websocket.send_text(full_transcript.strip())
-            del result
+            for result in await asr.process_input(data=data, source_lang=source_lang):
+                await websocket.send_json(result)
+                del result
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
