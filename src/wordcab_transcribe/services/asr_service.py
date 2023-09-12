@@ -152,7 +152,7 @@ class ASRAsyncService(ASRService):
                 offset_end=None,
                 num_speakers=1,
                 diarization=True,
-                dual_channel=False,
+                multi_channel=False,
                 source_lang="en",
                 timestamps_format="s",
                 vocab=[],
@@ -167,12 +167,12 @@ class ASRAsyncService(ASRService):
 
     async def process_input(  # noqa: C901
         self,
-        filepath: Union[str, Tuple[str, str]],
+        filepath: Union[str, List[str]],
         offset_start: Union[float, None],
         offset_end: Union[float, None],
         num_speakers: int,
         diarization: bool,
-        dual_channel: bool,
+        multi_channel: bool,
         source_lang: str,
         timestamps_format: str,
         vocab: List[str],
@@ -193,8 +193,8 @@ class ASRAsyncService(ASRService):
         and stored in separated keys in the task dictionary.
 
         Args:
-            filepath (Union[str, Tuple[str, str]]):
-                Path to the audio file or tuple of paths to the audio files.
+            filepath (Union[str, List[str]]):
+                Path to the audio file or list of paths to the audio files to process.
             offset_start (Union[float, None]):
                 The start time of the audio file to process.
             offset_end (Union[float, None]):
@@ -203,8 +203,8 @@ class ASRAsyncService(ASRService):
                 The number of oracle speakers.
             diarization (bool):
                 Whether to do diarization or not.
-            dual_channel (bool):
-                Whether to do dual channel or not.
+            multi_channel (bool):
+                Whether to do multi-channel diarization or not.
             source_lang (str):
                 Source language of the audio file.
             timestamps_format (str):
@@ -237,18 +237,17 @@ class ASRAsyncService(ASRService):
                     * Dict[str, float]: the process times for each step.
                     * float: The audio duration
         """
-        if isinstance(filepath, tuple):
-            audio, duration = [], []
+        if isinstance(filepath, list):
+            audio, durations = [], []
             for path in filepath:
                 _audio, _duration = read_audio(
                     path, offset_start=offset_start, offset_end=offset_end
                 )
 
                 audio.append(_audio)
-                duration.append(_duration)
+                durations.append(_duration)
 
-            audio = tuple(audio)
-            duration = sum(duration) / len(duration)
+            duration = sum(durations) / len(durations)
 
         else:
             audio, duration = read_audio(
@@ -261,7 +260,7 @@ class ASRAsyncService(ASRService):
             "duration": duration,
             "num_speakers": num_speakers,
             "diarization": diarization,
-            "dual_channel": dual_channel,
+            "multi_channel": multi_channel,
             "source_lang": source_lang,
             "timestamps_format": timestamps_format,
             "vocab": vocab,
@@ -298,7 +297,7 @@ class ASRAsyncService(ASRService):
                 ),
             )
 
-            if diarization and dual_channel is False:
+            if diarization and multi_channel is False:
                 asyncio.get_event_loop().run_in_executor(
                     None,
                     functools.partial(
@@ -320,7 +319,7 @@ class ASRAsyncService(ASRService):
             if (
                 diarization
                 and task["diarization_result"] is None
-                and dual_channel is False
+                and multi_channel is False
             ):
                 # Empty audio early return
                 return early_return(duration=duration)
@@ -385,7 +384,7 @@ class ASRAsyncService(ASRService):
                     log_prob_threshold=task["log_prob_threshold"],
                     no_speech_threshold=task["no_speech_threshold"],
                     condition_on_previous_text=task["condition_on_previous_text"],
-                    vad_service=self.services["vad"] if task["dual_channel"] else None,
+                    vad_service=self.services["vad"] if task["multi_channel"] else None,
                 ),
                 func_name="transcription",
                 debug_mode=debug_mode,
@@ -453,18 +452,14 @@ class ASRAsyncService(ASRService):
         try:
             total_post_process_time = 0
             diarization = task["diarization"]
-            dual_channel = task["dual_channel"]
+            multi_channel = task["multi_channel"]
             word_timestamps = task["word_timestamps"]
 
-            if dual_channel:
-                left_segments, right_segments = task["transcription_result"]
+            if multi_channel:
                 utterances, process_time = time_and_tell(
                     lambda: self.services[
                         "post_processing"
-                    ].dual_channel_speaker_mapping(
-                        left_segments=left_segments,
-                        right_segments=right_segments,
-                    ),
+                    ].multi_channel_speaker_mapping(task["transcription_result"]),
                     func_name="dual_channel_speaker_mapping",
                     debug_mode=self.debug_mode,
                 )
@@ -503,7 +498,7 @@ class ASRAsyncService(ASRService):
                 ].final_processing_before_returning(
                     utterances=utterances,
                     diarization=diarization,
-                    dual_channel=task["dual_channel"],
+                    multi_channel=task["multi_channel"],
                     offset_start=task["offset_start"],
                     timestamps_format=task["timestamps_format"],
                     word_timestamps=word_timestamps,

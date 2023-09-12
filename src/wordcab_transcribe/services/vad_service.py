@@ -45,7 +45,7 @@ class VadService:
         self, waveform: torch.Tensor, group_timestamps: Optional[bool] = True
     ) -> Tuple[Union[List[dict], List[List[dict]]], torch.Tensor]:
         """
-        Use the VAD model to get the speech timestamps. Dual channel pipeline.
+        Use the VAD model to get the speech timestamps. Multi-channel pipeline.
 
         Args:
             waveform (torch.Tensor): Audio tensor.

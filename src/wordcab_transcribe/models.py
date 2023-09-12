@@ -86,7 +86,7 @@ class BaseResponse(BaseModel):
 class AudioResponse(BaseResponse):
     """Response model for the ASR audio file and url endpoint."""
 
-    dual_channel: bool
+    multi_channel: bool
 
     class Config:
         """Pydantic config class."""
@@ -132,7 +132,7 @@ class AudioResponse(BaseResponse):
                     "diarization": None,
                     "post_processing": 0.239,
                 },
-                "dual_channel": False,
+                "multi_channel": False,
             }
         }
 
@@ -216,7 +216,7 @@ class CortexPayload(BaseModel):
     offset_end: Optional[float] = None
     num_speakers: Optional[int] = -1
     diarization: Optional[bool] = False
-    dual_channel: Optional[bool] = False
+    multi_channel: Optional[bool] = False
     source_lang: Optional[str] = "en"
     timestamps: Optional[Timestamps] = Timestamps.seconds
     vocab: Optional[List[str]] = []
@@ -242,7 +242,7 @@ class CortexPayload(BaseModel):
                 "offset_end": None,
                 "num_speakers": -1,
                 "diarization": False,
-                "dual_channel": False,
+                "multi_channel": False,
                 "source_lang": "en",
                 "timestamps": "s",
                 "vocab": [
@@ -313,7 +313,7 @@ class CortexUrlResponse(AudioResponse):
                     "diarization": None,
                     "post_processing": 0.239,
                 },
-                "dual_channel": False,
+                "multi_channel": False,
                 "job_name": "job_name",
                 "request_id": "request_id",
             }
@@ -435,7 +435,7 @@ class BaseRequest(BaseModel):
 class AudioRequest(BaseRequest):
     """Request model for the ASR audio file and url endpoint."""
 
-    dual_channel: bool = False
+    multi_channel: bool = False
 
     class Config:
         """Pydantic config class."""
@@ -460,7 +460,7 @@ class AudioRequest(BaseRequest):
                 "log_prob_threshold": -1.0,
                 "no_speech_threshold": 0.6,
                 "condition_on_previous_text": True,
-                "dual_channel": False,
+                "multi_channel": False,
             }
         }
 

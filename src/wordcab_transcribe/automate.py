@@ -94,7 +94,7 @@ def run_audio_url(
     timestamps: str = "s",
     word_timestamps: bool = False,
     diarization: bool = False,
-    dual_channel: bool = False,
+    multi_channel: bool = False,
     server_url: Optional[str] = None,
     vocab: Optional[List[str]] = None,
     timeout: int = 900,
@@ -108,7 +108,7 @@ def run_audio_url(
         timestamps: time unit of the timestamps (defaulted to seconds)
         word_timestamps: associated words and their timestamps (defaulted to False)
         diarization: speaker labels for utterances (defaulted to False)
-        dual_channel: defaulted to False
+        multi_channel: defaulted to False
         server_url: the URL used to reach out the API
         vocab: defaulted to empty list
         timeout: defaulted to 90 seconds (15 minutes)
@@ -125,7 +125,7 @@ def run_audio_url(
         "source_lang": source_lang,
         "timestamps": timestamps,
         "word_timestamps": word_timestamps,
-        "dual_channel": dual_channel,
+        "multi_channel": multi_channel,
     }
     if vocab:
         data["vocab"] = vocab
@@ -163,7 +163,7 @@ def run_api_audio_file(
     timestamps: str = "s",
     word_timestamps: bool = False,
     diarization: bool = False,
-    dual_channel: bool = False,
+    multi_channel: bool = False,
     server_url: Optional[str] = None,
     vocab: Optional[List[str]] = None,
     timeout: int = 900,
@@ -177,7 +177,7 @@ def run_api_audio_file(
         timestamps: time unit of the timestamps (defaulted to seconds)
         word_timestamps: associated words and their timestamps (defaulted to False)
         diarization: speaker labels for utterances (defaulted to False)
-        dual_channel: defaulted to False
+        multi_channel: defaulted to False
         server_url: the URL used to reach out the API
         vocab: defaulted to empty list
         timeout: defaulted to 90 seconds (15 minutes)
@@ -190,7 +190,7 @@ def run_api_audio_file(
         "source_lang": source_lang,
         "timestamps": timestamps,
         "word_timestamps": word_timestamps,
-        "dual_channel": dual_channel,
+        "multi_channel": multi_channel,
     }
     if vocab:
         data["vocab"] = vocab
@@ -230,7 +230,7 @@ def run_api(
     timestamps: str = "s",
     word_timestamps: bool = False,
     diarization: bool = False,
-    dual_channel: bool = False,
+    multi_channel: bool = False,
     server_url: Optional[str] = None,
     vocab: Optional[List[str]] = None,
     timeout: int = 900,
@@ -245,7 +245,7 @@ def run_api(
         timestamps: time unit of the timestamps (defaulted to seconds)
         word_timestamps: whether the timestamps are represented by words (defaulted to False)
         diarization: speaker labels for utterances (defaulted to False)
-        dual_channel: defaulted to False
+        multi_channel: defaulted to False
         server_url: the URL used to reach out the API
         vocab: defaulted to empty list
         timeout: defaulted to 900 seconds (15 minutes)
@@ -271,7 +271,7 @@ def run_api(
             timestamps,
             word_timestamps,
             diarization,
-            dual_channel,
+            multi_channel,
             server_url,
             vocab,
             timeout,
@@ -283,7 +283,7 @@ def run_api(
             timestamps,
             word_timestamps,
             diarization,
-            dual_channel,
+            multi_channel,
             server_url,
             vocab,
             timeout,
