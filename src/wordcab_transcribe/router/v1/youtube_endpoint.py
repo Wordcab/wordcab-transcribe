@@ -55,7 +55,7 @@ async def inference_with_youtube(
                 offset_end=data.offset_end,
                 num_speakers=data.num_speakers,
                 diarization=data.diarization,
-                dual_channel=False,
+                multi_channel=False,
                 source_lang=data.source_lang,
                 timestamps_format=data.timestamps,
                 vocab=data.vocab,

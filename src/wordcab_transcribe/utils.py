@@ -180,49 +180,6 @@ def _convert_s_to_hms(timestamp: float) -> str:
     return output
 
 
-async def convert_file_to_wav(filepath: str) -> str:
-    """
-    Convert a file to wav format using ffmpeg.
-
-    Args:
-        filepath (str): Path to the file to convert.
-
-    Raises:
-        FileNotFoundError: If the file does not exist.
-        Exception: If there is an error converting the file.
-
-    Returns:
-        str: Path to the converted file.
-    """
-    if isinstance(filepath, str):
-        _filepath = Path(filepath)
-
-    if not _filepath.exists():
-        raise FileNotFoundError(f"File {filepath} does not exist.")
-
-    new_filepath = f"{_filepath.stem}_{_filepath.stat().st_mtime_ns}.wav"
-    cmd = [
-        "ffmpeg",
-        "-i",
-        filepath,
-        "-vn",
-        "-acodec",
-        "pcm_s16le",
-        "-ar",
-        "16000",
-        "-ac",
-        "1",
-        "-y",
-        new_filepath,
-    ]
-    result = await async_run_subprocess(cmd)
-
-    if result[0] != 0:
-        raise Exception(f"Error converting file {filepath} to wav format: {result[2]}")
-
-    return new_filepath
-
-
 # pragma: no cover
 async def download_audio_file(
     source: str,
@@ -481,6 +438,89 @@ def format_segments(segments: list, word_timestamps: bool) -> List[dict]:
     return formatted_segments
 
 
+async def process_audio_file(
+    filepath: str, num_channels: int = 1
+) -> Union[str, List[str]]:
+    """Prepare the audio for inference.
+
+    Process an audio file using ffmpeg. The file will be converted to WAV if
+    num_channels is 1, or split into N channels if num_channels >= 2.
+    The codec used is pcm_s16le and the sample rate is 16000.
+
+    Args:
+        filepath (str):
+            Path to the file to process.
+        num_channels (int):
+            The number of channels desired. 1 for conversion only,
+            >= 2 for splitting and conversion.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        Exception: If there's an error in processing.
+
+    Returns:
+        Union[str, List[str]]: Path to the converted/split files.
+    """
+    _filepath = Path(filepath)
+
+    if not _filepath.exists():
+        raise FileNotFoundError(f"File {filepath} does not exist.")
+
+    # Convert to WAV if num_channels is 1
+    if num_channels == 1:
+        new_filepath = f"{_filepath.stem}_{_filepath.stat().st_mtime_ns}.wav"
+        cmd = [
+            "ffmpeg",
+            "-i",
+            filepath,
+            "-vn",
+            "-acodec",
+            "pcm_s16le",
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+            "-y",
+            new_filepath,
+        ]
+
+        result = await async_run_subprocess(cmd)
+        if result[0] != 0:
+            raise Exception(
+                f"Error converting file {filepath} to wav format: {result[2]}"
+            )
+
+        return new_filepath
+
+    # Split audio into N channels if num_channels >= 2
+    else:
+        output_files = [
+            f"{_filepath.stem}_ch{channel}.wav" for channel in range(num_channels)
+        ]
+
+        cmd = ["ffmpeg", "-i", filepath]
+        for channel in range(num_channels):
+            cmd.extend(
+                [
+                    "-map_channel",
+                    f"0.0.{channel}",
+                    "-acodec",
+                    "pcm_s16le",
+                    "-ar",
+                    "16000",
+                    output_files[channel],
+                ]
+            )
+
+        result = await async_run_subprocess(cmd)
+        if result[0] != 0:
+            raise Exception(
+                f"Error splitting {num_channels}-channel file: {filepath}. {result[2]}"
+            )
+
+        return output_files
+
+
 def read_audio(
     audio: Union[str, bytes],
     offset_start: Union[float, None] = None,
@@ -583,41 +623,3 @@ async def save_file_locally(filename: str, file: "UploadFile") -> bool:
         await f.write(audio_bytes)
 
     return True
-
-
-async def split_dual_channel_file(filepath: str) -> Tuple[str, str]:
-    """
-    Split a dual channel audio file into two mono files using ffmpeg.
-
-    Args:
-        filepath (str): The path to the dual channel audio file.
-
-    Returns:
-        Tuple[str, str]: The paths to the two mono files.
-
-    Raises:
-        Exception: If the file could not be split.
-    """
-    logger.debug(f"Splitting dual channel file: {filepath}")
-
-    filename = Path(filepath).stem
-    filename_left = f"{filename}_left.wav"
-    filename_right = f"{filename}_right.wav"
-
-    cmd = [
-        "ffmpeg",
-        "-i",
-        str(filepath),
-        "-map_channel",
-        "0.0.0",
-        str(filename_left),
-        "-map_channel",
-        "0.0.1",
-        str(filename_right),
-    ]
-    result = await async_run_subprocess(cmd)
-
-    if result[0] != 0:
-        raise Exception(f"Error splitting dual channel file: {filepath}. {result[2]}")
-
-    return filename_left, filename_right

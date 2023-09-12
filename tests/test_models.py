@@ -146,7 +146,7 @@ def test_audio_request() -> None:
     request = AudioRequest(
         num_speakers=-1,
         diarization=True,
-        dual_channel=True,
+        multi_channel=True,
         source_lang="en",
         timestamps="s",
     )
@@ -154,7 +154,7 @@ def test_audio_request() -> None:
     assert request.offset_end is None
     assert request.num_speakers == -1
     assert request.diarization is True
-    assert request.dual_channel is True
+    assert request.multi_channel is True
     assert request.source_lang == "en"
     assert request.timestamps == "s"
     assert request.vocab == []
@@ -176,7 +176,7 @@ def test_audio_response() -> None:
         offset_end=None,
         num_speakers=-1,
         diarization=False,
-        dual_channel=False,
+        multi_channel=False,
         source_lang="en",
         timestamps="s",
         vocab=["custom company", "custom product"],
@@ -200,7 +200,7 @@ def test_audio_response() -> None:
     assert response.offset_end is None
     assert response.num_speakers == -1
     assert response.diarization is False
-    assert response.dual_channel is False
+    assert response.multi_channel is False
     assert response.source_lang == "en"
     assert response.timestamps == "s"
     assert response.vocab == ["custom company", "custom product"]
@@ -240,7 +240,7 @@ def test_audio_response() -> None:
         offset_end=None,
         num_speakers=-1,
         diarization=True,
-        dual_channel=True,
+        multi_channel=True,
         source_lang="en",
         timestamps="s",
         vocab=["custom company", "custom product"],
@@ -279,7 +279,7 @@ def test_audio_response() -> None:
     assert response.offset_end is None
     assert response.num_speakers == -1
     assert response.diarization is True
-    assert response.dual_channel is True
+    assert response.multi_channel is True
     assert response.source_lang == "en"
     assert response.timestamps == "s"
     assert response.vocab == ["custom company", "custom product"]
@@ -431,7 +431,7 @@ def test_cortex_payload() -> None:
         offset_end=None,
         num_speakers=-1,
         diarization=False,
-        dual_channel=False,
+        multi_channel=False,
         source_lang="en",
         timestamps="s",
         word_timestamps=False,
@@ -447,7 +447,7 @@ def test_cortex_payload() -> None:
     assert payload.offset_end is None
     assert payload.num_speakers == -1
     assert payload.diarization is False
-    assert payload.dual_channel is False
+    assert payload.multi_channel is False
     assert payload.source_lang == "en"
     assert payload.timestamps == "s"
     assert payload.vocab == []
@@ -502,7 +502,7 @@ def test_cortex_url_response() -> None:
             diarization=2.0,
             post_processing=1.0,
         ),
-        dual_channel=False,
+        multi_channel=False,
         job_name="test_job",
         request_id="test_request_id",
     )
@@ -543,7 +543,7 @@ def test_cortex_url_response() -> None:
         diarization=2.0,
         post_processing=1.0,
     )
-    assert response.dual_channel is False
+    assert response.multi_channel is False
     assert response.job_name == "test_job"
     assert response.request_id == "test_request_id"
 

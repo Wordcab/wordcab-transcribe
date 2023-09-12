@@ -31,10 +31,9 @@ from wordcab_transcribe.dependencies import asr
 from wordcab_transcribe.models import AudioRequest, AudioResponse
 from wordcab_transcribe.utils import (
     check_num_channels,
-    convert_file_to_wav,
     delete_file,
+    process_audio_file,
     save_file_locally,
-    split_dual_channel_file,
 )
 
 router = APIRouter()
@@ -49,7 +48,7 @@ async def inference_with_audio(  # noqa: C901
     offset_end: float = Form(None),  # noqa: B008
     num_speakers: int = Form(-1),  # noqa: B008
     diarization: bool = Form(False),  # noqa: B008
-    dual_channel: bool = Form(False),  # noqa: B008
+    multi_channel: bool = Form(False),  # noqa: B008
     source_lang: str = Form("en"),  # noqa: B008
     timestamps: str = Form("s"),  # noqa: B008
     vocab: List[str] = Form([]),  # noqa: B008
@@ -87,30 +86,24 @@ async def inference_with_audio(  # noqa: C901
         log_prob_threshold=log_prob_threshold,
         no_speech_threshold=no_speech_threshold,
         condition_on_previous_text=condition_on_previous_text,
-        dual_channel=dual_channel,
+        multi_channel=multi_channel,
     )
 
-    if data.dual_channel:
-        num_channels = await check_num_channels(filename)
+    num_channels = await check_num_channels(filename)
+    print(f"num_channels: {num_channels}")
+    if num_channels > 1 and data.multi_channel is False:
+        num_channels = 1  # Force mono channel if more than 1 channel
 
-        if num_channels == 2:
-            filepath = await split_dual_channel_file(filename)
-            data.dual_channel = True
-        else:
-            logger.error(
-                "Only 1 audio channel detected, fallback to single channel mode."
-            )
-            data.dual_channel = False
+    try:
+        filepath: Union[str, List[str]] = await process_audio_file(
+            filename, num_channels=num_channels
+        )
 
-    if not data.dual_channel:
-        try:
-            filepath = await convert_file_to_wav(filename)
-
-        except Exception as e:
-            raise HTTPException(  # noqa: B904
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Process failed: {e}",
-            )
+    except Exception as e:
+        raise HTTPException(  # noqa: B904
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Process failed: {e}",
+        )
 
     background_tasks.add_task(delete_file, filepath=filename)
 
@@ -121,7 +114,7 @@ async def inference_with_audio(  # noqa: C901
             offset_end=data.offset_end,
             num_speakers=data.num_speakers,
             diarization=data.diarization,
-            dual_channel=data.dual_channel,
+            multi_channel=data.multi_channel,
             source_lang=data.source_lang,
             timestamps_format=data.timestamps,
             vocab=data.vocab,
@@ -153,7 +146,7 @@ async def inference_with_audio(  # noqa: C901
             offset_end=data.offset_end,
             num_speakers=data.num_speakers,
             diarization=data.diarization,
-            dual_channel=data.dual_channel,
+            multi_channel=data.multi_channel,
             source_lang=data.source_lang,
             timestamps=data.timestamps,
             vocab=data.vocab,

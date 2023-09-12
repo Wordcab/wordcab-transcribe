@@ -19,7 +19,7 @@
 # and limitations under the License.
 """Transcribe Service for audio files."""
 
-from typing import Iterable, List, NamedTuple, Optional, Tuple, Union
+from typing import Iterable, List, NamedTuple, Optional, Union
 
 import torch
 from faster_whisper import WhisperModel
@@ -81,9 +81,7 @@ class TranscribeService:
 
     def __call__(
         self,
-        audio: Union[
-            str, torch.Tensor, Tuple[str, str], Tuple[torch.Tensor, torch.Tensor]
-        ],
+        audio: Union[str, torch.Tensor, List[str], List[torch.Tensor]],
         source_lang: str,
         model_index: int,
         suppress_blank: bool = False,
@@ -101,9 +99,9 @@ class TranscribeService:
         Run inference with the transcribe model.
 
         Args:
-            audio (Union[str, torch.Tensor, Tuple[str, str], Tuple[torch.Tensor, torch.Tensor]]):
+            audio (Union[str, torch.Tensor, List[str], List[torch.Tensor]]):
                 Audio file path or audio tensor. If a tuple is passed, the task is assumed
-                to be a dual_channel task and the tuple should contain the paths to the two audio files.
+                to be a multi_channel task and the list of audio files or tensors is passed.
             source_lang (str):
                 Language of the audio file.
             model_index (int):
@@ -130,10 +128,10 @@ class TranscribeService:
                 disabling may make the text inconsistent across windows, but the model becomes less prone
                 to getting stuck in a failure loop, such as repetition looping or timestamps going out of sync.
             vad_service (Union[VadService, None]):
-                VADService to use for voice activity detection in the dual_channel case. Defaults to None.
+                VADService to use for voice activity detection in the multi_channel case. Defaults to None.
 
         Returns:
-            Union[List[dict], List[List[dict]]]: List of transcriptions. If the task is a dual_channel task,
+            Union[List[dict], List[List[dict]]]: List of transcriptions. If the task is a multi_channel task,
                 a list of lists is returned.
         """
         # Extra language models are disabled until we can handle an index mapping
@@ -176,7 +174,7 @@ class TranscribeService:
         else:
             prompt = None
 
-        if not isinstance(audio, tuple):
+        if not isinstance(audio, list):
             if isinstance(audio, torch.Tensor):
                 audio = audio.numpy()
 
@@ -226,7 +224,7 @@ class TranscribeService:
             outputs = []
             for audio_index, audio_file in enumerate(audio):
                 outputs.append(
-                    self.dual_channel(
+                    self.multi_channel(
                         audio_file,
                         source_lang=source_lang,
                         speaker_id=audio_index,
@@ -291,7 +289,7 @@ class TranscribeService:
         for segment in segments:
             yield segment._asdict()
 
-    def dual_channel(
+    def multi_channel(
         self,
         audio: Union[str, torch.Tensor],
         source_lang: str,

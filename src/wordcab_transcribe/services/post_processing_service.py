@@ -19,6 +19,7 @@
 # and limitations under the License.
 """Post-Processing Service for audio files."""
 
+import itertools
 from typing import Any, Dict, List, Union
 
 from wordcab_transcribe.utils import convert_timestamp, format_punct, is_empty_string
@@ -62,24 +63,21 @@ class PostProcessingService:
 
         return utterances
 
-    def dual_channel_speaker_mapping(
-        self,
-        left_segments: List[dict],
-        right_segments: List[dict],
+    def multi_channel_speaker_mapping(
+        self, multi_channel_segments: List[List[dict]]
     ) -> List[dict]:
         """
         Run the dual channel post-processing functions on the inputs by merging the segments based on the timestamps.
 
         Args:
-            left_segments (List[dict]): List of left channel segments.
-            right_segments (List[dict]): List of right channel segments.
+            multi_channel_segments (List[dict]): List of segments from both speakers.
 
         Returns:
             List[dict]: List of sentences with speaker mapping.
         """
         words_with_speaker_mapping = []
 
-        for segment in left_segments + right_segments:
+        for segment in list(itertools.chain.from_iterable(multi_channel_segments)):
             speaker = segment["speaker"]
             for word in segment["words"]:
                 word.update({"speaker": speaker})
@@ -87,7 +85,7 @@ class PostProcessingService:
 
         words_with_speaker_mapping.sort(key=lambda word: word["start"])
 
-        utterances = self.reconstruct_dual_channel_utterances(
+        utterances = self.reconstruct_multi_channel_utterances(
             words_with_speaker_mapping
         )
 
@@ -259,12 +257,12 @@ class PostProcessingService:
 
         return sentences
 
-    def reconstruct_dual_channel_utterances(
+    def reconstruct_multi_channel_utterances(
         self,
         transcript_words: List[dict],
     ) -> List[dict]:
         """
-        Reconstruct dual-channel utterances based on the speaker mapping.
+        Reconstruct multi-channel utterances based on the speaker mapping.
 
         Args:
             transcript_words (List[dict]): List of transcript words.
@@ -340,7 +338,7 @@ class PostProcessingService:
         self,
         utterances: List[dict],
         diarization: bool,
-        dual_channel: bool,
+        multi_channel: bool,
         offset_start: Union[float, None],
         timestamps_format: str,
         word_timestamps: bool,
@@ -351,7 +349,7 @@ class PostProcessingService:
         Args:
             utterances (List[dict]): List of utterances.
             diarization (bool): Whether diarization is enabled.
-            dual_channel (bool): Whether dual channel is enabled.
+            multi_channel (bool): Whether multi-channel is enabled.
             offset_start (Union[float, None]): Offset start.
             timestamps_format (str): Timestamps format used for conversion.
             word_timestamps (bool): Whether to include word timestamps.
@@ -364,7 +362,7 @@ class PostProcessingService:
         else:
             offset_start = 0.0
 
-        include_speaker = diarization or dual_channel
+        include_speaker = diarization or multi_channel
 
         _utterances = [
             {

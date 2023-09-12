@@ -73,7 +73,7 @@ async def run_cortex(
                 offset_end=payload.offset_end,
                 num_speakers=payload.num_speakers,
                 diarization=payload.diarization,
-                dual_channel=payload.dual_channel,
+                multi_channel=payload.multi_channel,
                 source_lang=payload.source_lang,
                 timestamps=payload.timestamps,
                 vocab=payload.vocab,
