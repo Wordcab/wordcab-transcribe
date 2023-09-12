@@ -20,7 +20,7 @@
 """Post-Processing Service for audio files."""
 
 import itertools
-from typing import Any, Dict, List, Union
+from typing import List, Union
 
 from wordcab_transcribe.utils import convert_timestamp, format_punct, is_empty_string
 
@@ -67,7 +67,7 @@ class PostProcessingService:
         self, multi_channel_segments: List[List[dict]]
     ) -> List[dict]:
         """
-        Run the dual channel post-processing functions on the inputs by merging the segments based on the timestamps.
+        Run the multi-channel post-processing functions on the inputs by merging the segments based on the timestamps.
 
         Args:
             multi_channel_segments (List[dict]): List of segments from both speakers.
@@ -313,26 +313,6 @@ class PostProcessingService:
             sentence["text"] = sentence["text"].strip()
 
         return sentences
-
-    def merge_segments(
-        self,
-        speaker_0_segments: List[Dict[str, Any]],
-        speaker_1_segments: List[Dict[str, Any]],
-    ) -> List[Dict[str, Any]]:
-        """
-        Merge two lists of segments, keeping the chronological order.
-
-        Args:
-            speaker_0_segments (List[Dict[str, Any]]): List of segments from speaker 0.
-            speaker_1_segments (List[Dict[str, Any]]): List of segments from speaker 1.
-
-        Returns:
-            List[Dict[str, Any]]: Merged list of segments.
-        """
-        merged_segments = speaker_0_segments + speaker_1_segments
-        merged_segments.sort(key=lambda seg: seg["start"])
-
-        return merged_segments
 
     def final_processing_before_returning(
         self,
