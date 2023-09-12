@@ -19,7 +19,7 @@
 # and limitations under the License.
 """Transcribe Service for audio files."""
 
-from typing import List, NamedTuple, Optional, Tuple, Union
+from typing import Iterable, List, NamedTuple, Optional, Tuple, Union
 
 import torch
 from faster_whisper import WhisperModel
@@ -242,6 +242,54 @@ class TranscribeService:
                 )
 
         return outputs
+
+    async def async_live_transcribe(
+        self,
+        audio: torch.Tensor,
+        source_lang: str,
+        model_index: int,
+    ) -> Iterable[dict]:
+        """Async generator for live transcriptions.
+
+        This method wraps the live_transcribe method to make it async.
+
+        Args:
+            audio (torch.Tensor): Audio tensor.
+            source_lang (str): Language of the audio file.
+            model_index (int): Index of the model to use.
+
+        Yields:
+            Iterable[dict]: Iterable of transcribed segments.
+        """
+        for result in self.live_transcribe(audio, source_lang, model_index):
+            yield result
+
+    def live_transcribe(
+        self,
+        audio: torch.Tensor,
+        source_lang: str,
+        model_index: int,
+    ) -> Iterable[dict]:
+        """
+        Transcribe audio from a WebSocket connection.
+
+        Args:
+            audio (torch.Tensor): Audio tensor.
+            source_lang (str): Language of the audio file.
+            model_index (int): Index of the model to use.
+
+        Yields:
+            Iterable[dict]: Iterable of transcribed segments.
+        """
+        segments, _ = self.model.transcribe(
+            audio.numpy(),
+            language=source_lang,
+            suppress_blank=True,
+            word_timestamps=False,
+        )
+
+        for segment in segments:
+            yield segment._asdict()
 
     def dual_channel(
         self,

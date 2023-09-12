@@ -63,9 +63,9 @@ async def websocket_endpoint(source_lang: str, websocket: WebSocket) -> None:
         while True:
             data = await websocket.receive_bytes()
 
-            result = await asr.process_input(data=data, source_lang=source_lang)
-
-            await websocket.send_text(result)
+            async for result in asr.process_input(data=data, source_lang=source_lang):
+                await websocket.send_json(result)
+                del result
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

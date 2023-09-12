@@ -509,7 +509,9 @@ def read_audio(
         )
     elif isinstance(audio, bytes):
         with io.BytesIO(audio) as buffer:
-            wav, sr = sf.read(buffer)
+            wav, sr = sf.read(
+                buffer, format="RAW", channels=1, samplerate=16000, subtype="PCM_16"
+            )
         wav = torch.from_numpy(wav).unsqueeze(0)
 
     if wav.size(0) > 1:
