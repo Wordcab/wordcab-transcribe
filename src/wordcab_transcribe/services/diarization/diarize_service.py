@@ -80,9 +80,7 @@ class DiarizeService:
         else:
             self.default_segmentation_batch_size = 256
 
-        self.default_scale_dict = {
-            k: (w, s) for k, (w, s) in enumerate(zip(window_lengths, shift_lengths))
-        }
+        self.default_scale_dict = dict(enumerate(zip(window_lengths, shift_lengths)))
 
         for idx in device_index:
             _device = f"cuda:{idx}" if self.device == "cuda" else "cpu"
@@ -127,22 +125,18 @@ class DiarizeService:
             segmentation_batch_size = self.default_segmentation_batch_size
             multiscale_weights = self.default_multiscale_weights
         elif audio_duration < 10800:
-            scale_dict = {
-                k: (w, s)
-                for k, (w, s) in enumerate(
+            scale_dict = dict(
+                enumerate(
                     zip(
                         [3.0, 2.5, 2.0, 1.5, 1.0],
                         self.default_shift_lengths,
                     )
                 )
-            }
+            )
             segmentation_batch_size = 64
             multiscale_weights = self.default_multiscale_weights
         else:
-            scale_dict = {
-                k: (w, s)
-                for k, (w, s) in enumerate(zip([3.0, 2.0, 1.0], [0.75, 0.5, 0.25]))
-            }
+            scale_dict = dict(enumerate(zip([3.0, 2.0, 1.0], [0.75, 0.5, 0.25])))
             segmentation_batch_size = 32
             multiscale_weights = [1.0, 1.0, 1.0]
 
