@@ -126,19 +126,6 @@ def test_general_parameters_validator(default_settings: dict) -> None:
         Settings(**wrong_api_prefix)
 
 
-def test_whisper_model_validator(default_settings: dict) -> None:
-    """Test whisper model validator."""
-    wrong_whisper_model = default_settings.copy()
-    wrong_whisper_model["whisper_model"] = "invalid_model_name"
-    with pytest.raises(ValueError):
-        Settings(**wrong_whisper_model)
-
-    wrong_whisper_model = default_settings.copy()
-    wrong_whisper_model["whisper_model"] = "/path/to/invalid_model"
-    with pytest.raises(ValueError):
-        Settings(**wrong_whisper_model)
-
-
 def test_compute_type_validator(default_settings: dict) -> None:
     """Test compute type validator."""
     default_settings["compute_type"] = "invalid_compute_type"

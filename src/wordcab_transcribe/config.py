@@ -20,11 +20,9 @@
 """Configuration module of the Wordcab Transcribe."""
 
 from os import getenv
-from pathlib import Path
 from typing import Dict, List
 
 from dotenv import load_dotenv
-from faster_whisper.utils import _MODELS
 from loguru import logger
 from pydantic import field_validator
 from pydantic.dataclasses import dataclass
@@ -109,21 +107,6 @@ class Settings:
             raise ValueError(
                 "`api_prefix` must not be None, please verify the `.env` file."
             )
-
-        return value
-
-    @field_validator("whisper_model")
-    def whisper_model_must_be_valid(cls, value: str):  # noqa: B902, N805
-        """Check that the model name is valid. It can be a local path or a model name."""
-        model_path = Path(value)
-
-        if model_path.exists() is False:
-            if value not in _MODELS.keys():
-                raise ValueError(
-                    f"{value} is not a valid model name. Choose one of"
-                    f" {_MODELS.keys()}.If you want to use a local model, please"
-                    " provide a valid path."
-                )
 
         return value
 
