@@ -3,7 +3,7 @@
 
 <div align="center">
 	<a  href="https://github.com/Wordcab/wordcab-transcribe/releases" target="_blank">
-		<img src="https://img.shields.io/badge/release-v0.5.0-pink" />
+		<img src="https://img.shields.io/badge/release-v0.5.1-pink" />
   </a>
 	<a  href="https://github.com/Wordcab/wordcab-transcribe/actions?workflow=Quality Checks" target="_blank">
 		<img src="https://github.com/Wordcab/wordcab-transcribe/workflows/Quality Checks/badge.svg" />
