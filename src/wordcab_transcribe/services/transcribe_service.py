@@ -25,8 +25,6 @@ import torch
 from faster_whisper import WhisperModel
 from loguru import logger
 
-from wordcab_transcribe.services.vad_service import VadService
-
 
 class FasterWhisperModel(NamedTuple):
     """Faster Whisper Model."""

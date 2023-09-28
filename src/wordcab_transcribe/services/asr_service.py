@@ -28,20 +28,23 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
 from typing import Iterable, List, Tuple, Union
-from typing_extensions import Literal
 
 import torch
 from loguru import logger
 from pydantic import BaseModel
+from typing_extensions import Annotated, Literal
 
 from wordcab_transcribe.logging import time_and_tell
 from wordcab_transcribe.models import ProcessTimes
+from wordcab_transcribe.pydantic_annotations import TorchTensorPydanticAnnotation
 from wordcab_transcribe.services.concurrency_services import GPUService, URLService
 from wordcab_transcribe.services.diarization.diarize_service import DiarizeService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
 from wordcab_transcribe.services.vad_service import VadService
 from wordcab_transcribe.utils import early_return, format_segments, read_audio
+
+PydanticTorchTensor = Annotated[torch.Tensor, TorchTensorPydanticAnnotation]
 
 
 class ExceptionSource(str, Enum):
@@ -50,6 +53,14 @@ class ExceptionSource(str, Enum):
     diarization = "diarization"
     post_processing = "post_processing"
     transcription = "transcription"
+
+
+class ProcessException(BaseModel):
+    """Process exception model."""
+
+    source: ExceptionSource
+    message: str
+
 
 class LocalExecution(BaseModel):
     """Local execution model."""
@@ -66,7 +77,7 @@ class RemoteExecution(BaseModel):
 class ASRTask(BaseModel):
     """ASR Task model."""
 
-    audio: torch.Tensor
+    audio: Union[List[PydanticTorchTensor], PydanticTorchTensor]
     diarization: "DiarizationTask"
     duration: float
     multi_channel: bool
@@ -83,15 +94,13 @@ class DiarizationTask(BaseModel):
 
     execution: Union[LocalExecution, RemoteExecution, None]
     num_speakers: int
-    result: Union[Exception, List[dict], None] = None
-    status: asyncio.Event = asyncio.Event()
+    result: Union[ProcessException, List[dict], None] = None
 
 
 class PostProcessingTask(BaseModel):
     """Post Processing Task model."""
 
-    result: Union[Exception, List[dict], None] = None
-    status: asyncio.Event = asyncio.Event()
+    result: Union[ProcessException, List[dict], None] = None
 
 
 class TranscriptionOptions(BaseModel):
@@ -112,8 +121,7 @@ class TranscriptionTask(BaseModel):
 
     execution: Union[LocalExecution, RemoteExecution]
     options: TranscriptionOptions
-    result: Union[Exception, List[dict], None] = None
-    status: asyncio.Event = asyncio.Event()
+    result: Union[ProcessException, List[dict], None] = None
 
 
 class ASRService(ABC):
@@ -399,24 +407,20 @@ class ASRAsyncService(ASRService):
         try:
             start_process_time = time.time()
 
-            asyncio.get_event_loop().run_in_executor(
+            transcription_task = asyncio.get_event_loop().run_in_executor(
                 None,
-                functools.partial(
-                    self.process_transcription, task, self.debug_mode
-                ),
+                functools.partial(self.process_transcription, task, self.debug_mode),
             )
 
-            asyncio.get_event_loop().run_in_executor(
+            diarization_task = asyncio.get_event_loop().run_in_executor(
                 None,
-                functools.partial(
-                    self.process_diarization, task, self.debug_mode
-                ),
+                functools.partial(self.process_diarization, task, self.debug_mode),
             )
 
-            await task.diarization.status.wait()
-            await task.transcription.status.wait()
+            await transcription_task
+            await diarization_task
 
-            if isinstance(task.diarization.result, Exception):
+            if isinstance(task.diarization.result, ProcessException):
                 return task.diarization.result
 
             if (
@@ -427,16 +431,14 @@ class ASRAsyncService(ASRService):
                 # Empty audio early return
                 return early_return(duration=duration)
 
-            if isinstance(task.transcription.result, Exception):
+            if isinstance(task.transcription.result, ProcessException):
                 return task.transcription.result
 
-            asyncio.get_event_loop().run_in_executor(
+            await asyncio.get_event_loop().run_in_executor(
                 None, functools.partial(self.process_post_processing, task)
             )
 
-            await task.post_processing.status.wait()
-
-            if isinstance(task.post_processing.result, Exception):
+            if isinstance(task.post_processing.result, ProcessException):
                 return task.post_processing.result
 
             task.process_times.total = time.time() - start_process_time
@@ -480,8 +482,9 @@ class ASRAsyncService(ASRService):
                 raise NotImplementedError("Remote execution is not implemented yet.")
 
         except Exception as e:
-            result = Exception(
-                f"Error in transcription: {e}\n{traceback.format_exc()}"
+            result = ProcessException(
+                source=ExceptionSource.transcription,
+                message=f"Error in transcription: {e}\n{traceback.format_exc()}",
             )
             process_time = None
 
@@ -520,7 +523,10 @@ class ASRAsyncService(ASRService):
                 raise NotImplementedError("Remote execution is not implemented yet.")
 
         except Exception as e:
-            result = Exception(f"Error in diarization: {e}\n{traceback.format_exc()}")
+            result = ProcessException(
+                source=ExceptionSource.diarization,
+                message=f"Error in diarization: {e}\n{traceback.format_exc()}",
+            )
             process_time = None
 
         finally:
@@ -598,8 +604,9 @@ class ASRAsyncService(ASRService):
             total_post_process_time += process_time
 
         except Exception as e:
-            final_utterances = Exception(
-                f"Error in post-processing: {e}\n{traceback.format_exc()}"
+            final_utterances = ProcessException(
+                source=ExceptionSource.post_processing,
+                message=f"Error in post-processing: {e}\n{traceback.format_exc()}",
             )
             total_post_process_time = None
 
