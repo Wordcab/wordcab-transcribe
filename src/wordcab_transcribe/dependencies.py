@@ -52,6 +52,8 @@ elif settings.asr_type == "async":
         multiscale_weights=settings.multiscale_weights,
         extra_languages=settings.extra_languages,
         extra_languages_model_paths=settings.extra_languages_model_paths,
+        transcribe_server_urls=settings.transcribe_server_urls,
+        diarize_server_urls=settings.diarize_server_urls,
         debug_mode=settings.debug,
     )
 elif settings.asr_type == "only_transcription":
