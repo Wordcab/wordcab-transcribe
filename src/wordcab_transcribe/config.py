@@ -20,7 +20,7 @@
 """Configuration module of the Wordcab Transcribe."""
 
 from os import getenv
-from typing import Dict, List
+from typing import Dict, List, Union
 
 from dotenv import load_dotenv
 from loguru import logger
@@ -44,8 +44,8 @@ class Settings:
     # Whisper
     whisper_model: str
     compute_type: str
-    extra_languages: List[str]
-    extra_languages_model_paths: Dict[str, str]
+    extra_languages: Union[List[str], None]
+    extra_languages_model_paths: Union[Dict[str, str], None]
     # Diarization
     window_lengths: List[float]
     shift_lengths: List[float]
@@ -213,28 +213,33 @@ load_dotenv()
 # Extra languages
 _extra_languages = getenv("EXTRA_LANGUAGES", None)
 if _extra_languages is not None and _extra_languages != "":
-    extra_languages = _extra_languages.split(",")
+    extra_languages = [lang.strip() for lang in _extra_languages.split(",")]
 else:
-    extra_languages = []
+    extra_languages = None
+
+extra_languages_model_paths = (
+    {lang: "" for lang in extra_languages} if extra_languages is not None else None
+)
 
 # Diarization scales
 _window_lengths = getenv("WINDOW_LENGTHS", None)
 if _window_lengths is not None:
-    window_lengths = [float(x) for x in _window_lengths.split(",")]
+    window_lengths = [float(x.strip()) for x in _window_lengths.split(",")]
 else:
     window_lengths = [1.5, 1.25, 1.0, 0.75, 0.5]
 
 _shift_lengths = getenv("SHIFT_LENGTHS", None)
 if _shift_lengths is not None:
-    shift_lengths = [float(x) for x in _shift_lengths.split(",")]
+    shift_lengths = [float(x.strip()) for x in _shift_lengths.split(",")]
 else:
     shift_lengths = [0.75, 0.625, 0.5, 0.375, 0.25]
 
 _multiscale_weights = getenv("MULTISCALE_WEIGHTS", None)
 if _multiscale_weights is not None:
-    multiscale_weights = [float(x) for x in _multiscale_weights.split(",")]
+    multiscale_weights = [float(x.strip()) for x in _multiscale_weights.split(",")]
 else:
     multiscale_weights = [1.0, 1.0, 1.0, 1.0, 1.0]
+
 
 settings = Settings(
     # General configuration
@@ -252,7 +257,7 @@ settings = Settings(
     whisper_model=getenv("WHISPER_MODEL", "large-v2"),
     compute_type=getenv("COMPUTE_TYPE", "float16"),
     extra_languages=extra_languages,
-    extra_languages_model_paths={lang: "" for lang in extra_languages},
+    extra_languages_model_paths=extra_languages_model_paths,
     # Diarization
     window_lengths=window_lengths,
     shift_lengths=shift_lengths,

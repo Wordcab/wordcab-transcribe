@@ -99,14 +99,28 @@ class ASRAsyncService(ASRService):
         Initialize the ASRAsyncService class.
 
         Args:
-            whisper_model (str): The path to the whisper model.
-            compute_type (str): The compute type to use for inference.
-            window_lengths (List[int]): The window lengths to use for diarization.
-            shift_lengths (List[int]): The shift lengths to use for diarization.
-            multiscale_weights (List[float]): The multiscale weights to use for diarization.
-            extra_languages (List[str]): The list of extra languages to support.
-            extra_languages_model_paths (List[str]): The list of paths to the extra language models.
-            debug_mode (bool): Whether to run in debug mode.
+            whisper_model (str):
+                The path to the whisper model.
+            compute_type (str):
+                The compute type to use for inference.
+            window_lengths (List[int]):
+                The window lengths to use for diarization.
+            shift_lengths (List[int]):
+                The shift lengths to use for diarization.
+            multiscale_weights (List[float]):
+                The multiscale weights to use for diarization.
+            extra_languages (List[str]):
+                The list of extra languages to support.
+            extra_languages_model_paths (List[str]):
+                The list of paths to the extra language models.
+            use_remote_servers (bool):
+                Whether to use remote servers for transcription and diarization.
+            transcribe_server_urls (Union[List[str], None]):
+                The list of URLs to the remote transcription servers.
+            diarize_server_urls (Union[List[str], None]):
+                The list of URLs to the remote diarization servers.
+            debug_mode (bool):
+                Whether to run in debug mode.
         """
         super().__init__()
 
