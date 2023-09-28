@@ -44,14 +44,14 @@ router = APIRouter()
 )
 async def inference_with_audio(  # noqa: C901
     background_tasks: BackgroundTasks,
-    offset_start: float = Form(None),  # noqa: B008
-    offset_end: float = Form(None),  # noqa: B008
+    offset_start: Union[float, None] = Form(None),  # noqa: B008
+    offset_end: Union[float, None] = Form(None),  # noqa: B008
     num_speakers: int = Form(-1),  # noqa: B008
     diarization: bool = Form(False),  # noqa: B008
     multi_channel: bool = Form(False),  # noqa: B008
     source_lang: str = Form("en"),  # noqa: B008
     timestamps: str = Form("s"),  # noqa: B008
-    vocab: List[str] = Form([]),  # noqa: B008
+    vocab: Union[List[str], None] = Form(None),  # noqa: B008
     word_timestamps: bool = Form(False),  # noqa: B008
     internal_vad: bool = Form(False),  # noqa: B008
     repetition_penalty: float = Form(1.2),  # noqa: B008

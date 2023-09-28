@@ -54,6 +54,10 @@ elif settings.asr_type == "async":
         extra_languages_model_paths=settings.extra_languages_model_paths,
         debug_mode=settings.debug,
     )
+elif settings.asr_type == "only_transcription":
+    asr = None
+elif settings.asr_type == "only_diarization":
+    asr = None
 else:
     raise ValueError(f"Invalid ASR type: {settings.asr_type}")
 
@@ -69,14 +73,22 @@ async def lifespan(app: FastAPI) -> None:
             " https://github.com/Wordcab/wordcab-transcribe/issues"
         )
 
-    if check_ffmpeg() is False:
+    if (
+        settings.asr_type == "async"
+        or settings.asr_type == "remote_transcribe"
+        and check_ffmpeg() is False
+    ):
         logger.warning(
             "FFmpeg is not installed on the host machine.\n"
             "Please install it and try again: `sudo apt-get install ffmpeg`"
         )
         exit(1)
 
-    if settings.extra_languages:
+    if (
+        settings.asr_type == "async"
+        or settings.asr_type == "remote_transcribe"
+        and settings.extra_languages
+    ):
         logger.info("Downloading models for extra languages...")
         for model in settings.extra_languages:
             try:

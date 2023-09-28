@@ -26,6 +26,7 @@ from dotenv import load_dotenv
 from loguru import logger
 from pydantic import field_validator
 from pydantic.dataclasses import dataclass
+from typing_extensions import Literal
 
 from wordcab_transcribe import __version__
 
@@ -51,7 +52,7 @@ class Settings:
     shift_lengths: List[float]
     multiscale_weights: List[float]
     # ASR type configuration
-    asr_type: str
+    asr_type: Literal["async", "live", "only_transcription", "only_diarization"]
     # Endpoints configuration
     audio_file_endpoint: bool
     audio_url_endpoint: bool
@@ -69,6 +70,9 @@ class Settings:
     # Svix configuration
     svix_api_key: str
     svix_app_id: str
+    # Remote servers configuration
+    transcribe_server_urls: Union[List[str], None]
+    diarize_server_urls: Union[List[str], None]
 
     @field_validator("project_name")
     def project_name_must_not_be_none(cls, value: str):  # noqa: B902, N805
@@ -240,6 +244,18 @@ if _multiscale_weights is not None:
 else:
     multiscale_weights = [1.0, 1.0, 1.0, 1.0, 1.0]
 
+# Multi-servers configuration
+_transcribe_server_urls = getenv("TRANSCRIBE_SERVER_URLS", None)
+if _transcribe_server_urls is not None and _transcribe_server_urls != "":
+    transcribe_server_urls = [url.strip() for url in _transcribe_server_urls.split(",")]
+else:
+    transcribe_server_urls = None
+
+_diarize_server_urls = getenv("DIARIZE_SERVER_URLS", None)
+if _diarize_server_urls is not None and _diarize_server_urls != "":
+    diarize_server_urls = [url.strip() for url in _diarize_server_urls.split(",")]
+else:
+    diarize_server_urls = None
 
 settings = Settings(
     # General configuration
@@ -281,4 +297,7 @@ settings = Settings(
     # Svix configuration
     svix_api_key=getenv("SVIX_API_KEY", ""),
     svix_app_id=getenv("SVIX_APP_ID", ""),
+    # Remote servers configuration
+    transcribe_server_urls=transcribe_server_urls,
+    diarize_server_urls=diarize_server_urls,
 )
