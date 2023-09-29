@@ -28,10 +28,10 @@ from pydantic import BaseModel, field_validator
 class ProcessTimes(BaseModel):
     """The execution times of the different processes."""
 
-    total: float
-    transcription: float
-    diarization: Union[float, None]
-    post_processing: float
+    total: Union[float, None] = None
+    transcription: Union[float, None] = None
+    diarization: Union[float, None] = None
+    post_processing: Union[float, None] = None
 
 
 class Timestamps(str, Enum):
@@ -72,7 +72,7 @@ class BaseResponse(BaseModel):
     diarization: bool
     source_lang: str
     timestamps: str
-    vocab: List[str]
+    vocab: Union[List[str], None]
     word_timestamps: bool
     internal_vad: bool
     repetition_penalty: float
@@ -219,7 +219,7 @@ class CortexPayload(BaseModel):
     multi_channel: Optional[bool] = False
     source_lang: Optional[str] = "en"
     timestamps: Optional[Timestamps] = Timestamps.seconds
-    vocab: Optional[List[str]] = []
+    vocab: Union[List[str], None] = None
     word_timestamps: Optional[bool] = False
     internal_vad: Optional[bool] = False
     repetition_penalty: Optional[float] = 1.2
@@ -386,7 +386,7 @@ class BaseRequest(BaseModel):
     diarization: bool = False
     source_lang: str = "en"
     timestamps: Timestamps = Timestamps.seconds
-    vocab: List[str] = []
+    vocab: Union[List[str], None] = None
     word_timestamps: bool = False
     internal_vad: bool = False
     repetition_penalty: float = 1.2
@@ -397,10 +397,12 @@ class BaseRequest(BaseModel):
 
     @field_validator("vocab")
     def validate_each_vocab_value(
-        cls, value: List[str]  # noqa: B902, N805
+        cls, value: Union[List[str], None]  # noqa: B902, N805
     ) -> List[str]:
         """Validate the value of each vocab field."""
-        if not all(isinstance(v, str) for v in value):
+        if value == []:
+            return None
+        elif value is not None and not all(isinstance(v, str) for v in value):
             raise ValueError("`vocab` must be a list of strings.")
 
         return value
@@ -478,6 +480,14 @@ class PongResponse(BaseModel):
                 "message": "pong",
             },
         }
+
+
+class DiarizeResponse(BaseModel):
+    """Response model for the diarize endpoint."""
+
+
+class TranscribeResponse(BaseModel):
+    """Response model for the transcribe endpoint."""
 
 
 class Token(BaseModel):

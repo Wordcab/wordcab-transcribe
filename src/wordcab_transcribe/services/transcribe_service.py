@@ -25,8 +25,6 @@ import torch
 from faster_whisper import WhisperModel
 from loguru import logger
 
-from wordcab_transcribe.services.vad_service import VadService
-
 
 class FasterWhisperModel(NamedTuple):
     """Faster Whisper Model."""
@@ -93,7 +91,6 @@ class TranscribeService:
         log_prob_threshold: float = -1.0,
         no_speech_threshold: float = 0.6,
         condition_on_previous_text: bool = True,
-        vad_service: Union[VadService, None] = None,
     ) -> Union[List[dict], List[List[dict]]]:
         """
         Run inference with the transcribe model.
@@ -127,8 +124,6 @@ class TranscribeService:
                 If True, the previous output of the model is provided as a prompt for the next window;
                 disabling may make the text inconsistent across windows, but the model becomes less prone
                 to getting stuck in a failure loop, such as repetition looping or timestamps going out of sync.
-            vad_service (Union[VadService, None]):
-                VADService to use for voice activity detection in the multi_channel case. Defaults to None.
 
         Returns:
             Union[List[dict], List[List[dict]]]: List of transcriptions. If the task is a multi_channel task,

@@ -25,19 +25,103 @@ import os
 import time
 import traceback
 from abc import ABC, abstractmethod
+from enum import Enum
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple, Union
+from typing import Iterable, List, Tuple, Union
 
 import torch
 from loguru import logger
+from pydantic import BaseModel
+from typing_extensions import Annotated
 
 from wordcab_transcribe.logging import time_and_tell
+from wordcab_transcribe.models import ProcessTimes, Timestamps
+from wordcab_transcribe.pydantic_annotations import TorchTensorPydanticAnnotation
+from wordcab_transcribe.services.concurrency_services import GPUService, URLService
 from wordcab_transcribe.services.diarization.diarize_service import DiarizeService
-from wordcab_transcribe.services.gpu_service import GPUService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
 from wordcab_transcribe.services.vad_service import VadService
 from wordcab_transcribe.utils import early_return, format_segments, read_audio
+
+PydanticTorchTensor = Annotated[torch.Tensor, TorchTensorPydanticAnnotation]
+
+
+class ExceptionSource(str, Enum):
+    """Exception source enum."""
+
+    diarization = "diarization"
+    post_processing = "post_processing"
+    transcription = "transcription"
+
+
+class ProcessException(BaseModel):
+    """Process exception model."""
+
+    source: ExceptionSource
+    message: str
+
+
+class LocalExecution(BaseModel):
+    """Local execution model."""
+
+    index: Union[int, None]
+
+
+class RemoteExecution(BaseModel):
+    """Remote execution model."""
+
+    url: str
+
+
+class ASRTask(BaseModel):
+    """ASR Task model."""
+
+    audio: Union[List[PydanticTorchTensor], PydanticTorchTensor]
+    diarization: "DiarizationTask"
+    duration: float
+    multi_channel: bool
+    offset_start: Union[float, None]
+    post_processing: "PostProcessingTask"
+    process_times: ProcessTimes
+    timestamps_format: Timestamps
+    transcription: "TranscriptionTask"
+    word_timestamps: bool
+
+
+class DiarizationTask(BaseModel):
+    """Diarization Task model."""
+
+    execution: Union[LocalExecution, RemoteExecution, None]
+    num_speakers: int
+    result: Union[ProcessException, List[dict], None] = None
+
+
+class PostProcessingTask(BaseModel):
+    """Post Processing Task model."""
+
+    result: Union[ProcessException, List[dict], None] = None
+
+
+class TranscriptionOptions(BaseModel):
+    """Transcription options model."""
+
+    compression_ratio_threshold: float
+    condition_on_previous_text: bool
+    internal_vad: bool
+    log_prob_threshold: float
+    no_speech_threshold: float
+    repetition_penalty: float
+    source_lang: str
+    vocab: Union[List[str], None]
+
+
+class TranscriptionTask(BaseModel):
+    """Transcription Task model."""
+
+    execution: Union[LocalExecution, RemoteExecution]
+    options: TranscriptionOptions
+    result: Union[ProcessException, List[dict], None] = None
 
 
 class ASRService(ABC):
@@ -54,17 +138,6 @@ class ASRService(ABC):
         self.num_gpus = torch.cuda.device_count() if self.device == "cuda" else 0
         logger.info(f"NVIDIA GPUs available: {self.num_gpus}")
         self.num_cpus = os.cpu_count()
-
-        self.sample_rate = (
-            16000  # The sample rate to use for inference for all audio files (Hz)
-        )
-
-        self.queues = None  # the queue to store requests
-        self.queue_locks = None  # the locks to access the queues
-        self.needs_processing = (
-            None  # the flag to indicate if the queue needs processing
-        )
-        self.needs_processing_timer = None  # the timer to schedule processing
 
         if self.num_gpus > 1 and self.device == "cuda":
             self.device_index = list(range(self.num_gpus))
@@ -93,20 +166,36 @@ class ASRAsyncService(ASRService):
         multiscale_weights: List[float],
         extra_languages: List[str],
         extra_languages_model_paths: List[str],
+        transcribe_server_urls: Union[List[str], None],
+        diarize_server_urls: Union[List[str], None],
         debug_mode: bool,
     ) -> None:
         """
         Initialize the ASRAsyncService class.
 
         Args:
-            whisper_model (str): The path to the whisper model.
-            compute_type (str): The compute type to use for inference.
-            window_lengths (List[int]): The window lengths to use for diarization.
-            shift_lengths (List[int]): The shift lengths to use for diarization.
-            multiscale_weights (List[float]): The multiscale weights to use for diarization.
-            extra_languages (List[str]): The list of extra languages to support.
-            extra_languages_model_paths (List[str]): The list of paths to the extra language models.
-            debug_mode (bool): Whether to run in debug mode.
+            whisper_model (str):
+                The path to the whisper model.
+            compute_type (str):
+                The compute type to use for inference.
+            window_lengths (List[int]):
+                The window lengths to use for diarization.
+            shift_lengths (List[int]):
+                The shift lengths to use for diarization.
+            multiscale_weights (List[float]):
+                The multiscale weights to use for diarization.
+            extra_languages (List[str]):
+                The list of extra languages to support.
+            extra_languages_model_paths (List[str]):
+                The list of paths to the extra language models.
+            use_remote_servers (bool):
+                Whether to use remote servers for transcription and diarization.
+            transcribe_server_urls (Union[List[str], None]):
+                The list of URLs to the remote transcription servers.
+            diarize_server_urls (Union[List[str], None]):
+                The list of URLs to the remote diarization servers.
+            debug_mode (bool):
+                Whether to run in debug mode.
         """
         super().__init__()
 
@@ -138,6 +227,20 @@ class ASRAsyncService(ASRService):
             "temperature": 0.0,
         }
 
+        if transcribe_server_urls is not None:
+            self.use_remote_transcription = True
+            self.transcription_url_handler = URLService(
+                remote_urls=transcribe_server_urls
+            )
+        else:
+            self.use_remote_transcription = False
+
+        if diarize_server_urls is not None:
+            self.use_remote_diarization = True
+            self.diarization_url_handler = URLService(remote_urls=diarize_server_urls)
+        else:
+            self.use_remote_diarization = False
+
         self.debug_mode = debug_mode
 
     async def inference_warmup(self) -> None:
@@ -155,7 +258,7 @@ class ASRAsyncService(ASRService):
                 multi_channel=False,
                 source_lang="en",
                 timestamps_format="s",
-                vocab=[],
+                vocab=None,
                 word_timestamps=False,
                 internal_vad=False,
                 repetition_penalty=1.0,
@@ -175,7 +278,7 @@ class ASRAsyncService(ASRService):
         multi_channel: bool,
         source_lang: str,
         timestamps_format: str,
-        vocab: List[str],
+        vocab: Union[List[str], None],
         word_timestamps: bool,
         internal_vad: bool,
         repetition_penalty: float,
@@ -183,7 +286,7 @@ class ASRAsyncService(ASRService):
         log_prob_threshold: float,
         no_speech_threshold: float,
         condition_on_previous_text: bool,
-    ) -> Union[Tuple[List[dict], Dict[str, float], float], Exception]:
+    ) -> Union[Tuple[List[dict], ProcessTimes, float], Exception]:
         """Process the input request and return the results.
 
         This method will create a task and add it to the appropriate queues.
@@ -209,7 +312,7 @@ class ASRAsyncService(ASRService):
                 Source language of the audio file.
             timestamps_format (str):
                 Timestamps format to use.
-            vocab (List[str]):
+            vocab (Union[List[str], None]):
                 List of words to use for the vocabulary.
             word_timestamps (bool):
                 Whether to return word timestamps or not.
@@ -230,11 +333,11 @@ class ASRAsyncService(ASRService):
                 to getting stuck in a failure loop, such as repetition looping or timestamps going out of sync.
 
         Returns:
-            Union[Tuple[List[dict], Dict[str, float], float], Exception]:
+            Union[Tuple[List[dict], ProcessTimes, float], Exception]:
                 The results of the ASR pipeline or an exception if something went wrong.
                 Results are returned as a tuple of the following:
                     * List[dict]: The final results of the ASR pipeline.
-                    * Dict[str, float]: the process times for each step.
+                    * ProcessTimes: The process times of each step of the ASR pipeline.
                     * float: The audio duration
         """
         if isinstance(filepath, list):
@@ -254,213 +357,205 @@ class ASRAsyncService(ASRService):
                 filepath, offset_start=offset_start, offset_end=offset_end
             )
 
-        task = {
-            "input": audio,
-            "offset_start": offset_start,
-            "duration": duration,
-            "num_speakers": num_speakers,
-            "diarization": diarization,
-            "multi_channel": multi_channel,
-            "source_lang": source_lang,
-            "timestamps_format": timestamps_format,
-            "vocab": vocab,
-            "word_timestamps": word_timestamps,
-            "internal_vad": internal_vad,
-            "repetition_penalty": repetition_penalty,
-            "compression_ratio_threshold": compression_ratio_threshold,
-            "log_prob_threshold": log_prob_threshold,
-            "no_speech_threshold": no_speech_threshold,
-            "condition_on_previous_text": condition_on_previous_text,
-            "transcription_result": None,
-            "transcription_done": asyncio.Event(),
-            "diarization_result": None,
-            "diarization_done": asyncio.Event(),
-            "post_processing_result": None,
-            "post_processing_done": asyncio.Event(),
-            "process_times": {},
-        }
+        gpu_index = None
+        if self.use_remote_transcription:
+            _url = await self.transcription_url_handler.next_url()
+            transcription_execution = RemoteExecution(url=_url)
+        else:
+            gpu_index = await self.gpu_handler.get_device()
+            transcription_execution = LocalExecution(index=gpu_index)
 
-        gpu_index = -1  # Placeholder to track if GPU is acquired
+        if diarization and multi_channel is False:
+            if self.use_remote_diarization:
+                _url = await self.diarization_url_handler.next_url()
+                diarization_execution = RemoteExecution(url=_url)
+            else:
+                if gpu_index is None:
+                    gpu_index = await self.gpu_handler.get_device()
+
+                diarization_execution = LocalExecution(index=gpu_index)
+        else:
+            diarization_execution = None
+
+        task = ASRTask(
+            audio=audio,
+            diarization=DiarizationTask(
+                execution=diarization_execution, num_speakers=num_speakers
+            ),
+            duration=duration,
+            multi_channel=multi_channel,
+            offset_start=offset_start,
+            post_processing=PostProcessingTask(),
+            process_times=ProcessTimes(),
+            timestamps_format=timestamps_format,
+            transcription=TranscriptionTask(
+                execution=transcription_execution,
+                options=TranscriptionOptions(
+                    compression_ratio_threshold=compression_ratio_threshold,
+                    condition_on_previous_text=condition_on_previous_text,
+                    internal_vad=internal_vad,
+                    log_prob_threshold=log_prob_threshold,
+                    no_speech_threshold=no_speech_threshold,
+                    repetition_penalty=repetition_penalty,
+                    source_lang=source_lang,
+                    vocab=vocab,
+                ),
+            ),
+            word_timestamps=word_timestamps,
+        )
 
         try:
-            # If GPU is required, acquire one
-            if self.device == "cuda":
-                gpu_index = await self.gpu_handler.get_device()
-                logger.info(f"Using GPU {gpu_index} for the task")
-
             start_process_time = time.time()
 
-            asyncio.get_event_loop().run_in_executor(
+            transcription_task = asyncio.get_event_loop().run_in_executor(
                 None,
-                functools.partial(
-                    self.process_transcription, task, gpu_index, self.debug_mode
-                ),
+                functools.partial(self.process_transcription, task, self.debug_mode),
+            )
+            diarization_task = asyncio.get_event_loop().run_in_executor(
+                None,
+                functools.partial(self.process_diarization, task, self.debug_mode),
             )
 
-            if diarization and multi_channel is False:
-                asyncio.get_event_loop().run_in_executor(
-                    None,
-                    functools.partial(
-                        self.process_diarization, task, gpu_index, self.debug_mode
-                    ),
-                )
-            else:
-                task["process_times"]["diarization"] = None
-                task["diarization_done"].set()
+            await transcription_task
+            await diarization_task
 
-            await task["transcription_done"].wait()
-            await task["diarization_done"].wait()
-
-            if isinstance(task["diarization_result"], Exception):
-                self.gpu_handler.release_device(gpu_index)
-                gpu_index = -1
-                return task["diarization_result"]
+            if isinstance(task.diarization.result, ProcessException):
+                return task.diarization.result
 
             if (
                 diarization
-                and task["diarization_result"] is None
+                and task.diarization.result is None
                 and multi_channel is False
             ):
                 # Empty audio early return
                 return early_return(duration=duration)
 
-            if isinstance(task["transcription_result"], Exception):
-                self.gpu_handler.release_device(gpu_index)
-                gpu_index = -1
-                return task["transcription_result"]
+            if isinstance(task.transcription.result, ProcessException):
+                return task.transcription.result
 
-            self.gpu_handler.release_device(gpu_index)
-            gpu_index = -1
-
-            asyncio.get_event_loop().run_in_executor(
+            await asyncio.get_event_loop().run_in_executor(
                 None, functools.partial(self.process_post_processing, task)
             )
 
-            await task["post_processing_done"].wait()
+            if isinstance(task.post_processing.result, ProcessException):
+                return task.post_processing.result
 
-            if isinstance(task["post_processing_result"], Exception):
-                return task["post_processing_result"]
+            task.process_times.total = time.time() - start_process_time
 
-            result: List[dict] = task.pop("post_processing_result")
-            process_times: Dict[str, float] = task.pop("process_times")
-            process_times["total"]: float = time.time() - start_process_time
+            return task.post_processing.result, task.process_times, duration
 
-            del task  # Delete the task to free up memory
-
-            return result, process_times, duration
         except Exception as e:
             return e
+
         finally:
-            # Ensure GPU is released if it was acquired
-            if gpu_index != -1:
+            del task
+
+            if gpu_index is not None:
                 self.gpu_handler.release_device(gpu_index)
 
-    def process_transcription(
-        self, task: dict, gpu_index: int, debug_mode: bool
-    ) -> None:
+    def process_transcription(self, task: ASRTask, debug_mode: bool) -> None:
         """
         Process a task of transcription and update the task with the result.
 
         Args:
-            task (dict): The task and its parameters.
-            gpu_index (int): The GPU index to use for the transcription.
+            task (ASRTask): The task and its parameters.
             debug_mode (bool): Whether to run in debug mode or not.
 
         Returns:
             None: The task is updated with the result.
         """
         try:
-            result, process_time = time_and_tell(
-                lambda: self.services["transcription"](
-                    task["input"],
-                    source_lang=task["source_lang"],
-                    model_index=gpu_index,
-                    suppress_blank=False,
-                    vocab=None if task["vocab"] == [] else task["vocab"],
-                    word_timestamps=True,
-                    internal_vad=task["internal_vad"],
-                    repetition_penalty=task["repetition_penalty"],
-                    compression_ratio_threshold=task["compression_ratio_threshold"],
-                    log_prob_threshold=task["log_prob_threshold"],
-                    no_speech_threshold=task["no_speech_threshold"],
-                    condition_on_previous_text=task["condition_on_previous_text"],
-                    vad_service=self.services["vad"] if task["multi_channel"] else None,
-                ),
-                func_name="transcription",
-                debug_mode=debug_mode,
-            )
+            if isinstance(task.transcription.execution, LocalExecution):
+                result, process_time = time_and_tell(
+                    lambda: self.services["transcription"](
+                        task.audio,
+                        model_index=task.transcription.execution.index,
+                        suppress_blank=False,
+                        word_timestamps=True,
+                        **task.transcription.options.model_dump(),
+                    ),
+                    func_name="transcription",
+                    debug_mode=debug_mode,
+                )
+            elif isinstance(task.transcription.execution, RemoteExecution):
+                raise NotImplementedError("Remote execution is not implemented yet.")
 
         except Exception as e:
-            result = Exception(
-                f"Error in transcription gpu {gpu_index}: {e}\n{traceback.format_exc()}"
+            result = ProcessException(
+                source=ExceptionSource.transcription,
+                message=f"Error in transcription: {e}\n{traceback.format_exc()}",
             )
             process_time = None
 
         finally:
-            task["process_times"]["transcription"] = process_time
-            task["transcription_result"] = result
-            task["transcription_done"].set()
+            task.process_times.transcription = process_time
+            task.transcription.result = result
 
         return None
 
-    def process_diarization(self, task: dict, gpu_index: int, debug_mode: bool) -> None:
+    def process_diarization(self, task: ASRTask, debug_mode: bool) -> None:
         """
         Process a task of diarization.
 
         Args:
-            task (dict): The task and its parameters.
-            gpu_index (int): The GPU index to use for the diarization.
+            task (ASRTask): The task and its parameters.
             debug_mode (bool): Whether to run in debug mode or not.
 
         Returns:
             None: The task is updated with the result.
         """
         try:
-            result, process_time = time_and_tell(
-                lambda: self.services["diarization"](
-                    task["input"],
-                    audio_duration=task["duration"],
-                    oracle_num_speakers=task["num_speakers"],
-                    model_index=gpu_index,
-                    vad_service=self.services["vad"],
-                ),
-                func_name="diarization",
-                debug_mode=debug_mode,
-            )
+            if isinstance(task.diarization.execution, LocalExecution):
+                result, process_time = time_and_tell(
+                    lambda: self.services["diarization"](
+                        waveform=task.audio,
+                        audio_duration=task.duration,
+                        oracle_num_speakers=task.diarization.num_speakers,
+                        model_index=task.diarization.execution.index,
+                        vad_service=self.services["vad"],
+                    ),
+                    func_name="diarization",
+                    debug_mode=debug_mode,
+                )
+            elif isinstance(task.diarization.execution, RemoteExecution):
+                raise NotImplementedError("Remote execution is not implemented yet.")
+            elif task.diarization.execution is None:
+                result = None
+                process_time = None
 
         except Exception as e:
-            result = Exception(f"Error in diarization: {e}\n{traceback.format_exc()}")
+            result = ProcessException(
+                source=ExceptionSource.diarization,
+                message=f"Error in diarization: {e}\n{traceback.format_exc()}",
+            )
             process_time = None
 
         finally:
-            task["process_times"]["diarization"] = process_time
-            task["diarization_result"] = result
-            task["diarization_done"].set()
+            task.process_times.diarization = process_time
+            task.diarization.result = result
 
         return None
 
-    def process_post_processing(self, task: dict) -> None:
+    def process_post_processing(self, task: ASRTask) -> None:
         """
         Process a task of post-processing.
 
         Args:
-            task (dict): The task and its parameters.
+            task (ASRTask): The task and its parameters.
 
         Returns:
             None: The task is updated with the result.
         """
         try:
             total_post_process_time = 0
-            diarization = task["diarization"]
-            multi_channel = task["multi_channel"]
-            word_timestamps = task["word_timestamps"]
+            diarization = False if task.diarization.execution is None else True
 
-            if multi_channel:
+            if task.multi_channel:
                 utterances, process_time = time_and_tell(
                     lambda: self.services[
                         "post_processing"
-                    ].multi_channel_speaker_mapping(task["transcription_result"]),
-                    func_name="dual_channel_speaker_mapping",
+                    ].multi_channel_speaker_mapping(task.transcription.result),
+                    func_name="multi_channel_speaker_mapping",
                     debug_mode=self.debug_mode,
                 )
                 total_post_process_time += process_time
@@ -468,7 +563,7 @@ class ASRAsyncService(ASRService):
             else:
                 formatted_segments, process_time = time_and_tell(
                     lambda: format_segments(
-                        segments=task["transcription_result"],
+                        segments=task.transcription.result,
                         word_timestamps=True,
                     ),
                     func_name="format_segments",
@@ -482,8 +577,8 @@ class ASRAsyncService(ASRService):
                             "post_processing"
                         ].single_channel_speaker_mapping(
                             transcript_segments=formatted_segments,
-                            speaker_timestamps=task["diarization_result"],
-                            word_timestamps=word_timestamps,
+                            speaker_timestamps=task.diarization.result,
+                            word_timestamps=task.word_timestamps,
                         ),
                         func_name="single_channel_speaker_mapping",
                         debug_mode=self.debug_mode,
@@ -498,10 +593,10 @@ class ASRAsyncService(ASRService):
                 ].final_processing_before_returning(
                     utterances=utterances,
                     diarization=diarization,
-                    multi_channel=task["multi_channel"],
-                    offset_start=task["offset_start"],
-                    timestamps_format=task["timestamps_format"],
-                    word_timestamps=word_timestamps,
+                    multi_channel=task.multi_channel,
+                    offset_start=task.offset_start,
+                    timestamps_format=task.timestamps_format,
+                    word_timestamps=task.word_timestamps,
                 ),
                 func_name="final_processing_before_returning",
                 debug_mode=self.debug_mode,
@@ -509,15 +604,15 @@ class ASRAsyncService(ASRService):
             total_post_process_time += process_time
 
         except Exception as e:
-            final_utterances = Exception(
-                f"Error in post-processing: {e}\n{traceback.format_exc()}"
+            final_utterances = ProcessException(
+                source=ExceptionSource.post_processing,
+                message=f"Error in post-processing: {e}\n{traceback.format_exc()}",
             )
             total_post_process_time = None
 
         finally:
-            task["process_times"]["post_processing"] = total_post_process_time
-            task["post_processing_result"] = final_utterances
-            task["post_processing_done"].set()
+            task.process_times.post_processing = total_post_process_time
+            task.post_processing.result = final_utterances
 
         return None
 

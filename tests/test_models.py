@@ -157,7 +157,7 @@ def test_audio_request() -> None:
     assert request.multi_channel is True
     assert request.source_lang == "en"
     assert request.timestamps == "s"
-    assert request.vocab == []
+    assert request.vocab is None
     assert request.word_timestamps is False
     assert request.internal_vad is False
     assert request.repetition_penalty == 1.2
@@ -450,7 +450,7 @@ def test_cortex_payload() -> None:
     assert payload.multi_channel is False
     assert payload.source_lang == "en"
     assert payload.timestamps == "s"
-    assert payload.vocab == []
+    assert payload.vocab is None
     assert payload.word_timestamps is False
     assert payload.internal_vad is False
     assert payload.repetition_penalty == 1.2

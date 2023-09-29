@@ -28,7 +28,9 @@ from wordcab_transcribe.router.v1.audio_url_endpoint import router as audio_url_
 from wordcab_transcribe.router.v1.cortex_endpoint import (  # noqa: F401
     router as cortex_router,
 )
+from wordcab_transcribe.router.v1.diarize_endpoint import router as diarize_router
 from wordcab_transcribe.router.v1.live_endpoint import router as live_router
+from wordcab_transcribe.router.v1.transcribe_endpoint import router as transcribe_router
 from wordcab_transcribe.router.v1.youtube_endpoint import router as youtube_router
 
 api_router = APIRouter()
@@ -38,12 +40,28 @@ async_routers = (
     ("audio_url_endpoint", audio_url_router, "/audio-url", "async"),
     ("youtube_endpoint", youtube_router, "/youtube", "async"),
 )
-live_routers = (("live_endpoint", live_router, "/live", "live"),)
+live_routers = ("live_endpoint", live_router, "/live", "live")
+transcribe_routers = (
+    "transcribe_endpoint",
+    transcribe_router,
+    "/transcribe",
+    "transcription",
+)
+diarize_routers = (
+    "diariaze_endpoint",
+    diarize_router,
+    "/diarize",
+    "diarization",
+)
 
 if settings.asr_type == "async":
     routers = async_routers
 elif settings.asr_type == "live":
     routers = live_routers
+elif settings.asr_type == "only_transcription":
+    routers = transcribe_routers
+elif settings.asr_type == "only_diarization":
+    routers = diarize_routers
 else:
     raise ValueError(f"Invalid ASR type: {settings.asr_type}")
 

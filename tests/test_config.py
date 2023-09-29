@@ -77,8 +77,8 @@ def test_config() -> None:
 
     assert settings.whisper_model == "large-v2"
     assert settings.compute_type == "float16"
-    assert settings.extra_languages == []
-    assert settings.extra_languages_model_paths == {}
+    assert settings.extra_languages is None
+    assert settings.extra_languages_model_paths is None
 
     assert settings.window_lengths == [1.5, 1.25, 1.0, 0.75, 0.5]
     assert settings.shift_lengths == [0.75, 0.625, 0.5, 0.375, 0.25]

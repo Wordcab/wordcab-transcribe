@@ -20,7 +20,7 @@
 """GPU service class to handle gpu availability for models."""
 
 import asyncio
-from typing import Any, Dict, List
+from typing import List
 
 
 class GPUService:
@@ -36,9 +36,6 @@ class GPUService:
         """
         self.device: str = device
         self.device_index: List[int] = device_index
-
-        # Initialize the models dictionary that will hold the models for each GPU.
-        self.models: Dict[int, Any] = {}
 
         self.queue = asyncio.Queue(maxsize=len(self.device_index))
         for idx in self.device_index:
@@ -67,3 +64,42 @@ class GPUService:
         """
         if not any(item == device_index for item in self.queue._queue):
             self.queue.put_nowait(device_index)
+
+
+class URLService:
+    """URL service class to handle multiple remote URLs."""
+
+    def __init__(self, remote_urls: List[str]) -> None:
+        """
+        Initialize the URL service.
+
+        Args:
+            remote_urls (List[str]): List of remote URLs to use.
+        """
+        self.remote_urls: List[str] = remote_urls
+
+        # If there is only one URL, we don't need to use a queue
+        if len(self.remote_urls) == 1:
+            self.queue = None
+        else:
+            self.queue = asyncio.Queue(maxsize=len(self.remote_urls))
+            for url in self.remote_urls:
+                self.queue.put_nowait(url)
+
+    async def next_url(self) -> str:
+        """
+        We use this to iterate equally over the available URLs.
+
+        Returns:
+            str: Next available URL.
+        """
+        if self.queue is None:
+            return self.remote_urls[0]
+
+        else:
+            url = self.queue.get_nowait()
+            # Unlike GPU we don't want to block remote ASR requests.
+            # So we re-insert the URL back into the queue after getting it.
+            self.queue.put_nowait(url)
+
+            return url

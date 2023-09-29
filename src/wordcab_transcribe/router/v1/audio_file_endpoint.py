@@ -29,6 +29,7 @@ from loguru import logger
 
 from wordcab_transcribe.dependencies import asr
 from wordcab_transcribe.models import AudioRequest, AudioResponse
+from wordcab_transcribe.services.asr_service import ProcessException
 from wordcab_transcribe.utils import (
     check_num_channels,
     delete_file,
@@ -44,14 +45,14 @@ router = APIRouter()
 )
 async def inference_with_audio(  # noqa: C901
     background_tasks: BackgroundTasks,
-    offset_start: float = Form(None),  # noqa: B008
-    offset_end: float = Form(None),  # noqa: B008
+    offset_start: Union[float, None] = Form(None),  # noqa: B008
+    offset_end: Union[float, None] = Form(None),  # noqa: B008
     num_speakers: int = Form(-1),  # noqa: B008
     diarization: bool = Form(False),  # noqa: B008
     multi_channel: bool = Form(False),  # noqa: B008
     source_lang: str = Form("en"),  # noqa: B008
     timestamps: str = Form("s"),  # noqa: B008
-    vocab: List[str] = Form([]),  # noqa: B008
+    vocab: Union[List[str], None] = Form(None),  # noqa: B008
     word_timestamps: bool = Form(False),  # noqa: B008
     internal_vad: bool = Form(False),  # noqa: B008
     repetition_penalty: float = Form(1.2),  # noqa: B008
@@ -131,11 +132,11 @@ async def inference_with_audio(  # noqa: C901
 
     background_tasks.add_task(delete_file, filepath=filepath)
 
-    if isinstance(result, Exception):
-        logger.error(f"Error: {result}")
+    if isinstance(result, ProcessException):
+        logger.error(result.message)
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(result),
+            detail=str(result.message),
         )
     else:
         utterances, process_times, audio_duration = result

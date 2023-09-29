@@ -52,8 +52,14 @@ elif settings.asr_type == "async":
         multiscale_weights=settings.multiscale_weights,
         extra_languages=settings.extra_languages,
         extra_languages_model_paths=settings.extra_languages_model_paths,
+        transcribe_server_urls=settings.transcribe_server_urls,
+        diarize_server_urls=settings.diarize_server_urls,
         debug_mode=settings.debug,
     )
+elif settings.asr_type == "only_transcription":
+    asr = None
+elif settings.asr_type == "only_diarization":
+    asr = None
 else:
     raise ValueError(f"Invalid ASR type: {settings.asr_type}")
 
@@ -69,28 +75,29 @@ async def lifespan(app: FastAPI) -> None:
             " https://github.com/Wordcab/wordcab-transcribe/issues"
         )
 
-    if check_ffmpeg() is False:
-        logger.warning(
-            "FFmpeg is not installed on the host machine.\n"
-            "Please install it and try again: `sudo apt-get install ffmpeg`"
-        )
-        exit(1)
+    if settings.asr_type == "async" or settings.asr_type == "remote_transcribe":
+        if check_ffmpeg() is False:
+            logger.warning(
+                "FFmpeg is not installed on the host machine.\n"
+                "Please install it and try again: `sudo apt-get install ffmpeg`"
+            )
+            exit(1)
 
-    if settings.extra_languages:
-        logger.info("Downloading models for extra languages...")
-        for model in settings.extra_languages:
-            try:
-                model_path = download_model(
-                    compute_type=settings.compute_type, language=model
-                )
+        if settings.extra_languages is not None:
+            logger.info("Downloading models for extra languages...")
+            for model in settings.extra_languages:
+                try:
+                    model_path = download_model(
+                        compute_type=settings.compute_type, language=model
+                    )
 
-                if model_path is not None:
-                    settings.extra_languages_model_paths[model] = model_path
-                else:
-                    raise Exception(f"Coudn't download model for {model}")
+                    if model_path is not None:
+                        settings.extra_languages_model_paths[model] = model_path
+                    else:
+                        raise Exception(f"Coudn't download model for {model}")
 
-            except Exception as e:
-                logger.error(f"Error downloading model for {model}: {e}")
+                except Exception as e:
+                    logger.error(f"Error downloading model for {model}: {e}")
 
     logger.info("Warmup initialization...")
     await asr.inference_warmup()

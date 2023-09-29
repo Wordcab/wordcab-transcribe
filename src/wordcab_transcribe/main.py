@@ -55,7 +55,7 @@ if settings.debug is False:
 else:
     app.include_router(api_router, prefix=settings.api_prefix)
 
-if settings.cortex_endpoint:
+if settings.cortex_endpoint and settings.asr_type == "async":
     app.include_router(cortex_router, tags=["cortex"])
 
 
