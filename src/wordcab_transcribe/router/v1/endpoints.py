@@ -28,7 +28,7 @@ from wordcab_transcribe.router.v1.audio_url_endpoint import router as audio_url_
 from wordcab_transcribe.router.v1.cortex_endpoint import (  # noqa: F401
     router as cortex_router,
 )
-from wordcab_transcribe.router.v1.endpoints import router as diarize_router
+from wordcab_transcribe.router.v1.diarize_endpoint import router as diarize_router
 from wordcab_transcribe.router.v1.live_endpoint import router as live_router
 from wordcab_transcribe.router.v1.transcribe_endpoint import router as transcribe_router
 from wordcab_transcribe.router.v1.youtube_endpoint import router as youtube_router

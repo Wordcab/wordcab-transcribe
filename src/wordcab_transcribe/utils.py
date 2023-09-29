@@ -38,6 +38,8 @@ from yt_dlp import YoutubeDL
 if TYPE_CHECKING:
     from fastapi import UploadFile
 
+from wordcab_transcribe.models import Timestamps
+
 
 # pragma: no cover
 async def async_run_subprocess(command: List[str]) -> tuple:
@@ -120,14 +122,14 @@ async def check_num_channels(filepath: Union[str, Path]) -> int:
 
 
 def convert_timestamp(
-    timestamp: float, target: str, round_digits: Optional[int] = 3
+    timestamp: float, target: Timestamps, round_digits: Optional[int] = 3
 ) -> Union[str, float]:
     """
     Use the right function to convert the timestamp.
 
     Args:
         timestamp (float): Timestamp to convert.
-        target (str): Timestamp to convert.
+        target (Timestamps): Target timestamp format.
         round_digits (int, optional): Number of digits to round the timestamp. Defaults to 3.
 
     Returns:
@@ -136,11 +138,11 @@ def convert_timestamp(
     Raises:
         ValueError: If the target is invalid. Valid targets are: ms, hms, s.
     """
-    if target == "ms":
+    if target == Timestamps.milliseconds:
         return round(_convert_s_to_ms(timestamp), round_digits)
-    elif target == "hms":
+    elif target == Timestamps.hour_minute_second:
         return _convert_s_to_hms(timestamp)
-    elif target == "s":
+    elif target == Timestamps.seconds:
         return round(timestamp, round_digits)
     else:
         raise ValueError(

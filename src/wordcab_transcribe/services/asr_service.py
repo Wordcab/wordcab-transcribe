@@ -32,10 +32,10 @@ from typing import Iterable, List, Tuple, Union
 import torch
 from loguru import logger
 from pydantic import BaseModel
-from typing_extensions import Annotated, Literal
+from typing_extensions import Annotated
 
 from wordcab_transcribe.logging import time_and_tell
-from wordcab_transcribe.models import ProcessTimes
+from wordcab_transcribe.models import ProcessTimes, Timestamps
 from wordcab_transcribe.pydantic_annotations import TorchTensorPydanticAnnotation
 from wordcab_transcribe.services.concurrency_services import GPUService, URLService
 from wordcab_transcribe.services.diarization.diarize_service import DiarizeService
@@ -84,7 +84,7 @@ class ASRTask(BaseModel):
     offset_start: Union[float, None]
     post_processing: "PostProcessingTask"
     process_times: ProcessTimes
-    timestamps_format: Literal["hms", "ms", "s"]
+    timestamps_format: Timestamps
     transcription: "TranscriptionTask"
     word_timestamps: bool
 
@@ -411,7 +411,6 @@ class ASRAsyncService(ASRService):
                 None,
                 functools.partial(self.process_transcription, task, self.debug_mode),
             )
-
             diarization_task = asyncio.get_event_loop().run_in_executor(
                 None,
                 functools.partial(self.process_diarization, task, self.debug_mode),
@@ -466,7 +465,7 @@ class ASRAsyncService(ASRService):
             None: The task is updated with the result.
         """
         try:
-            if isinstance(task.execution, LocalExecution):
+            if isinstance(task.transcription.execution, LocalExecution):
                 result, process_time = time_and_tell(
                     lambda: self.services["transcription"](
                         task.audio,
@@ -478,7 +477,7 @@ class ASRAsyncService(ASRService):
                     func_name="transcription",
                     debug_mode=debug_mode,
                 )
-            elif isinstance(task.execution, RemoteExecution):
+            elif isinstance(task.transcription.execution, RemoteExecution):
                 raise NotImplementedError("Remote execution is not implemented yet.")
 
         except Exception as e:
@@ -491,7 +490,6 @@ class ASRAsyncService(ASRService):
         finally:
             task.process_times.transcription = process_time
             task.transcription.result = result
-            task.transcription.status.set()
 
         return None
 
@@ -507,20 +505,23 @@ class ASRAsyncService(ASRService):
             None: The task is updated with the result.
         """
         try:
-            if isinstance(task.execution, LocalExecution):
+            if isinstance(task.diarization.execution, LocalExecution):
                 result, process_time = time_and_tell(
                     lambda: self.services["diarization"](
-                        audio=task.audio,
+                        waveform=task.audio,
                         audio_duration=task.duration,
                         oracle_num_speakers=task.diarization.num_speakers,
-                        model_index=task.execution.index,
+                        model_index=task.diarization.execution.index,
                         vad_service=self.services["vad"],
                     ),
                     func_name="diarization",
                     debug_mode=debug_mode,
                 )
-            elif isinstance(task.execution, RemoteExecution):
+            elif isinstance(task.diarization.execution, RemoteExecution):
                 raise NotImplementedError("Remote execution is not implemented yet.")
+            elif task.diarization.execution is None:
+                result = None
+                process_time = None
 
         except Exception as e:
             result = ProcessException(
@@ -531,8 +532,7 @@ class ASRAsyncService(ASRService):
 
         finally:
             task.process_times.diarization = process_time
-            task.diarizatio.result = result
-            task.diarization.status.set()
+            task.diarization.result = result
 
         return None
 
@@ -613,7 +613,6 @@ class ASRAsyncService(ASRService):
         finally:
             task.process_times.post_processing = total_post_process_time
             task.post_processing.result = final_utterances
-            task.post_processing.status.set()
 
         return None
 

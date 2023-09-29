@@ -29,6 +29,7 @@ from loguru import logger
 
 from wordcab_transcribe.dependencies import asr, download_limit
 from wordcab_transcribe.models import BaseRequest, YouTubeResponse
+from wordcab_transcribe.services.asr_service import ProcessException
 from wordcab_transcribe.utils import delete_file, download_audio_file
 
 router = APIRouter()
@@ -72,11 +73,11 @@ async def inference_with_youtube(
 
     background_tasks.add_task(delete_file, filepath=filepath)
 
-    if isinstance(result, Exception):
-        logger.error(f"Error: {result}")
+    if isinstance(result, ProcessException):
+        logger.error(result.message)
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(result),
+            detail=str(result.message),
         )
     else:
         utterances, process_times, audio_duration = result

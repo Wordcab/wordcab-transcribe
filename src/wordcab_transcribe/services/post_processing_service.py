@@ -22,6 +22,7 @@
 import itertools
 from typing import List, Union
 
+from wordcab_transcribe.models import Timestamps
 from wordcab_transcribe.utils import convert_timestamp, format_punct, is_empty_string
 
 
@@ -320,19 +321,25 @@ class PostProcessingService:
         diarization: bool,
         multi_channel: bool,
         offset_start: Union[float, None],
-        timestamps_format: str,
+        timestamps_format: Timestamps,
         word_timestamps: bool,
     ) -> List[dict]:
         """
         Do final processing before returning the utterances to the API.
 
         Args:
-            utterances (List[dict]): List of utterances.
-            diarization (bool): Whether diarization is enabled.
-            multi_channel (bool): Whether multi-channel is enabled.
-            offset_start (Union[float, None]): Offset start.
-            timestamps_format (str): Timestamps format used for conversion.
-            word_timestamps (bool): Whether to include word timestamps.
+            utterances (List[dict]):
+                List of utterances.
+            diarization (bool):
+                Whether diarization is enabled.
+            multi_channel (bool):
+                Whether multi-channel is enabled.
+            offset_start (Union[float, None]):
+                Offset start.
+            timestamps_format (Timestamps):
+                Timestamps format. Can be `s`, `ms`, or `hms`.
+            word_timestamps (bool):
+                Whether to include word timestamps.
 
         Returns:
             List[dict]: List of utterances with final processing.

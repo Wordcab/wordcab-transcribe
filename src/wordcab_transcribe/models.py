@@ -72,7 +72,7 @@ class BaseResponse(BaseModel):
     diarization: bool
     source_lang: str
     timestamps: str
-    vocab: List[str]
+    vocab: Union[List[str], None]
     word_timestamps: bool
     internal_vad: bool
     repetition_penalty: float
@@ -219,7 +219,7 @@ class CortexPayload(BaseModel):
     multi_channel: Optional[bool] = False
     source_lang: Optional[str] = "en"
     timestamps: Optional[Timestamps] = Timestamps.seconds
-    vocab: Optional[List[str]] = []
+    vocab: Union[List[str], None] = None
     word_timestamps: Optional[bool] = False
     internal_vad: Optional[bool] = False
     repetition_penalty: Optional[float] = 1.2
@@ -480,6 +480,14 @@ class PongResponse(BaseModel):
                 "message": "pong",
             },
         }
+
+
+class DiarizeResponse(BaseModel):
+    """Response model for the diarize endpoint."""
+
+
+class TranscribeResponse(BaseModel):
+    """Response model for the transcribe endpoint."""
 
 
 class Token(BaseModel):
