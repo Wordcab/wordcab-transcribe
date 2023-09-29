@@ -41,13 +41,13 @@ async_routers = (
     ("youtube_endpoint", youtube_router, "/youtube", "async"),
 )
 live_routers = ("live_endpoint", live_router, "/live", "live")
-remote_transcribe_routers = (
+transcribe_routers = (
     "transcribe_endpoint",
     transcribe_router,
     "/transcribe",
     "transcription",
 )
-remote_diarize_routers = (
+diarize_routers = (
     "diariaze_endpoint",
     diarize_router,
     "/diarize",
@@ -58,10 +58,10 @@ if settings.asr_type == "async":
     routers = async_routers
 elif settings.asr_type == "live":
     routers = live_routers
-elif settings.asr_type == "remote_transcribe":
-    routers = remote_transcribe_routers
-elif settings.asr_type == "remote_diarize":
-    routers = remote_diarize_routers
+elif settings.asr_type == "only_transcription":
+    routers = transcribe_routers
+elif settings.asr_type == "only_diarization":
+    routers = diarize_routers
 else:
     raise ValueError(f"Invalid ASR type: {settings.asr_type}")
 
