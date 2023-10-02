@@ -546,15 +546,17 @@ def read_audio(
         Tuple[torch.Tensor, float]: The audio tensor and the audio duration.
     """
     if isinstance(audio, str):
-        wav, sr = torchaudio.load(
-            audio,
-        )
+        wav, sr = torchaudio.load(audio)
     elif isinstance(audio, bytes):
         with io.BytesIO(audio) as buffer:
             wav, sr = sf.read(
                 buffer, format="RAW", channels=1, samplerate=16000, subtype="PCM_16"
             )
         wav = torch.from_numpy(wav).unsqueeze(0)
+    else:
+        raise ValueError(
+            f"Invalid audio type. Must be either str or bytes, got: {type(audio)}."
+        )
 
     if wav.size(0) > 1:
         wav = wav.mean(dim=0, keepdim=True)

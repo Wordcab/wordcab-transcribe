@@ -47,11 +47,7 @@ def default_settings() -> OrderedDict:
         shift_lengths=[0.75, 0.625, 0.5, 0.375, 0.25],
         multiscale_weights=[1.0, 1.0, 1.0, 1.0, 1.0],
         asr_type="async",
-        audio_file_endpoint=True,
-        audio_url_endpoint=True,
         cortex_endpoint=True,
-        youtube_endpoint=True,
-        live_endpoint=False,
         username="admin",
         password="admin",
         openssl_key="0123456789abcdefghijklmnopqrstuvwyz",
@@ -85,12 +81,7 @@ def test_config() -> None:
     assert settings.multiscale_weights == [1.0, 1.0, 1.0, 1.0, 1.0]
 
     assert settings.asr_type == "async"
-
-    assert settings.audio_file_endpoint is True
-    assert settings.audio_url_endpoint is True
     assert settings.cortex_endpoint is True
-    assert settings.youtube_endpoint is True
-    assert settings.live_endpoint is False
 
     assert settings.username == "admin"  # noqa: S105
     assert settings.password == "admin"  # noqa: S105
@@ -152,15 +143,3 @@ def test_access_token_expire_minutes_validator(default_settings: dict) -> None:
     default_settings["access_token_expire_minutes"] = -1
     with pytest.raises(ValueError):
         Settings(**default_settings)
-
-
-def test_post_init(default_settings: dict) -> None:
-    """Test post init."""
-    wrong_endpoint = default_settings.copy()
-    wrong_endpoint["audio_file_endpoint"] = False
-    wrong_endpoint["audio_url_endpoint"] = False
-    wrong_endpoint["cortex_endpoint"] = False
-    wrong_endpoint["live_endpoint"] = False
-    wrong_endpoint["youtube_endpoint"] = False
-    with pytest.raises(ValueError):
-        Settings(**wrong_endpoint)

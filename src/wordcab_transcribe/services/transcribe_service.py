@@ -24,6 +24,7 @@ from typing import Iterable, List, NamedTuple, Optional, Union
 import torch
 from faster_whisper import WhisperModel
 from loguru import logger
+from tensorshare import Backend, TensorShare
 
 
 class FasterWhisperModel(NamedTuple):
@@ -79,7 +80,14 @@ class TranscribeService:
 
     def __call__(
         self,
-        audio: Union[str, torch.Tensor, List[str], List[torch.Tensor]],
+        audio: Union[
+            str,
+            torch.Tensor,
+            TensorShare,
+            List[str],
+            List[torch.Tensor],
+            List[TensorShare],
+        ],
         source_lang: str,
         model_index: int,
         suppress_blank: bool = False,
@@ -96,7 +104,7 @@ class TranscribeService:
         Run inference with the transcribe model.
 
         Args:
-            audio (Union[str, torch.Tensor, List[str], List[torch.Tensor]]):
+            audio (Union[str, torch.Tensor, TensorShare, List[str], List[torch.Tensor], List[TensorShare]]):
                 Audio file path or audio tensor. If a tuple is passed, the task is assumed
                 to be a multi_channel task and the list of audio files or tensors is passed.
             source_lang (str):
@@ -172,6 +180,8 @@ class TranscribeService:
         if not isinstance(audio, list):
             if isinstance(audio, torch.Tensor):
                 audio = audio.numpy()
+            elif isinstance(audio, TensorShare):
+                audio = audio.to_tensors(backend=Backend.NUMPY)
 
             segments, _ = self.model.transcribe(
                 audio,
@@ -286,7 +296,7 @@ class TranscribeService:
 
     def multi_channel(
         self,
-        audio: Union[str, torch.Tensor],
+        audio: Union[str, torch.Tensor, TensorShare],
         source_lang: str,
         speaker_id: int,
         suppress_blank: bool = False,
@@ -303,7 +313,7 @@ class TranscribeService:
         Transcribe an audio file using the faster-whisper original pipeline.
 
         Args:
-            audio (Union[str, torch.Tensor]): Audio file path or loaded audio.
+            audio (Union[str, torch.Tensor, TensorShare]): Audio file path or loaded audio.
             source_lang (str): Language of the audio file.
             speaker_id (int): Speaker ID used in the diarization.
             suppress_blank (bool):
@@ -332,6 +342,8 @@ class TranscribeService:
         """
         if isinstance(audio, torch.Tensor):
             audio = audio.numpy()
+        elif isinstance(audio, TensorShare):
+            audio = audio.to_tensors(backend=Backend.NUMPY)
 
         final_transcript = []
 

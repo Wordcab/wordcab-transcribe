@@ -21,7 +21,6 @@
 
 import asyncio
 import functools
-import os
 import time
 import traceback
 from abc import ABC, abstractmethod
@@ -32,10 +31,11 @@ from typing import Iterable, List, Tuple, Union
 import torch
 from loguru import logger
 from pydantic import BaseModel
+from tensorshare import Backend, TensorShare, prepare_tensors_to_dict
 from typing_extensions import Annotated
 
 from wordcab_transcribe.logging import time_and_tell
-from wordcab_transcribe.models import ProcessTimes, Timestamps
+from wordcab_transcribe.models import ProcessTimes, Timestamps, TranscribeRequest
 from wordcab_transcribe.pydantic_annotations import TorchTensorPydanticAnnotation
 from wordcab_transcribe.services.concurrency_services import GPUService, URLService
 from wordcab_transcribe.services.diarization.diarize_service import DiarizeService
@@ -137,7 +137,6 @@ class ASRService(ABC):
         )  # Do we have a GPU? If so, use it!
         self.num_gpus = torch.cuda.device_count() if self.device == "cuda" else 0
         logger.info(f"NVIDIA GPUs available: {self.num_gpus}")
-        self.num_cpus = os.cpu_count()
 
         if self.num_gpus > 1 and self.device == "cuda":
             self.device_index = list(range(self.num_gpus))
@@ -164,8 +163,8 @@ class ASRAsyncService(ASRService):
         window_lengths: List[int],
         shift_lengths: List[int],
         multiscale_weights: List[float],
-        extra_languages: List[str],
-        extra_languages_model_paths: List[str],
+        extra_languages: Union[List[str], None],
+        extra_languages_model_paths: Union[List[str], None],
         transcribe_server_urls: Union[List[str], None],
         diarize_server_urls: Union[List[str], None],
         debug_mode: bool,
@@ -184,9 +183,9 @@ class ASRAsyncService(ASRService):
                 The shift lengths to use for diarization.
             multiscale_weights (List[float]):
                 The multiscale weights to use for diarization.
-            extra_languages (List[str]):
+            extra_languages (Union[List[str], None]):
                 The list of extra languages to support.
-            extra_languages_model_paths (List[str]):
+            extra_languages_model_paths (Union[List[str], None]):
                 The list of paths to the extra language models.
             use_remote_servers (bool):
                 Whether to use remote servers for transcription and diarization.
@@ -672,3 +671,94 @@ class ASRLiveService(ASRService):
 
         finally:
             self.gpu_handler.release_device(gpu_index)
+
+
+class ASRTranscriptionOnly(ASRService):
+    """ASR Service module for transcription-only endpoints."""
+
+    def __init__(
+        self,
+        whisper_model: str,
+        compute_type: str,
+        extra_languages: Union[List[str], None],
+        extra_languages_model_paths: Union[List[str], None],
+        debug_mode: bool,
+    ) -> None:
+        """Initialize the ASRTranscriptionOnly class."""
+        super().__init__()
+
+        self.transcription_service = TranscribeService(
+            model_path=whisper_model,
+            compute_type=compute_type,
+            device=self.device,
+            device_index=self.device_index,
+            extra_languages=extra_languages,
+            extra_languages_model_paths=extra_languages_model_paths,
+        )
+        self.debug_mode = debug_mode
+
+    async def inference_warmup(self) -> None:
+        """Warmup the GPU by loading the models."""
+        sample_audio = Path(__file__).parent.parent / "assets/warmup_sample.wav"
+
+        audio, _ = read_audio(str(sample_audio))
+        prepared_ts = prepare_tensors_to_dict(audio)
+        ts = TensorShare.from_dict(prepared_ts, backend=Backend.TORCH)
+
+        data = TranscribeRequest(
+            audio=ts,
+            source_lang="en",
+            compression_ratio_threshold=2.4,
+            condition_on_previous_text=True,
+            internal_vad=False,
+            log_prob_threshold=-1.0,
+            no_speech_threshold=0.6,
+            repetition_penalty=1.0,
+            vocab=None,
+        )
+
+        for gpu_index in self.gpu_handler.device_index:
+            logger.info(f"Warmup GPU {gpu_index}.")
+            await self.process_input(data=data)
+
+    async def process_input(
+        self, data: TranscribeRequest
+    ) -> Union[List[dict], List[List[dict]]]:
+        """
+        Process the input data and return the results as a list of utterances.
+
+        Args:
+            data (TranscribeRequest):
+                The input data to process.
+
+        Returns:
+            List[dict]: The results of the ASR pipeline.
+        """
+        gpu_index = await self.gpu_handler.get_device()
+
+        try:
+            result = self.transcription_service(
+                audio=data.audio,
+                source_lang=data.source_lang,
+                model_index=gpu_index,
+                suppress_blank=False,
+                word_timestamps=True,
+                compression_ratio_threshold=data.compression_ratio_threshold,
+                condition_on_previous_text=data.condition_on_previous_text,
+                internal_vad=data.internal_vad,
+                log_prob_threshold=data.log_prob_threshold,
+                repetition_penalty=data.repetition_penalty,
+                no_speech_threshold=data.no_speech_threshold,
+                vocab=data.vocab,
+            )
+
+        except Exception as e:
+            result = ProcessException(
+                source=ExceptionSource.post_processing,
+                message=f"Error in post-processing: {e}\n{traceback.format_exc()}",
+            )
+
+        finally:
+            self.gpu_handler.release_device(gpu_index)
+
+        return result

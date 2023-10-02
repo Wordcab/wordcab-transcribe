@@ -65,6 +65,7 @@ runtime = [
   "python-multipart>=0.0.6",
   "shortuuid>=1.0.0",
   "svix>=0.85.1",
+  "tensorshare>=0.1.1",
   "uvicorn>=0.21.1",
   "websockets>=11.0.3",
   "wordcab_transcribe[inference]",

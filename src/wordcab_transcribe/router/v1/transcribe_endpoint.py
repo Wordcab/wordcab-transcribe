@@ -19,20 +19,28 @@
 # and limitations under the License.
 """Transcribe endpoint for the Remote Wordcab Transcribe API."""
 
-from typing import Union
+from typing import List, Union
 
 from fastapi import APIRouter
 from fastapi import status as http_status
 
-from wordcab_transcribe.models import TranscribeResponse
+from wordcab_transcribe.dependencies import asr
+from wordcab_transcribe.models import TranscribeRequest, TranscriptionOutput
 
 router = APIRouter()
 
 
 @router.post(
     "",
-    response_model=Union[TranscribeResponse, str],
+    response_model=Union[TranscriptionOutput, List[TranscriptionOutput]],
     status_code=http_status.HTTP_200_OK,
 )
-async def remote_transcription() -> TranscribeResponse:
+async def remote_transcription(
+    data: TranscribeRequest,
+) -> Union[TranscriptionOutput, List[TranscriptionOutput]]:
     """Transcribe endpoint for the Remote Wordcab Transcribe API."""
+    result: Union[TranscriptionOutput, List[TranscriptionOutput]] = (
+        await asr.process_input(data)
+    )
+
+    return result

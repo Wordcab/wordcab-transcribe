@@ -22,7 +22,9 @@
 from enum import Enum
 from typing import List, Literal, Optional, Union
 
+from faster_whisper.transcribe import Word
 from pydantic import BaseModel, field_validator
+from tensorshare import TensorShare
 
 
 class ProcessTimes(BaseModel):
@@ -42,23 +44,14 @@ class Timestamps(str, Enum):
     hour_minute_second = "hms"
 
 
-class Word(BaseModel):
-    """Word model for the API."""
-
-    word: str
-    start: float
-    end: float
-    score: float
-
-
 class Utterance(BaseModel):
     """Utterance model for the API."""
 
     text: str
     start: Union[float, str]
     end: Union[float, str]
-    speaker: Optional[int]
-    words: Optional[List[Word]]
+    speaker: Union[int, None]
+    words: Union[List[Word], None]
 
 
 class BaseResponse(BaseModel):
@@ -486,8 +479,24 @@ class DiarizeResponse(BaseModel):
     """Response model for the diarize endpoint."""
 
 
-class TranscribeResponse(BaseModel):
-    """Response model for the transcribe endpoint."""
+class TranscribeRequest(BaseModel):
+    """Request model for the transcribe endpoint."""
+
+    audio: Union[TensorShare, List[TensorShare]]
+    compression_ratio_threshold: float
+    condition_on_previous_text: bool
+    internal_vad: bool
+    log_prob_threshold: float
+    no_speech_threshold: float
+    repetition_penalty: float
+    source_lang: str
+    vocab: Union[List[str], None]
+
+
+class TranscriptionOutput(BaseModel):
+    """Transcription output model for the TranscribeService."""
+
+    segments: List[Utterance]
 
 
 class Token(BaseModel):

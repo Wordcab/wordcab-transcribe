@@ -35,39 +35,26 @@ from wordcab_transcribe.router.v1.youtube_endpoint import router as youtube_rout
 
 api_router = APIRouter()
 
-async_routers = (
-    ("audio_file_endpoint", audio_file_router, "/audio", "async"),
-    ("audio_url_endpoint", audio_url_router, "/audio-url", "async"),
-    ("youtube_endpoint", youtube_router, "/youtube", "async"),
-)
-live_routers = ("live_endpoint", live_router, "/live", "live")
-transcribe_routers = (
-    "transcribe_endpoint",
-    transcribe_router,
-    "/transcribe",
-    "transcription",
-)
-diarize_routers = (
-    "diariaze_endpoint",
-    diarize_router,
-    "/diarize",
-    "diarization",
-)
+async_routers = [
+    (audio_file_router, "/audio", "async"),
+    (audio_url_router, "/audio-url", "async"),
+    (youtube_router, "/youtube", "async"),
+]
+live_routers = (live_router, "/live", "live")
+transcribe_routers = (transcribe_router, "/transcribe", "transcription")
+diarize_routers = (diarize_router, "/diarize", "diarization")
 
+routers = []
 if settings.asr_type == "async":
-    routers = async_routers
+    routers.extend(async_routers)
 elif settings.asr_type == "live":
-    routers = live_routers
+    routers.append(live_routers)
 elif settings.asr_type == "only_transcription":
-    routers = transcribe_routers
+    routers.append(transcribe_routers)
 elif settings.asr_type == "only_diarization":
-    routers = diarize_routers
-else:
-    raise ValueError(f"Invalid ASR type: {settings.asr_type}")
+    routers.append(diarize_routers)
 
-for router_items in routers:
-    endpoint, router, prefix, tags = router_items
 
-    # If the endpoint is enabled, include it in the API.
-    if getattr(settings, endpoint) is True:
-        api_router.include_router(router, prefix=prefix, tags=[tags])
+for items in routers:
+    router, prefix, tags = items
+    api_router.include_router(router, prefix=prefix, tags=[tags])
