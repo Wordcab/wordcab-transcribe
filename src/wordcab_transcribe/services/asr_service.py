@@ -30,21 +30,18 @@ from typing import Iterable, List, Tuple, Union
 
 import torch
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from tensorshare import Backend, TensorShare, prepare_tensors_to_dict
 from typing_extensions import Annotated
 
 from wordcab_transcribe.logging import time_and_tell
 from wordcab_transcribe.models import ProcessTimes, Timestamps, TranscribeRequest
-from wordcab_transcribe.pydantic_annotations import TorchTensorPydanticAnnotation
 from wordcab_transcribe.services.concurrency_services import GPUService, URLService
 from wordcab_transcribe.services.diarization.diarize_service import DiarizeService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
 from wordcab_transcribe.services.vad_service import VadService
 from wordcab_transcribe.utils import early_return, format_segments, read_audio
-
-PydanticTorchTensor = Annotated[torch.Tensor, TorchTensorPydanticAnnotation]
 
 
 class ExceptionSource(str, Enum):
@@ -76,8 +73,9 @@ class RemoteExecution(BaseModel):
 
 class ASRTask(BaseModel):
     """ASR Task model."""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    audio: Union[List[PydanticTorchTensor], PydanticTorchTensor]
+    audio: Union[torch.Tensor, List[torch.Tensor]]
     diarization: "DiarizationTask"
     duration: float
     multi_channel: bool
