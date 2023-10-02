@@ -21,11 +21,13 @@
 
 from typing import List, Union
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi import status as http_status
+from loguru import logger
 
 from wordcab_transcribe.dependencies import asr
 from wordcab_transcribe.models import TranscribeRequest, TranscriptionOutput
+from wordcab_transcribe.services.asr_service import ProcessException
 
 router = APIRouter()
 
@@ -42,5 +44,12 @@ async def only_transcription(
     result: Union[TranscriptionOutput, List[TranscriptionOutput]] = (
         await asr.process_input(data)
     )
+    
+    if isinstance(result, ProcessException):
+        logger.error(result.message)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(result.message),
+        )
 
     return result

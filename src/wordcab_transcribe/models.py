@@ -50,8 +50,8 @@ class Utterance(BaseModel):
     text: str
     start: Union[float, str]
     end: Union[float, str]
-    speaker: Union[int, None]
-    words: Union[List[Word], None]
+    speaker: Union[int, None] = None
+    words: Union[List[Word], None] = None
 
 
 class BaseResponse(BaseModel):

@@ -26,6 +26,8 @@ from faster_whisper import WhisperModel
 from loguru import logger
 from tensorshare import Backend, TensorShare
 
+from wordcab_transcribe.models import TranscriptionOutput
+
 
 class FasterWhisperModel(NamedTuple):
     """Faster Whisper Model."""
@@ -99,7 +101,7 @@ class TranscribeService:
         log_prob_threshold: float = -1.0,
         no_speech_threshold: float = 0.6,
         condition_on_previous_text: bool = True,
-    ) -> Union[List[dict], List[List[dict]]]:
+    ) -> Union[TranscriptionOutput, List[TranscriptionOutput]]:
         """
         Run inference with the transcribe model.
 
@@ -134,8 +136,8 @@ class TranscribeService:
                 to getting stuck in a failure loop, such as repetition looping or timestamps going out of sync.
 
         Returns:
-            Union[List[dict], List[List[dict]]]: List of transcriptions. If the task is a multi_channel task,
-                a list of lists is returned.
+            Union[TranscriptionOutput, List[TranscriptionOutput]]:
+                Transcription output. If the task is a multi_channel task, a list of TranscriptionOutput is returned.
         """
         # Extra language models are disabled until we can handle an index mapping
         # if (
@@ -181,7 +183,8 @@ class TranscribeService:
             if isinstance(audio, torch.Tensor):
                 audio = audio.numpy()
             elif isinstance(audio, TensorShare):
-                audio = audio.to_tensors(backend=Backend.NUMPY)
+                ts = audio.to_tensors(backend=Backend.NUMPY)
+                audio = ts["audio"]
 
             segments, _ = self.model.transcribe(
                 audio,
@@ -223,7 +226,8 @@ class TranscribeService:
                     vad_filter=False if internal_vad else True,
                 )
 
-            outputs = [segment._asdict() for segment in segments]
+            _outputs = [segment._asdict() for segment in segments]
+            outputs = TranscriptionOutput(segments=_outputs)
 
         else:
             outputs = []
@@ -308,7 +312,7 @@ class TranscribeService:
         no_speech_threshold: float = 0.6,
         condition_on_previous_text: bool = False,
         prompt: Optional[str] = None,
-    ) -> List[dict]:
+    ) -> TranscriptionOutput:
         """
         Transcribe an audio file using the faster-whisper original pipeline.
 
@@ -338,17 +342,18 @@ class TranscribeService:
             prompt (Optional[str]): Initial prompt to use for the generation.
 
         Returns:
-            List[dict]: List of transcribed segments.
+            TranscriptionOutput: Transcription output.
         """
         if isinstance(audio, torch.Tensor):
-            audio = audio.numpy()
+            _audio = audio.numpy()
         elif isinstance(audio, TensorShare):
-            audio = audio.to_tensors(backend=Backend.NUMPY)
+            ts = audio.to_tensors(backend=Backend.NUMPY)
+            _audio = ts["audio"]
 
-        final_transcript = []
+        final_segments = []
 
         segments, _ = self.model.transcribe(
-            audio,
+            _audio,
             language=source_lang,
             initial_prompt=prompt,
             repetition_penalty=repetition_penalty,
@@ -390,6 +395,6 @@ class TranscribeService:
             segment_dict["start"] = segment_dict["words"][0]["start"]
             segment_dict["end"] = segment_dict["words"][-1]["end"]
 
-            final_transcript.append(segment_dict)
+            final_segments.append(segment_dict)
 
-        return final_transcript
+        return TranscriptionOutput(segments=final_segments)

@@ -646,7 +646,7 @@ class ASRAsyncService(ASRService):
         """Remote transcription method."""
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                url=url,
+                url=f"{url}/api/v1/transcribe",
                 data=data.model_dump_json(),
             ) as response:
                 if response.status != 200:
@@ -763,7 +763,7 @@ class ASRTranscriptionOnly(ASRService):
 
     async def process_input(
         self, data: TranscribeRequest
-    ) -> Union[List[dict], List[List[dict]]]:
+    ) -> Union[TranscriptionOutput, List[TranscriptionOutput]]:
         """
         Process the input data and return the results as a list of utterances.
 
@@ -772,7 +772,8 @@ class ASRTranscriptionOnly(ASRService):
                 The input data to process.
 
         Returns:
-            List[dict]: The results of the ASR pipeline.
+            Union[TranscriptionOutput, List[TranscriptionOutput]]:
+                The results of the ASR pipeline.
         """
         gpu_index = await self.gpu_handler.get_device()
 
