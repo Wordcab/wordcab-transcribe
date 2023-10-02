@@ -100,3 +100,27 @@ def time_and_tell(
         logger.debug(f"{func_name} executed in {process_time:.4f} secs")
 
     return result, process_time
+
+
+async def time_and_tell_async(
+    func: Callable, func_name: str, debug_mode: bool
+) -> Tuple[Any, float]:
+    """
+    This decorator logs the execution time of an async function only if the debug setting is True.
+
+    Args:
+        func: The function to call in the wrapper.
+        func_name: The name of the function for logging purposes.
+        debug_mode: The debug setting for logging purposes.
+
+    Returns:
+        The appropriate wrapper for the function.
+    """
+    start_time = time.time()
+    result = await func()
+    process_time = time.time() - start_time
+
+    if debug_mode:
+        logger.debug(f"{func_name} executed in {process_time:.4f} secs")
+
+    return result, process_time

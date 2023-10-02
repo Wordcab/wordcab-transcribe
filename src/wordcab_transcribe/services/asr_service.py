@@ -28,14 +28,19 @@ from enum import Enum
 from pathlib import Path
 from typing import Iterable, List, Tuple, Union
 
+import aiohttp
 import torch
 from loguru import logger
 from pydantic import BaseModel, ConfigDict
-from tensorshare import Backend, TensorShare, prepare_tensors_to_dict
-from typing_extensions import Annotated
+from tensorshare import Backend, TensorShare
 
-from wordcab_transcribe.logging import time_and_tell
-from wordcab_transcribe.models import ProcessTimes, Timestamps, TranscribeRequest
+from wordcab_transcribe.logging import time_and_tell, time_and_tell_async
+from wordcab_transcribe.models import (
+    ProcessTimes,
+    Timestamps,
+    TranscribeRequest,
+    TranscriptionOutput,
+)
 from wordcab_transcribe.services.concurrency_services import GPUService, URLService
 from wordcab_transcribe.services.diarization.diarize_service import DiarizeService
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
@@ -73,6 +78,7 @@ class RemoteExecution(BaseModel):
 
 class ASRTask(BaseModel):
     """ASR Task model."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     audio: Union[torch.Tensor, List[torch.Tensor]]
@@ -404,17 +410,10 @@ class ASRAsyncService(ASRService):
         try:
             start_process_time = time.time()
 
-            transcription_task = asyncio.get_event_loop().run_in_executor(
-                None,
-                functools.partial(self.process_transcription, task, self.debug_mode),
-            )
-            diarization_task = asyncio.get_event_loop().run_in_executor(
-                None,
-                functools.partial(self.process_diarization, task, self.debug_mode),
-            )
+            transcription_task = self.process_transcription(task, self.debug_mode)
+            diarization_task = self.process_diarization(task, self.debug_mode)
 
-            await transcription_task
-            await diarization_task
+            await asyncio.gather(transcription_task, diarization_task)
 
             if isinstance(task.diarization.result, ProcessException):
                 return task.diarization.result
@@ -450,7 +449,7 @@ class ASRAsyncService(ASRService):
             if gpu_index is not None:
                 self.gpu_handler.release_device(gpu_index)
 
-    def process_transcription(self, task: ASRTask, debug_mode: bool) -> None:
+    async def process_transcription(self, task: ASRTask, debug_mode: bool) -> None:
         """
         Process a task of transcription and update the task with the result.
 
@@ -463,19 +462,47 @@ class ASRAsyncService(ASRService):
         """
         try:
             if isinstance(task.transcription.execution, LocalExecution):
-                result, process_time = time_and_tell(
-                    lambda: self.services["transcription"](
-                        task.audio,
-                        model_index=task.transcription.execution.index,
-                        suppress_blank=False,
-                        word_timestamps=True,
-                        **task.transcription.options.model_dump(),
+                out = asyncio.get_event_loop().run_in_executor(
+                    None,
+                    time_and_tell(
+                        lambda: self.services["transcription"](
+                            task.audio,
+                            model_index=task.transcription.execution.index,
+                            suppress_blank=False,
+                            word_timestamps=True,
+                            **task.transcription.options.model_dump(),
+                        ),
+                        func_name="transcription",
+                        debug_mode=debug_mode,
+                    ),
+                )
+                result, process_time = await out
+
+            elif isinstance(task.transcription.execution, RemoteExecution):
+                if isinstance(task.audio, list):
+                    ts = [
+                        TensorShare.from_dict({"audio": a}, backend=Backend.TORCH)
+                        for a in task.audio
+                    ]
+                else:
+                    ts = TensorShare.from_dict(
+                        {"audio": task.audio}, backend=Backend.TORCH
+                    )
+
+                data = TranscribeRequest(
+                    audio=ts,
+                    **task.transcription.options.model_dump(),
+                )
+                result, process_time = await time_and_tell_async(
+                    lambda: self.remote_transcribe(
+                        url=task.transcription.execution.url, data=data
                     ),
                     func_name="transcription",
                     debug_mode=debug_mode,
                 )
-            elif isinstance(task.transcription.execution, RemoteExecution):
-                raise NotImplementedError("Remote execution is not implemented yet.")
+
+            else:
+                raise NotImplementedError("No execution method specified.")
 
         except Exception as e:
             result = ProcessException(
@@ -613,6 +640,22 @@ class ASRAsyncService(ASRService):
 
         return None
 
+    async def remote_transcribe(
+        self, url: str, data: TranscribeRequest
+    ) -> TranscriptionOutput:
+        """Remote transcription method."""
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                url=url,
+                data=data.model_dump_json(),
+            ) as response:
+                if response.status != 200:
+                    raise Exception(
+                        f"Remote transcription failed with status {response.status}."
+                    )
+                else:
+                    return TranscriptionOutput(**await response.json())
+
 
 class ASRLiveService(ASRService):
     """ASR Service module for live endpoints."""
@@ -700,8 +743,7 @@ class ASRTranscriptionOnly(ASRService):
         sample_audio = Path(__file__).parent.parent / "assets/warmup_sample.wav"
 
         audio, _ = read_audio(str(sample_audio))
-        prepared_ts = prepare_tensors_to_dict(audio)
-        ts = TensorShare.from_dict(prepared_ts, backend=Backend.TORCH)
+        ts = TensorShare.from_dict({"audio": audio}, backend=Backend.TORCH)
 
         data = TranscribeRequest(
             audio=ts,
