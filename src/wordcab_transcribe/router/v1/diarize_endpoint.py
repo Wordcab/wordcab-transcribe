@@ -24,15 +24,15 @@ from typing import Union
 from fastapi import APIRouter
 from fastapi import status as http_status
 
-from wordcab_transcribe.models import DiarizeResponse
+from wordcab_transcribe.models import DiarizationOutput
 
 router = APIRouter()
 
 
 @router.post(
     "",
-    response_model=Union[DiarizeResponse, str],
+    response_model=Union[DiarizationOutput, str],
     status_code=http_status.HTTP_200_OK,
 )
-async def remote_diarization() -> DiarizeResponse:
+async def remote_diarization() -> DiarizationOutput:
     """Diarize endpoint for the Remote Wordcab Transcribe API."""

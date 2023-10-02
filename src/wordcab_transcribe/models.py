@@ -20,9 +20,9 @@
 """Models module of the Wordcab Transcribe."""
 
 from enum import Enum
-from typing import List, Literal, Optional, Union
+from typing import List, Literal, NamedTuple, Optional, Union
 
-from faster_whisper.transcribe import Word
+from faster_whisper.transcribe import Segment, Word
 from pydantic import BaseModel, field_validator
 from tensorshare import TensorShare
 
@@ -475,8 +475,24 @@ class PongResponse(BaseModel):
         }
 
 
-class DiarizeResponse(BaseModel):
-    """Response model for the diarize endpoint."""
+class DiarizationSegment(NamedTuple):
+    """Diarization segment model for the API."""
+
+    start: float
+    end: float
+    speaker: int
+
+
+class DiarizationOutput(BaseModel):
+    """Diarization output model for the API."""
+
+    segments: List[DiarizationSegment]
+
+
+class TranscriptionOutput(BaseModel):
+    """Transcription output model for the API."""
+
+    segments: List[Segment]
 
 
 class TranscribeRequest(BaseModel):
@@ -491,12 +507,6 @@ class TranscribeRequest(BaseModel):
     repetition_penalty: float
     source_lang: str
     vocab: Union[List[str], None]
-
-
-class TranscriptionOutput(BaseModel):
-    """Transcription output model for the TranscribeService."""
-
-    segments: List[Utterance]
 
 
 class Token(BaseModel):

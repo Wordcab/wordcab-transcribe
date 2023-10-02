@@ -20,9 +20,9 @@
 """Post-Processing Service for audio files."""
 
 import itertools
-from typing import List, Union
+from typing import List, Tuple, Union
 
-from wordcab_transcribe.models import Timestamps
+from wordcab_transcribe.models import Timestamps, Utterance, Word
 from wordcab_transcribe.utils import convert_timestamp, format_punct, is_empty_string
 
 
@@ -65,28 +65,28 @@ class PostProcessingService:
         return utterances
 
     def multi_channel_speaker_mapping(
-        self, multi_channel_segments: List[List[dict]]
-    ) -> List[dict]:
+        self, multi_channel_segments: List[List[Utterance]]
+    ) -> List[Utterance]:
         """
         Run the multi-channel post-processing functions on the inputs by merging the segments based on the timestamps.
 
         Args:
-            multi_channel_segments (List[dict]): List of segments from both speakers.
+            multi_channel_segments (List[List[Utterance]]):
+                List of segments from multi speakers.
 
         Returns:
-            List[dict]: List of sentences with speaker mapping.
+            List[List[Utterance]]: List of sentences with speaker mapping.
         """
         words_with_speaker_mapping = []
 
         for segment in list(itertools.chain.from_iterable(multi_channel_segments)):
-            speaker = segment["speaker"]
-            for word in segment["words"]:
-                word.update({"speaker": speaker})
-                words_with_speaker_mapping.append(word)
+            speaker = segment.speaker
+            for word in segment.words:
+                words_with_speaker_mapping.append((speaker, word))
 
-        words_with_speaker_mapping.sort(key=lambda word: word["start"])
+        words_with_speaker_mapping.sort(key=lambda _, word: word.start)
 
-        utterances = self.reconstruct_multi_channel_utterances(
+        utterances: List[Utterance] = self.reconstruct_multi_channel_utterances(
             words_with_speaker_mapping
         )
 
@@ -260,22 +260,20 @@ class PostProcessingService:
 
     def reconstruct_multi_channel_utterances(
         self,
-        transcript_words: List[dict],
-    ) -> List[dict]:
+        transcript_words: List[Tuple[int, Word]],
+    ) -> List[Utterance]:
         """
         Reconstruct multi-channel utterances based on the speaker mapping.
 
         Args:
-            transcript_words (List[dict]): List of transcript words.
+            transcript_words (List[Tuple[int, Word]]):
+                List of tuples containing the speaker and the word.
 
         Returns:
-            List[dict]: List of sentences with speaker mapping.
+            List[Utterance]: List of sentences with speaker mapping.
         """
-        start_t0, end_t0, speaker_t0 = (
-            transcript_words[0]["start"],
-            transcript_words[0]["end"],
-            transcript_words[0]["speaker"],
-        )
+        speaker_t0, word = transcript_words[0]
+        start_t0, end_t0 = word.start, word.end
 
         previous_speaker = speaker_t0
         current_sentence = {
@@ -287,9 +285,8 @@ class PostProcessingService:
         }
 
         sentences = []
-        for word in transcript_words:
-            text, speaker = word["word"], word["speaker"]
-            start_t, end_t = word["start"], word["end"]
+        for speaker, word in transcript_words:
+            start_t, end_t, text = word.start, word.end, word.word
 
             if speaker != previous_speaker:
                 sentences.append(current_sentence)
@@ -313,7 +310,7 @@ class PostProcessingService:
         for sentence in sentences:
             sentence["text"] = sentence["text"].strip()
 
-        return sentences
+        return [Utterance(**sentence) for sentence in sentences]
 
     def final_processing_before_returning(
         self,
