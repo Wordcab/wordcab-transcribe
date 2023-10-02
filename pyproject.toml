@@ -29,10 +29,19 @@ classifiers = [
 dependencies = [
   "aiohttp>=3.8.4",
   "aiofiles>=23.1.0",
+  "ctranslate2>=3.18.0",
+  "faster-whisper @ git+https://github.com/Wordcab/faster-whisper@master",
   "ffmpeg-python>=0.2.0",
+  "librosa>=0.9.0",
   "loguru>=0.6.0",
+  "numpy==1.23.1",
+  "onnxruntime>=1.15.0",
   "pydantic>=1.10.9",
   "python-dotenv>=1.0.0",
+  "tensorshare>=0.1.1",
+  "torch>=2.0.0",
+  "torchaudio>=2.0.1",
+  "wget>=3.2.0",
   "yt-dlp>=2023.3.4",
 ]
 
@@ -48,17 +57,6 @@ path = "src/wordcab_transcribe/__init__.py"
 allow-direct-references = true
 
 [project.optional-dependencies]
-inference = [
-  "ctranslate2>=3.18.0",
-  "faster-whisper @ git+https://github.com/Wordcab/faster-whisper@master",
-  "librosa>=0.9.0",
-  "numpy==1.23.1",
-  "onnxruntime>=1.15.0",
-  "tensorshare>=0.1.1",
-  "torch>=2.0.0",
-  "torchaudio>=2.0.1",
-  "wget>=3.2.0",
-]
 runtime = [
   "argon2-cffi>=21.3.0",
   "fastapi>=0.96.0",
@@ -68,7 +66,6 @@ runtime = [
   "svix>=0.85.1",
   "uvicorn>=0.21.1",
   "websockets>=11.0.3",
-  "wordcab_transcribe[inference]",
 ]
 quality = [
   "black>=22.10.0",
@@ -80,9 +77,8 @@ tests = [
   "pytest>=7.4",
   "pytest-asyncio>=0.21.1",
   "pytest-cov>=4.1",
-  "wordcab_transcribe[inference]",
 ]
-dev = ["wordcab_transcribe[quality,inference,runtime,tests]"]
+dev = ["wordcab_transcribe[quality,runtime,tests]"]
 
 [tool.hatch.envs.runtime]
 features = [
