@@ -35,10 +35,10 @@ router = APIRouter()
     response_model=Union[TranscriptionOutput, List[TranscriptionOutput]],
     status_code=http_status.HTTP_200_OK,
 )
-async def remote_transcription(
+async def only_transcription(
     data: TranscribeRequest,
 ) -> Union[TranscriptionOutput, List[TranscriptionOutput]]:
-    """Transcribe endpoint for the Remote Wordcab Transcribe API."""
+    """Transcribe endpoint for the `only_transcription` asr type."""
     result: Union[TranscriptionOutput, List[TranscriptionOutput]] = (
         await asr.process_input(data)
     )
