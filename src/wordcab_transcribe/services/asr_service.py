@@ -433,7 +433,11 @@ class ASRAsyncService(ASRService):
             if isinstance(task.transcription.result, ProcessException):
                 return task.transcription.result
 
-            await self.process_post_processing(task)
+            await asyncio.get_event_loop().run_in_executor(
+                None,
+                self.process_post_processing,
+                task,
+            )
 
             if isinstance(task.post_processing.result, ProcessException):
                 return task.post_processing.result
@@ -464,21 +468,18 @@ class ASRAsyncService(ASRService):
         """
         try:
             if isinstance(task.transcription.execution, LocalExecution):
-                out = asyncio.get_event_loop().run_in_executor(
-                    None,
-                    time_and_tell(
-                        lambda: self.services["transcription"](
-                            task.audio,
-                            model_index=task.transcription.execution.index,
-                            suppress_blank=False,
-                            word_timestamps=True,
-                            **task.transcription.options.model_dump(),
-                        ),
-                        func_name="transcription",
-                        debug_mode=debug_mode,
+                out = await time_and_tell_async(
+                    lambda: self.services["transcription"](
+                        task.audio,
+                        model_index=task.transcription.execution.index,
+                        suppress_blank=False,
+                        word_timestamps=True,
+                        **task.transcription.options.model_dump(),
                     ),
+                    func_name="transcription",
+                    debug_mode=debug_mode,
                 )
-                result, process_time = await out
+                result, process_time = out
 
             elif isinstance(task.transcription.execution, RemoteExecution):
                 if isinstance(task.audio, list):
@@ -495,7 +496,7 @@ class ASRAsyncService(ASRService):
                     audio=ts,
                     **task.transcription.options.model_dump(),
                 )
-                result, process_time = await time_and_tell_async(
+                out = await time_and_tell_async(
                     lambda: self.remote_transcription(
                         url=task.transcription.execution.url,
                         data=data,
@@ -503,6 +504,7 @@ class ASRAsyncService(ASRService):
                     func_name="transcription",
                     debug_mode=debug_mode,
                 )
+                result, process_time = out
 
             else:
                 raise NotImplementedError("No execution method specified.")
@@ -533,21 +535,18 @@ class ASRAsyncService(ASRService):
         """
         try:
             if isinstance(task.diarization.execution, LocalExecution):
-                out = asyncio.get_event_loop().run_in_executor(
-                    None,
-                    time_and_tell(
-                        lambda: self.services["diarization"](
-                            waveform=task.audio,
-                            audio_duration=task.duration,
-                            oracle_num_speakers=task.diarization.num_speakers,
-                            model_index=task.diarization.execution.index,
-                            vad_service=self.services["vad"],
-                        ),
-                        func_name="diarization",
-                        debug_mode=debug_mode,
+                out = await time_and_tell_async(
+                    lambda: self.services["diarization"](
+                        waveform=task.audio,
+                        audio_duration=task.duration,
+                        oracle_num_speakers=task.diarization.num_speakers,
+                        model_index=task.diarization.execution.index,
+                        vad_service=self.services["vad"],
                     ),
+                    func_name="diarization",
+                    debug_mode=debug_mode,
                 )
-                result, process_time = await out
+                result, process_time = out
 
             elif isinstance(task.diarization.execution, RemoteExecution):
                 ts = TensorShare.from_dict({"audio": task.audio}, backend=Backend.TORCH)
@@ -557,7 +556,7 @@ class ASRAsyncService(ASRService):
                     duration=task.duration,
                     num_speakers=task.diarization.num_speakers,
                 )
-                result, process_time = await time_and_tell_async(
+                out = await time_and_tell_async(
                     lambda: self.remote_diarization(
                         url=task.diarization.execution.url,
                         data=data,
@@ -565,6 +564,7 @@ class ASRAsyncService(ASRService):
                     func_name="diarization",
                     debug_mode=debug_mode,
                 )
+                result, process_time = out
 
             elif task.diarization.execution is None:
                 result = None
@@ -586,7 +586,7 @@ class ASRAsyncService(ASRService):
 
         return None
 
-    async def process_post_processing(self, task: ASRTask) -> None:
+    def process_post_processing(self, task: ASRTask) -> None:
         """
         Process a task of post-processing.
 
@@ -598,10 +598,9 @@ class ASRAsyncService(ASRService):
         """
         try:
             total_post_process_time = 0
-            diarization = False if task.diarization.execution is None else True
 
             if task.multi_channel:
-                utterances, process_time = await time_and_tell_async(
+                utterances, process_time = time_and_tell(
                     lambda: self.services[
                         "post_processing"
                     ].multi_channel_speaker_mapping(task.transcription.result),
@@ -611,7 +610,7 @@ class ASRAsyncService(ASRService):
                 total_post_process_time += process_time
 
             else:
-                formatted_segments, process_time = await time_and_tell_async(
+                formatted_segments, process_time = time_and_tell(
                     lambda: format_segments(
                         transcription_output=task.transcription.result,
                     ),
@@ -620,8 +619,8 @@ class ASRAsyncService(ASRService):
                 )
                 total_post_process_time += process_time
 
-                if diarization:
-                    utterances, process_time = await time_and_tell_async(
+                if task.diarization.execution is not None:
+                    utterances, process_time = time_and_tell(
                         lambda: self.services[
                             "post_processing"
                         ].single_channel_speaker_mapping(
@@ -636,13 +635,11 @@ class ASRAsyncService(ASRService):
                 else:
                     utterances = formatted_segments
 
-            final_utterances, process_time = await time_and_tell_async(
+            final_utterances, process_time = time_and_tell(
                 lambda: self.services[
                     "post_processing"
                 ].final_processing_before_returning(
                     utterances=utterances,
-                    diarization=diarization,
-                    multi_channel=task.multi_channel,
                     offset_start=task.offset_start,
                     timestamps_format=task.timestamps_format,
                     word_timestamps=task.word_timestamps,

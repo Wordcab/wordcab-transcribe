@@ -326,8 +326,6 @@ class PostProcessingService:
     def final_processing_before_returning(
         self,
         utterances: List[Utterance],
-        diarization: bool,
-        multi_channel: bool,
         offset_start: Union[float, None],
         timestamps_format: Timestamps,
         word_timestamps: bool,
@@ -338,10 +336,6 @@ class PostProcessingService:
         Args:
             utterances (List[Utterance]):
                 List of utterances.
-            diarization (bool):
-                Whether diarization is enabled.
-            multi_channel (bool):
-                Whether multi-channel is enabled.
             offset_start (Union[float, None]):
                 Offset start.
             timestamps_format (Timestamps):
