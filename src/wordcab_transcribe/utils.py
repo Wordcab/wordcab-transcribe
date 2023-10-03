@@ -38,7 +38,11 @@ from yt_dlp import YoutubeDL
 if TYPE_CHECKING:
     from fastapi import UploadFile
 
-from wordcab_transcribe.models import Timestamps
+from wordcab_transcribe.models import (
+    Timestamps,
+    TranscriptionOutput,
+    Utterance,
+)
 
 
 # pragma: no cover
@@ -404,38 +408,26 @@ def format_punct(text: str):
     return text.strip()
 
 
-def format_segments(segments: list, word_timestamps: bool) -> List[dict]:
+def format_segments(transcription_output: TranscriptionOutput) -> List[Utterance]:
     """
     Format the segments to a list of dicts with start, end and text keys. Optionally include word timestamps.
 
     Args:
-        segments (list): List of segments.
+        transcription_output (TranscriptionOutput): List of segments.
         word_timestamps (bool): Whether to include word timestamps.
 
     Returns:
-        list: List of dicts with start, end and word keys.
+        List[Utterance]: List of formatted segments.
     """
-    formatted_segments = []
-
-    for segment in segments:
-        segment_dict = {}
-
-        segment_dict["start"] = segment["start"]
-        segment_dict["end"] = segment["end"]
-        segment_dict["text"] = segment["text"].strip()
-        if word_timestamps:
-            _words = [
-                {
-                    "word": word.word.strip(),
-                    "start": word.start,
-                    "end": word.end,
-                    "score": round(word.probability, 2),
-                }
-                for word in segment["words"]
-            ]
-            segment_dict["words"] = _words
-
-        formatted_segments.append(segment_dict)
+    formatted_segments = [
+        Utterance(
+            text=segment.text,
+            start=segment.start,
+            end=segment.end,
+            words=segment.words,
+        )
+        for segment in transcription_output.segments
+    ]
 
     return formatted_segments
 

@@ -19,11 +19,17 @@
 # and limitations under the License.
 """Post-Processing Service for audio files."""
 
-import itertools
 from typing import List, Tuple, Union
 
-from wordcab_transcribe.models import Timestamps, Utterance, Word
-from wordcab_transcribe.utils import convert_timestamp, format_punct, is_empty_string
+from wordcab_transcribe.models import (
+    DiarizationOutput,
+    DiarizationSegment,
+    Timestamps,
+    TranscriptionOutput,
+    Utterance,
+    Word,
+)
+from wordcab_transcribe.utils import convert_timestamp, format_punct
 
 
 class PostProcessingService:
@@ -35,10 +41,10 @@ class PostProcessingService:
 
     def single_channel_speaker_mapping(
         self,
-        transcript_segments: List[dict],
-        speaker_timestamps: List[dict],
+        transcript_segments: List[Utterance],
+        speaker_timestamps: DiarizationOutput,
         word_timestamps: bool,
-    ) -> List[dict]:
+    ) -> List[Utterance]:
         """Run the post-processing functions on the inputs.
 
         The postprocessing pipeline is as follows:
@@ -46,16 +52,20 @@ class PostProcessingService:
         2. Group utterances of the same speaker together.
 
         Args:
-            transcript_segments (List[dict]): List of transcript segments.
-            speaker_timestamps (List[dict]): List of speaker timestamps.
-            word_timestamps (bool): Whether to include word timestamps.
+            transcript_segments (List[Utterance]):
+                List of transcript utterances.
+            speaker_timestamps (DiarizationOutput):
+                List of speaker timestamps.
+            word_timestamps (bool):
+                Whether to include word timestamps.
 
         Returns:
-            List[dict]: List of sentences with speaker mapping.
+            List[Utterance]:
+                List of utterances with speaker mapping.
         """
         segments_with_speaker_mapping = self.segments_speaker_mapping(
             transcript_segments,
-            speaker_timestamps,
+            speaker_timestamps.segments,
         )
 
         utterances = self.reconstruct_utterances(
@@ -65,25 +75,24 @@ class PostProcessingService:
         return utterances
 
     def multi_channel_speaker_mapping(
-        self, multi_channel_segments: List[List[Utterance]]
-    ) -> List[Utterance]:
+        self, multi_channel_segments: List[TranscriptionOutput]
+    ) -> TranscriptionOutput:
         """
         Run the multi-channel post-processing functions on the inputs by merging the segments based on the timestamps.
 
         Args:
-            multi_channel_segments (List[List[Utterance]]):
+            multi_channel_segments (List[TranscriptionOutput]):
                 List of segments from multi speakers.
 
         Returns:
-            List[List[Utterance]]: List of sentences with speaker mapping.
+            TranscriptionOutput: List of sentences with speaker mapping.
         """
-        words_with_speaker_mapping = []
-
-        for segment in list(itertools.chain.from_iterable(multi_channel_segments)):
-            speaker = segment.speaker
-            for word in segment.words:
-                words_with_speaker_mapping.append((speaker, word))
-
+        words_with_speaker_mapping = [
+            (segment.speaker, word)
+            for output in multi_channel_segments
+            for segment in output.segments
+            for word in segment.words
+        ]
         words_with_speaker_mapping.sort(key=lambda _, word: word.start)
 
         utterances: List[Utterance] = self.reconstruct_multi_channel_utterances(
@@ -94,8 +103,8 @@ class PostProcessingService:
 
     def segments_speaker_mapping(
         self,
-        transcript_segments: List[dict],
-        speaker_timestamps: List[dict],
+        transcript_segments: List[Utterance],
+        speaker_timestamps: List[DiarizationSegment],
     ) -> List[dict]:
         """Function to map transcription and diarization results.
 
@@ -115,11 +124,11 @@ class PostProcessingService:
         segment_index = 0
         segment_speaker_mapping = []
         while segment_index < len(transcript_segments):
-            segment = transcript_segments[segment_index]
+            segment: Utterance = transcript_segments[segment_index]
             segment_start, segment_end, segment_text = (
-                segment["start"],
-                segment["end"],
-                segment["text"],
+                segment.start,
+                segment.end,
+                segment.text,
             )
 
             while segment_start > float(end) or abs(segment_start - float(end)) < 0.3:
@@ -131,14 +140,13 @@ class PostProcessingService:
                     break
 
             if segment_end > float(end):
-                words = segment["words"]
+                words = segment.words
 
                 word_index = next(
                     (
                         i
                         for i, word in enumerate(words)
-                        if word["start"] > float(end)
-                        or abs(word["start"] - float(end)) < 0.3
+                        if word.start > float(end) or abs(word.start - float(end)) < 0.3
                     ),
                     None,
                 )
@@ -147,52 +155,52 @@ class PostProcessingService:
                     _splitted_segment = segment_text.split()
 
                     if word_index > 0:
-                        _segment_to_add = {
-                            "start": words[0]["start"],
-                            "end": words[word_index - 1]["end"],
-                            "text": " ".join(_splitted_segment[:word_index]),
-                            "speaker": speaker,
-                            "words": words[:word_index],
-                        }
+                        _segment_to_add = Utterance(
+                            start=words[0].start,
+                            end=words[word_index - 1].end,
+                            text=" ".join(_splitted_segment[:word_index]),
+                            speaker=speaker,
+                            words=words[:word_index],
+                        )
 
                     else:
-                        _segment_to_add = {
-                            "start": words[0]["start"],
-                            "end": words[0]["end"],
-                            "text": _splitted_segment[0],
-                            "speaker": speaker,
-                            "words": words[:1],
-                        }
+                        _segment_to_add = Utterance(
+                            start=words[0].start,
+                            end=words[0].end,
+                            text=_splitted_segment[0],
+                            speaker=speaker,
+                            words=words[:1],
+                        )
 
                     segment_speaker_mapping.append(_segment_to_add)
                     transcript_segments.insert(
                         segment_index + 1,
-                        {
-                            "start": words[word_index]["start"],
-                            "end": segment_end,
-                            "text": " ".join(_splitted_segment[word_index:]),
-                            "words": words[word_index:],
-                        },
+                        Utterance(
+                            start=words[word_index].start,
+                            end=segment_end,
+                            text=" ".join(_splitted_segment[word_index:]),
+                            words=words[word_index:],
+                        ),
                     )
                 else:
                     segment_speaker_mapping.append(
-                        {
-                            "start": segment_start,
-                            "end": segment_end,
-                            "text": segment_text,
-                            "speaker": speaker,
-                            "words": words,
-                        }
+                        Utterance(
+                            start=segment_start,
+                            end=segment_end,
+                            text=segment_text,
+                            speaker=speaker,
+                            words=words,
+                        )
                     )
             else:
                 segment_speaker_mapping.append(
-                    {
-                        "start": segment_start,
-                        "end": segment_end,
-                        "text": segment_text,
-                        "speaker": speaker,
-                        "words": segment["words"],
-                    }
+                    Utterance(
+                        start=segment_start,
+                        end=segment_end,
+                        text=segment_text,
+                        speaker=speaker,
+                        words=segment.words,
+                    )
                 )
 
             segment_index += 1
@@ -201,23 +209,26 @@ class PostProcessingService:
 
     def reconstruct_utterances(
         self,
-        transcript_words: List[dict],
+        transcript_segments: List[Utterance],
         word_timestamps: bool,
-    ) -> List[dict]:
+    ) -> List[Utterance]:
         """
         Reconstruct the utterances based on the speaker mapping.
 
         Args:
-            transcript_words (List[dict]): List of transcript words.
-            word_timestamps (bool): Whether to include word timestamps.
+            transcript_words (List[Utterance]):
+                List of transcript segments.
+            word_timestamps (bool):
+                Whether to include word timestamps.
 
         Returns:
-            List[dict]: List of sentences with speaker mapping.
+            List[Utterance]:
+                List of sentences with speaker mapping.
         """
         start_t0, end_t0, speaker_t0 = (
-            transcript_words[0]["start"],
-            transcript_words[0]["end"],
-            transcript_words[0]["speaker"],
+            transcript_segments[0].start,
+            transcript_segments[0].end,
+            transcript_segments[0].speaker,
         )
 
         previous_speaker = speaker_t0
@@ -231,12 +242,12 @@ class PostProcessingService:
             current_sentence["words"] = []
 
         sentences = []
-        for segment in transcript_words:
-            text, speaker = segment["text"], segment["speaker"]
-            start_t, end_t = segment["start"], segment["end"]
+        for segment in transcript_segments:
+            text, speaker = segment.text, segment.speaker
+            start_t, end_t = segment.start, segment.end
 
             if speaker != previous_speaker:
-                sentences.append(current_sentence)
+                sentences.append(Utterance(**current_sentence))
                 current_sentence = {
                     "speaker": speaker,
                     "start": start_t,
@@ -251,10 +262,10 @@ class PostProcessingService:
             current_sentence["text"] += text + " "
             previous_speaker = speaker
             if word_timestamps:
-                current_sentence["words"].extend(segment["words"])
+                current_sentence["words"].extend(segment.words)
 
         # Catch the last sentence
-        sentences.append(current_sentence)
+        sentences.append(Utterance(**current_sentence))
 
         return sentences
 
@@ -314,18 +325,18 @@ class PostProcessingService:
 
     def final_processing_before_returning(
         self,
-        utterances: List[dict],
+        utterances: List[Utterance],
         diarization: bool,
         multi_channel: bool,
         offset_start: Union[float, None],
         timestamps_format: Timestamps,
         word_timestamps: bool,
-    ) -> List[dict]:
+    ) -> List[Utterance]:
         """
         Do final processing before returning the utterances to the API.
 
         Args:
-            utterances (List[dict]):
+            utterances (List[Utterance]):
                 List of utterances.
             diarization (bool):
                 Whether diarization is enabled.
@@ -339,29 +350,22 @@ class PostProcessingService:
                 Whether to include word timestamps.
 
         Returns:
-            List[dict]: List of utterances with final processing.
+            List[Utterance]:
+                List of utterances with final processing.
         """
         if offset_start is not None:
             offset_start = float(offset_start)
         else:
             offset_start = 0.0
 
-        include_speaker = diarization or multi_channel
+        for utterance in utterances:
+            utterance.text = format_punct(utterance.text)
+            utterance.start = convert_timestamp(
+                (utterance.start + offset_start), timestamps_format
+            )
+            utterance.end = convert_timestamp(
+                (utterance.end + offset_start), timestamps_format
+            )
+            utterance.words = utterance.words if word_timestamps else None
 
-        _utterances = [
-            {
-                "text": format_punct(utterance["text"]),
-                "start": convert_timestamp(
-                    (utterance["start"] + offset_start), timestamps_format
-                ),
-                "end": convert_timestamp(
-                    (utterance["end"] + offset_start), timestamps_format
-                ),
-                "speaker": int(utterance["speaker"]) if include_speaker else None,
-                "words": utterance["words"] if word_timestamps else [],
-            }
-            for utterance in utterances
-            if not is_empty_string(utterance["text"])
-        ]
-
-        return _utterances
+        return utterances

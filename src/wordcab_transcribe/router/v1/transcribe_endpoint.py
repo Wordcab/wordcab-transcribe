@@ -34,7 +34,7 @@ router = APIRouter()
 
 @router.post(
     "",
-    response_model=Union[TranscriptionOutput, List[TranscriptionOutput]],
+    response_model=Union[TranscriptionOutput, List[TranscriptionOutput], str],
     status_code=http_status.HTTP_200_OK,
 )
 async def only_transcription(
@@ -44,7 +44,7 @@ async def only_transcription(
     result: Union[TranscriptionOutput, List[TranscriptionOutput]] = (
         await asr.process_input(data)
     )
-    
+
     if isinstance(result, ProcessException):
         logger.error(result.message)
         raise HTTPException(

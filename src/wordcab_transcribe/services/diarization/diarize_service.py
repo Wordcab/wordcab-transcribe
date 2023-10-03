@@ -19,10 +19,12 @@
 # and limitations under the License.
 """Diarization Service for audio files."""
 
-from typing import List, NamedTuple, Tuple
+from typing import List, NamedTuple, Tuple, Union
 
 import torch
+from tensorshare import Backend, TensorShare
 
+from wordcab_transcribe.models import DiarizationOutput
 from wordcab_transcribe.services.diarization.clustering_module import ClusteringModule
 from wordcab_transcribe.services.diarization.models import (
     MultiscaleEmbeddingsAndTimestamps,
@@ -96,25 +98,35 @@ class DiarizeService:
 
     def __call__(
         self,
-        waveform: torch.Tensor,
+        waveform: Union[torch.Tensor, TensorShare],
         audio_duration: float,
         oracle_num_speakers: int,
         model_index: int,
         vad_service: VadService,
-    ) -> List[dict]:
+    ) -> DiarizationOutput:
         """
         Run inference with the diarization model.
 
         Args:
-            waveform (torch.Tensor): Waveform to run inference on.
-            audio_duration (float): Duration of the audio file in seconds.
-            oracle_num_speakers (int): Number of speakers in the audio file.
-            model_index (int): Index of the model to use for inference.
-            vad_service (VadService): VAD service instance to use for Voice Activity Detection.
+            waveform (Union[torch.Tensor, TensorShare]):
+                Waveform to run inference on.
+            audio_duration (float):
+                Duration of the audio file in seconds.
+            oracle_num_speakers (int):
+                Number of speakers in the audio file.
+            model_index (int):
+                Index of the model to use for inference.
+            vad_service (VadService):
+                VAD service instance to use for Voice Activity Detection.
 
         Returns:
-            List[dict]: List of segments with the following keys: "start", "end", "speaker".
+            DiarizationOutput:
+                List of segments with the following keys: "start", "end", "speaker".
         """
+        if isinstance(waveform, TensorShare):
+            ts = waveform.to_tensors(backend=Backend.TORCH)
+            waveform = ts["audio"]
+
         vad_outputs, _ = vad_service(waveform, group_timestamps=False)
 
         if len(vad_outputs) == 0:  # Empty audio
@@ -157,7 +169,7 @@ class DiarizeService:
         _outputs = self.get_contiguous_stamps(clustering_outputs)
         outputs = self.merge_stamps(_outputs)
 
-        return outputs
+        return DiarizationOutput(segments=outputs)
 
     @staticmethod
     def get_contiguous_stamps(

@@ -28,6 +28,7 @@ from loguru import logger
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.services.asr_service import (
     ASRAsyncService,
+    ASRDiarizationOnly,
     ASRLiveService,
     ASRTranscriptionOnly,
 )
@@ -69,7 +70,12 @@ elif settings.asr_type == "only_transcription":
         debug_mode=settings.debug,
     )
 elif settings.asr_type == "only_diarization":
-    asr = None
+    asr = ASRDiarizationOnly(
+        window_lengths=settings.window_lengths,
+        shift_lengths=settings.shift_lengths,
+        multiscale_weights=settings.multiscale_weights,
+        debug_mode=settings.debug,
+    )
 else:
     raise ValueError(f"Invalid ASR type: {settings.asr_type}")
 

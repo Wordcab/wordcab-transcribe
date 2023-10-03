@@ -20,7 +20,6 @@
 """ASR Service module that handle all AI interactions."""
 
 import asyncio
-import functools
 import time
 import traceback
 from abc import ABC, abstractmethod
@@ -36,10 +35,13 @@ from tensorshare import Backend, TensorShare
 
 from wordcab_transcribe.logging import time_and_tell, time_and_tell_async
 from wordcab_transcribe.models import (
+    DiarizationOutput,
+    DiarizationRequest,
     ProcessTimes,
     Timestamps,
     TranscribeRequest,
     TranscriptionOutput,
+    Utterance,
 )
 from wordcab_transcribe.services.concurrency_services import GPUService, URLService
 from wordcab_transcribe.services.diarization.diarize_service import DiarizeService
@@ -98,13 +100,13 @@ class DiarizationTask(BaseModel):
 
     execution: Union[LocalExecution, RemoteExecution, None]
     num_speakers: int
-    result: Union[ProcessException, List[dict], None] = None
+    result: Union[ProcessException, DiarizationOutput, None] = None
 
 
 class PostProcessingTask(BaseModel):
     """Post Processing Task model."""
 
-    result: Union[ProcessException, List[dict], None] = None
+    result: Union[ProcessException, List[Utterance], None] = None
 
 
 class TranscriptionOptions(BaseModel):
@@ -125,7 +127,9 @@ class TranscriptionTask(BaseModel):
 
     execution: Union[LocalExecution, RemoteExecution]
     options: TranscriptionOptions
-    result: Union[ProcessException, List[dict], None] = None
+    result: Union[
+        ProcessException, TranscriptionOutput, List[TranscriptionOutput], None
+    ] = None
 
 
 class ASRService(ABC):
@@ -429,9 +433,7 @@ class ASRAsyncService(ASRService):
             if isinstance(task.transcription.result, ProcessException):
                 return task.transcription.result
 
-            await asyncio.get_event_loop().run_in_executor(
-                None, functools.partial(self.process_post_processing, task)
-            )
+            await self.process_post_processing(task)
 
             if isinstance(task.post_processing.result, ProcessException):
                 return task.post_processing.result
@@ -494,8 +496,9 @@ class ASRAsyncService(ASRService):
                     **task.transcription.options.model_dump(),
                 )
                 result, process_time = await time_and_tell_async(
-                    lambda: self.remote_transcribe(
-                        url=task.transcription.execution.url, data=data
+                    lambda: self.remote_transcription(
+                        url=task.transcription.execution.url,
+                        data=data,
                     ),
                     func_name="transcription",
                     debug_mode=debug_mode,
@@ -517,7 +520,7 @@ class ASRAsyncService(ASRService):
 
         return None
 
-    def process_diarization(self, task: ASRTask, debug_mode: bool) -> None:
+    async def process_diarization(self, task: ASRTask, debug_mode: bool) -> None:
         """
         Process a task of diarization.
 
@@ -530,22 +533,45 @@ class ASRAsyncService(ASRService):
         """
         try:
             if isinstance(task.diarization.execution, LocalExecution):
-                result, process_time = time_and_tell(
-                    lambda: self.services["diarization"](
-                        waveform=task.audio,
-                        audio_duration=task.duration,
-                        oracle_num_speakers=task.diarization.num_speakers,
-                        model_index=task.diarization.execution.index,
-                        vad_service=self.services["vad"],
+                out = asyncio.get_event_loop().run_in_executor(
+                    None,
+                    time_and_tell(
+                        lambda: self.services["diarization"](
+                            waveform=task.audio,
+                            audio_duration=task.duration,
+                            oracle_num_speakers=task.diarization.num_speakers,
+                            model_index=task.diarization.execution.index,
+                            vad_service=self.services["vad"],
+                        ),
+                        func_name="diarization",
+                        debug_mode=debug_mode,
+                    ),
+                )
+                result, process_time = await out
+
+            elif isinstance(task.diarization.execution, RemoteExecution):
+                ts = TensorShare.from_dict({"audio": task.audio}, backend=Backend.TORCH)
+
+                data = DiarizationRequest(
+                    audio=ts,
+                    duration=task.duration,
+                    num_speakers=task.diarization.num_speakers,
+                )
+                result, process_time = await time_and_tell_async(
+                    lambda: self.remote_diarization(
+                        url=task.diarization.execution.url,
+                        data=data,
                     ),
                     func_name="diarization",
                     debug_mode=debug_mode,
                 )
-            elif isinstance(task.diarization.execution, RemoteExecution):
-                raise NotImplementedError("Remote execution is not implemented yet.")
+
             elif task.diarization.execution is None:
                 result = None
                 process_time = None
+
+            else:
+                raise NotImplementedError("No execution method specified.")
 
         except Exception as e:
             result = ProcessException(
@@ -560,7 +586,7 @@ class ASRAsyncService(ASRService):
 
         return None
 
-    def process_post_processing(self, task: ASRTask) -> None:
+    async def process_post_processing(self, task: ASRTask) -> None:
         """
         Process a task of post-processing.
 
@@ -575,7 +601,7 @@ class ASRAsyncService(ASRService):
             diarization = False if task.diarization.execution is None else True
 
             if task.multi_channel:
-                utterances, process_time = time_and_tell(
+                utterances, process_time = await time_and_tell_async(
                     lambda: self.services[
                         "post_processing"
                     ].multi_channel_speaker_mapping(task.transcription.result),
@@ -585,10 +611,9 @@ class ASRAsyncService(ASRService):
                 total_post_process_time += process_time
 
             else:
-                formatted_segments, process_time = time_and_tell(
+                formatted_segments, process_time = await time_and_tell_async(
                     lambda: format_segments(
-                        segments=task.transcription.result,
-                        word_timestamps=True,
+                        transcription_output=task.transcription.result,
                     ),
                     func_name="format_segments",
                     debug_mode=self.debug_mode,
@@ -596,7 +621,7 @@ class ASRAsyncService(ASRService):
                 total_post_process_time += process_time
 
                 if diarization:
-                    utterances, process_time = time_and_tell(
+                    utterances, process_time = await time_and_tell_async(
                         lambda: self.services[
                             "post_processing"
                         ].single_channel_speaker_mapping(
@@ -611,7 +636,7 @@ class ASRAsyncService(ASRService):
                 else:
                     utterances = formatted_segments
 
-            final_utterances, process_time = time_and_tell(
+            final_utterances, process_time = await time_and_tell_async(
                 lambda: self.services[
                     "post_processing"
                 ].final_processing_before_returning(
@@ -640,8 +665,10 @@ class ASRAsyncService(ASRService):
 
         return None
 
-    async def remote_transcribe(
-        self, url: str, data: TranscribeRequest
+    async def remote_transcription(
+        self,
+        url: str,
+        data: TranscribeRequest,
     ) -> TranscriptionOutput:
         """Remote transcription method."""
         async with aiohttp.ClientSession() as session:
@@ -650,11 +677,25 @@ class ASRAsyncService(ASRService):
                 data=data.model_dump_json(),
             ) as response:
                 if response.status != 200:
-                    raise Exception(
-                        f"Remote transcription failed with status {response.status}."
-                    )
+                    raise Exception(response.detail)
                 else:
                     return TranscriptionOutput(**await response.json())
+
+    async def remote_diarization(
+        self,
+        url: str,
+        data: DiarizationRequest,
+    ) -> DiarizationOutput:
+        """Remote diarization method."""
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                url=f"{url}/api/v1/diarize",
+                data=data.model_dump_json(),
+            ) as response:
+                if response.status != 200:
+                    raise Exception(response.detail)
+                else:
+                    return DiarizationOutput(**await response.json())
 
 
 class ASRLiveService(ASRService):
@@ -715,7 +756,7 @@ class ASRLiveService(ASRService):
 
 
 class ASRTranscriptionOnly(ASRService):
-    """ASR Service module for transcription-only endpoints."""
+    """ASR Service module for transcription-only endpoint."""
 
     def __init__(
         self,
@@ -739,7 +780,7 @@ class ASRTranscriptionOnly(ASRService):
         self.debug_mode = debug_mode
 
     async def inference_warmup(self) -> None:
-        """Warmup the GPU by loading the models."""
+        """Warmup the GPU by doing one inference."""
         sample_audio = Path(__file__).parent.parent / "assets/warmup_sample.wav"
 
         audio, _ = read_audio(str(sample_audio))
@@ -765,7 +806,7 @@ class ASRTranscriptionOnly(ASRService):
         self, data: TranscribeRequest
     ) -> Union[TranscriptionOutput, List[TranscriptionOutput]]:
         """
-        Process the input data and return the results as a list of utterances.
+        Process the input data and return the results as a list of segments.
 
         Args:
             data (TranscribeRequest):
@@ -795,8 +836,83 @@ class ASRTranscriptionOnly(ASRService):
 
         except Exception as e:
             result = ProcessException(
-                source=ExceptionSource.post_processing,
-                message=f"Error in post-processing: {e}\n{traceback.format_exc()}",
+                source=ExceptionSource.transcription,
+                message=f"Error in transcription: {e}\n{traceback.format_exc()}",
+            )
+
+        finally:
+            self.gpu_handler.release_device(gpu_index)
+
+        return result
+
+
+class ASRDiarizationOnly(ASRService):
+    """ASR Service module for diarization-only endpoint."""
+
+    def __init__(
+        self,
+        window_lengths: List[int],
+        shift_lengths: List[int],
+        multiscale_weights: List[float],
+        debug_mode: bool,
+    ) -> None:
+        """Initialize the ASRDiarizationOnly class."""
+        super().__init__()
+
+        self.diarization_service = DiarizeService(
+            device=self.device,
+            device_index=self.device_index,
+            window_lengths=window_lengths,
+            shift_lengths=shift_lengths,
+            multiscale_weights=multiscale_weights,
+        )
+        self.vad_service = VadService()
+        self.debug_mode = debug_mode
+
+    async def inference_warmup(self) -> None:
+        """Warmup the GPU by doing one inference."""
+        sample_audio = Path(__file__).parent.parent / "assets/warmup_sample.wav"
+
+        audio, duration = read_audio(str(sample_audio))
+        ts = TensorShare.from_dict({"audio": audio}, backend=Backend.TORCH)
+
+        data = DiarizationRequest(
+            audio=ts,
+            duration=duration,
+            num_speakers=1,
+        )
+
+        for gpu_index in self.gpu_handler.device_index:
+            logger.info(f"Warmup GPU {gpu_index}.")
+            await self.process_input(data=data)
+
+    async def process_input(self, data: DiarizationRequest) -> DiarizationOutput:
+        """
+        Process the input data and return the results as a list of segments.
+
+        Args:
+            data (DiarizationRequest):
+                The input data to process.
+
+        Returns:
+            DiarizationOutput:
+                The results of the ASR pipeline.
+        """
+        gpu_index = await self.gpu_handler.get_device()
+
+        try:
+            result = self.diarization_service(
+                waveform=data.audio,
+                audio_duration=data.duration,
+                oracle_num_speakers=data.num_speakers,
+                model_index=gpu_index,
+                vad_service=self.vad_service,
+            )
+
+        except Exception as e:
+            result = ProcessException(
+                source=ExceptionSource.diarization,
+                message=f"Error in diarization: {e}\n{traceback.format_exc()}",
             )
 
         finally:

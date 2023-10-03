@@ -489,6 +489,14 @@ class DiarizationOutput(BaseModel):
     segments: List[DiarizationSegment]
 
 
+class DiarizationRequest(BaseModel):
+    """Request model for the diarize endpoint."""
+
+    audio: TensorShare
+    duration: float
+    num_speakers: int
+
+
 class TranscriptionOutput(BaseModel):
     """Transcription output model for the API."""
 
