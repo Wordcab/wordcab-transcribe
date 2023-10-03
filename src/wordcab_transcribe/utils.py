@@ -433,7 +433,7 @@ def format_segments(transcription_output: TranscriptionOutput) -> List[Utterance
                     probability=word.probability,
                 )
                 for word in segment.words
-            ]
+            ],
         )
         for segment in transcription_output.segments
     ]

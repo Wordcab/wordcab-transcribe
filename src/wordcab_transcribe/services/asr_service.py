@@ -207,21 +207,6 @@ class ASRAsyncService(ASRService):
         super().__init__()
 
         self.services: dict = {
-            "transcription": TranscribeService(
-                model_path=whisper_model,
-                compute_type=compute_type,
-                device=self.device,
-                device_index=self.device_index,
-                extra_languages=extra_languages,
-                extra_languages_model_paths=extra_languages_model_paths,
-            ),
-            "diarization": DiarizeService(
-                device=self.device,
-                device_index=self.device_index,
-                window_lengths=window_lengths,
-                shift_lengths=shift_lengths,
-                multiscale_weights=multiscale_weights,
-            ),
             "post_processing": PostProcessingService(),
             "vad": VadService(),
         }
@@ -241,12 +226,27 @@ class ASRAsyncService(ASRService):
             )
         else:
             self.use_remote_transcription = False
+            self.services["transcription"] = TranscribeService(
+                model_path=whisper_model,
+                compute_type=compute_type,
+                device=self.device,
+                device_index=self.device_index,
+                extra_languages=extra_languages,
+                extra_languages_model_paths=extra_languages_model_paths,
+            )
 
         if diarize_server_urls is not None:
             self.use_remote_diarization = True
             self.diarization_url_handler = URLService(remote_urls=diarize_server_urls)
         else:
             self.use_remote_diarization = False
+            self.services["diarization"] = DiarizeService(
+                device=self.device,
+                device_index=self.device_index,
+                window_lengths=window_lengths,
+                shift_lengths=shift_lengths,
+                multiscale_weights=multiscale_weights,
+            )
 
         self.debug_mode = debug_mode
 
@@ -469,7 +469,7 @@ class ASRAsyncService(ASRService):
         try:
             if isinstance(task.transcription.execution, LocalExecution):
                 out = await time_and_tell_async(
-                    self.services["transcription"](
+                    lambda: self.services["transcription"](
                         task.audio,
                         model_index=task.transcription.execution.index,
                         suppress_blank=False,
@@ -536,7 +536,7 @@ class ASRAsyncService(ASRService):
         try:
             if isinstance(task.diarization.execution, LocalExecution):
                 out = await time_and_tell_async(
-                    self.services["diarization"](
+                    lambda: self.services["diarization"](
                         waveform=task.audio,
                         audio_duration=task.duration,
                         oracle_num_speakers=task.diarization.num_speakers,
@@ -601,9 +601,9 @@ class ASRAsyncService(ASRService):
 
             if task.multi_channel:
                 utterances, process_time = time_and_tell(
-                    self.services[
-                        "post_processing"
-                    ].multi_channel_speaker_mapping(task.transcription.result),
+                    self.services["post_processing"].multi_channel_speaker_mapping(
+                        task.transcription.result
+                    ),
                     func_name="multi_channel_speaker_mapping",
                     debug_mode=self.debug_mode,
                 )
@@ -621,9 +621,7 @@ class ASRAsyncService(ASRService):
 
                 if task.diarization.execution is not None:
                     utterances, process_time = time_and_tell(
-                        self.services[
-                            "post_processing"
-                        ].single_channel_speaker_mapping(
+                        self.services["post_processing"].single_channel_speaker_mapping(
                             transcript_segments=formatted_segments,
                             speaker_timestamps=task.diarization.result,
                             word_timestamps=task.word_timestamps,
@@ -636,9 +634,7 @@ class ASRAsyncService(ASRService):
                     utterances = formatted_segments
 
             final_utterances, process_time = time_and_tell(
-                self.services[
-                    "post_processing"
-                ].final_processing_before_returning(
+                self.services["post_processing"].final_processing_before_returning(
                     utterances=utterances,
                     offset_start=task.offset_start,
                     timestamps_format=task.timestamps_format,
