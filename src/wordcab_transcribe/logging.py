@@ -95,7 +95,7 @@ def time_and_tell(
         The appropriate wrapper for the function.
     """
     start_time = time.time()
-    result = func()
+    result = func
     process_time = time.time() - start_time
 
     if debug_mode:
@@ -121,11 +121,13 @@ async def time_and_tell_async(
     start_time = time.time()
 
     if asyncio.iscoroutinefunction(func) or asyncio.iscoroutine(func):
-        result = await func()
+        result = await func
     else:
         loop = asyncio.get_event_loop()
         if isinstance(func, partial):
-            result = await loop.run_in_executor(None, func.func, *func.args, **func.keywords)
+            result = await loop.run_in_executor(
+                None, func.func, *func.args, **func.keywords
+            )
         else:
             result = await loop.run_in_executor(None, func)
 

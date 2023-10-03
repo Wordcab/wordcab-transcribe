@@ -42,6 +42,7 @@ from wordcab_transcribe.models import (
     Timestamps,
     TranscriptionOutput,
     Utterance,
+    Word,
 )
 
 
@@ -424,7 +425,15 @@ def format_segments(transcription_output: TranscriptionOutput) -> List[Utterance
             text=segment.text,
             start=segment.start,
             end=segment.end,
-            words=segment.words,
+            words=[
+                Word(
+                    word=word.word,
+                    start=word.start,
+                    end=word.end,
+                    probability=word.probability,
+                )
+                for word in segment.words
+            ]
         )
         for segment in transcription_output.segments
     ]

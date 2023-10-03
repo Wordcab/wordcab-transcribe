@@ -22,7 +22,7 @@
 from enum import Enum
 from typing import List, Literal, NamedTuple, Optional, Union
 
-from faster_whisper.transcribe import Segment, Word
+from faster_whisper.transcribe import Segment
 from pydantic import BaseModel, field_validator
 from tensorshare import TensorShare
 
@@ -42,6 +42,15 @@ class Timestamps(str, Enum):
     seconds = "s"
     milliseconds = "ms"
     hour_minute_second = "hms"
+
+
+class Word(BaseModel):
+    """Word model for the API."""
+
+    word: str
+    start: float
+    end: float
+    probability: float
 
 
 class Utterance(BaseModel):

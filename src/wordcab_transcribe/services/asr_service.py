@@ -469,7 +469,7 @@ class ASRAsyncService(ASRService):
         try:
             if isinstance(task.transcription.execution, LocalExecution):
                 out = await time_and_tell_async(
-                    lambda: self.services["transcription"](
+                    self.services["transcription"](
                         task.audio,
                         model_index=task.transcription.execution.index,
                         suppress_blank=False,
@@ -497,7 +497,7 @@ class ASRAsyncService(ASRService):
                     **task.transcription.options.model_dump(),
                 )
                 out = await time_and_tell_async(
-                    lambda: self.remote_transcription(
+                    self.remote_transcription(
                         url=task.transcription.execution.url,
                         data=data,
                     ),
@@ -536,7 +536,7 @@ class ASRAsyncService(ASRService):
         try:
             if isinstance(task.diarization.execution, LocalExecution):
                 out = await time_and_tell_async(
-                    lambda: self.services["diarization"](
+                    self.services["diarization"](
                         waveform=task.audio,
                         audio_duration=task.duration,
                         oracle_num_speakers=task.diarization.num_speakers,
@@ -557,7 +557,7 @@ class ASRAsyncService(ASRService):
                     num_speakers=task.diarization.num_speakers,
                 )
                 out = await time_and_tell_async(
-                    lambda: self.remote_diarization(
+                    self.remote_diarization(
                         url=task.diarization.execution.url,
                         data=data,
                     ),
@@ -601,7 +601,7 @@ class ASRAsyncService(ASRService):
 
             if task.multi_channel:
                 utterances, process_time = time_and_tell(
-                    lambda: self.services[
+                    self.services[
                         "post_processing"
                     ].multi_channel_speaker_mapping(task.transcription.result),
                     func_name="multi_channel_speaker_mapping",
@@ -611,7 +611,7 @@ class ASRAsyncService(ASRService):
 
             else:
                 formatted_segments, process_time = time_and_tell(
-                    lambda: format_segments(
+                    format_segments(
                         transcription_output=task.transcription.result,
                     ),
                     func_name="format_segments",
@@ -621,7 +621,7 @@ class ASRAsyncService(ASRService):
 
                 if task.diarization.execution is not None:
                     utterances, process_time = time_and_tell(
-                        lambda: self.services[
+                        self.services[
                             "post_processing"
                         ].single_channel_speaker_mapping(
                             transcript_segments=formatted_segments,
@@ -636,7 +636,7 @@ class ASRAsyncService(ASRService):
                     utterances = formatted_segments
 
             final_utterances, process_time = time_and_tell(
-                lambda: self.services[
+                self.services[
                     "post_processing"
                 ].final_processing_before_returning(
                     utterances=utterances,
@@ -672,9 +672,10 @@ class ASRAsyncService(ASRService):
             async with session.post(
                 url=f"{url}/api/v1/transcribe",
                 data=data.model_dump_json(),
+                headers={"Content-Type": "application/json"},
             ) as response:
                 if response.status != 200:
-                    raise Exception(response.detail)
+                    raise Exception(response.status)
                 else:
                     return TranscriptionOutput(**await response.json())
 
@@ -688,9 +689,11 @@ class ASRAsyncService(ASRService):
             async with session.post(
                 url=f"{url}/api/v1/diarize",
                 data=data.model_dump_json(),
+                headers={"Content-Type": "application/json"},
             ) as response:
                 if response.status != 200:
-                    raise Exception(response.detail)
+                    r = await response.json()
+                    raise Exception(r["detail"])
                 else:
                     return DiarizationOutput(**await response.json())
 
