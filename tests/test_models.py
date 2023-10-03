@@ -20,7 +20,6 @@
 """Test the models for requests and responses."""
 
 import pytest
-from faster_whisper.transcribe import Word
 
 from wordcab_transcribe.models import (
     AudioRequest,
@@ -34,6 +33,7 @@ from wordcab_transcribe.models import (
     ProcessTimes,
     Timestamps,
     Utterance,
+    Word,
     YouTubeResponse,
 )
 
