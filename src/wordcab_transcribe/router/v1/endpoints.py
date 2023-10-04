@@ -30,6 +30,9 @@ from wordcab_transcribe.router.v1.cortex_endpoint import (  # noqa: F401
 )
 from wordcab_transcribe.router.v1.diarize_endpoint import router as diarize_router
 from wordcab_transcribe.router.v1.live_endpoint import router as live_router
+from wordcab_transcribe.router.v1.manage_remote_url import (
+    router as manage_remote_url_router,
+)
 from wordcab_transcribe.router.v1.transcribe_endpoint import router as transcribe_router
 from wordcab_transcribe.router.v1.youtube_endpoint import router as youtube_router
 
@@ -43,10 +46,16 @@ async_routers = [
 live_routers = (live_router, "/live", "live")
 transcribe_routers = (transcribe_router, "/transcribe", "transcription")
 diarize_routers = (diarize_router, "/diarize", "diarization")
+manage_remote_url_routers = (
+    manage_remote_url_router,
+    "/remote-url",
+    "remote-url",
+)
 
 routers = []
 if settings.asr_type == "async":
     routers.extend(async_routers)
+    routers.append(manage_remote_url_routers)
 elif settings.asr_type == "live":
     routers.append(live_routers)
 elif settings.asr_type == "only_transcription":

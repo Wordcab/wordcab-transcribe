@@ -23,7 +23,7 @@ from enum import Enum
 from typing import List, Literal, NamedTuple, Optional, Union
 
 from faster_whisper.transcribe import Segment
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, HttpUrl, field_validator
 from tensorshare import TensorShare
 
 
@@ -482,6 +482,20 @@ class PongResponse(BaseModel):
                 "message": "pong",
             },
         }
+
+
+class UrlRequest(BaseModel):
+    """Request model for the add_url endpoint."""
+
+    task: Literal["transcription", "diarization"]
+    url: str
+
+
+class UrlSchema(BaseModel):
+    """Request model for the add_url endpoint."""
+
+    task: Literal["transcription", "diarization"]
+    url: HttpUrl
 
 
 class DiarizationSegment(NamedTuple):
