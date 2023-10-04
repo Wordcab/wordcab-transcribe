@@ -26,7 +26,12 @@ from fastapi import FastAPI
 from loguru import logger
 
 from wordcab_transcribe.config import settings
-from wordcab_transcribe.services.asr_service import ASRAsyncService, ASRLiveService
+from wordcab_transcribe.services.asr_service import (
+    ASRAsyncService,
+    ASRDiarizationOnly,
+    ASRLiveService,
+    ASRTranscriptionOnly,
+)
 from wordcab_transcribe.utils import (
     check_ffmpeg,
     download_model,
@@ -57,9 +62,20 @@ elif settings.asr_type == "async":
         debug_mode=settings.debug,
     )
 elif settings.asr_type == "only_transcription":
-    asr = None
+    asr = ASRTranscriptionOnly(
+        whisper_model=settings.whisper_model,
+        compute_type=settings.compute_type,
+        extra_languages=settings.extra_languages,
+        extra_languages_model_paths=settings.extra_languages_model_paths,
+        debug_mode=settings.debug,
+    )
 elif settings.asr_type == "only_diarization":
-    asr = None
+    asr = ASRDiarizationOnly(
+        window_lengths=settings.window_lengths,
+        shift_lengths=settings.shift_lengths,
+        multiscale_weights=settings.multiscale_weights,
+        debug_mode=settings.debug,
+    )
 else:
     raise ValueError(f"Invalid ASR type: {settings.asr_type}")
 
@@ -75,7 +91,7 @@ async def lifespan(app: FastAPI) -> None:
             " https://github.com/Wordcab/wordcab-transcribe/issues"
         )
 
-    if settings.asr_type == "async" or settings.asr_type == "remote_transcribe":
+    if settings.asr_type == "async" or settings.asr_type == "only_transcription":
         if check_ffmpeg() is False:
             logger.warning(
                 "FFmpeg is not installed on the host machine.\n"

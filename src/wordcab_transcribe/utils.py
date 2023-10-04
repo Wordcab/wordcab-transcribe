@@ -38,7 +38,12 @@ from yt_dlp import YoutubeDL
 if TYPE_CHECKING:
     from fastapi import UploadFile
 
-from wordcab_transcribe.models import Timestamps
+from wordcab_transcribe.models import (
+    Timestamps,
+    TranscriptionOutput,
+    Utterance,
+    Word,
+)
 
 
 # pragma: no cover
@@ -404,38 +409,34 @@ def format_punct(text: str):
     return text.strip()
 
 
-def format_segments(segments: list, word_timestamps: bool) -> List[dict]:
+def format_segments(transcription_output: TranscriptionOutput) -> List[Utterance]:
     """
     Format the segments to a list of dicts with start, end and text keys. Optionally include word timestamps.
 
     Args:
-        segments (list): List of segments.
+        transcription_output (TranscriptionOutput): List of segments.
         word_timestamps (bool): Whether to include word timestamps.
 
     Returns:
-        list: List of dicts with start, end and word keys.
+        List[Utterance]: List of formatted segments.
     """
-    formatted_segments = []
-
-    for segment in segments:
-        segment_dict = {}
-
-        segment_dict["start"] = segment["start"]
-        segment_dict["end"] = segment["end"]
-        segment_dict["text"] = segment["text"].strip()
-        if word_timestamps:
-            _words = [
-                {
-                    "word": word.word.strip(),
-                    "start": word.start,
-                    "end": word.end,
-                    "score": round(word.probability, 2),
-                }
-                for word in segment["words"]
-            ]
-            segment_dict["words"] = _words
-
-        formatted_segments.append(segment_dict)
+    formatted_segments = [
+        Utterance(
+            text=segment.text,
+            start=segment.start,
+            end=segment.end,
+            words=[
+                Word(
+                    word=word.word,
+                    start=word.start,
+                    end=word.end,
+                    probability=word.probability,
+                )
+                for word in segment.words
+            ],
+        )
+        for segment in transcription_output.segments
+    ]
 
     return formatted_segments
 
@@ -546,15 +547,17 @@ def read_audio(
         Tuple[torch.Tensor, float]: The audio tensor and the audio duration.
     """
     if isinstance(audio, str):
-        wav, sr = torchaudio.load(
-            audio,
-        )
+        wav, sr = torchaudio.load(audio)
     elif isinstance(audio, bytes):
         with io.BytesIO(audio) as buffer:
             wav, sr = sf.read(
                 buffer, format="RAW", channels=1, samplerate=16000, subtype="PCM_16"
             )
         wav = torch.from_numpy(wav).unsqueeze(0)
+    else:
+        raise ValueError(
+            f"Invalid audio type. Must be either str or bytes, got: {type(audio)}."
+        )
 
     if wav.size(0) > 1:
         wav = wav.mean(dim=0, keepdim=True)

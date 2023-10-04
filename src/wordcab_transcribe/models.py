@@ -20,9 +20,11 @@
 """Models module of the Wordcab Transcribe."""
 
 from enum import Enum
-from typing import List, Literal, Optional, Union
+from typing import List, Literal, NamedTuple, Optional, Union
 
+from faster_whisper.transcribe import Segment
 from pydantic import BaseModel, field_validator
+from tensorshare import TensorShare
 
 
 class ProcessTimes(BaseModel):
@@ -48,7 +50,7 @@ class Word(BaseModel):
     word: str
     start: float
     end: float
-    score: float
+    probability: float
 
 
 class Utterance(BaseModel):
@@ -57,8 +59,8 @@ class Utterance(BaseModel):
     text: str
     start: Union[float, str]
     end: Union[float, str]
-    speaker: Optional[int]
-    words: Optional[List[Word]]
+    speaker: Union[int, None] = None
+    words: Union[List[Word], None] = None
 
 
 class BaseResponse(BaseModel):
@@ -482,12 +484,46 @@ class PongResponse(BaseModel):
         }
 
 
-class DiarizeResponse(BaseModel):
-    """Response model for the diarize endpoint."""
+class DiarizationSegment(NamedTuple):
+    """Diarization segment model for the API."""
+
+    start: float
+    end: float
+    speaker: int
 
 
-class TranscribeResponse(BaseModel):
-    """Response model for the transcribe endpoint."""
+class DiarizationOutput(BaseModel):
+    """Diarization output model for the API."""
+
+    segments: List[DiarizationSegment]
+
+
+class DiarizationRequest(BaseModel):
+    """Request model for the diarize endpoint."""
+
+    audio: TensorShare
+    duration: float
+    num_speakers: int
+
+
+class TranscriptionOutput(BaseModel):
+    """Transcription output model for the API."""
+
+    segments: List[Segment]
+
+
+class TranscribeRequest(BaseModel):
+    """Request model for the transcribe endpoint."""
+
+    audio: Union[TensorShare, List[TensorShare]]
+    compression_ratio_threshold: float
+    condition_on_previous_text: bool
+    internal_vad: bool
+    log_prob_threshold: float
+    no_speech_threshold: float
+    repetition_penalty: float
+    source_lang: str
+    vocab: Union[List[str], None]
 
 
 class Token(BaseModel):

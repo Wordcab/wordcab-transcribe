@@ -53,12 +53,8 @@ class Settings:
     multiscale_weights: List[float]
     # ASR type configuration
     asr_type: Literal["async", "live", "only_transcription", "only_diarization"]
-    # Endpoints configuration
-    audio_file_endpoint: bool
-    audio_url_endpoint: bool
+    # Endpoint configuration
     cortex_endpoint: bool
-    youtube_endpoint: bool
-    live_endpoint: bool
     # API authentication configuration
     username: str
     password: str
@@ -134,16 +130,6 @@ class Settings:
 
         return value
 
-    @field_validator("asr_type")
-    def asr_type_must_be_valid(cls, value: str):  # noqa: B902, N805
-        """Check that the ASR type is valid."""
-        if value not in {"async", "live"}:
-            raise ValueError(
-                f"{value} is not a valid ASR type. Choose between `async` or `live`."
-            )
-
-        return value
-
     @field_validator("openssl_algorithm")
     def openssl_algorithm_must_be_valid(cls, value: str):  # noqa: B902, N805
         """Check that the OpenSSL algorithm is valid."""
@@ -168,16 +154,6 @@ class Settings:
 
     def __post_init__(self):
         """Post initialization checks."""
-        endpoints = [
-            self.audio_file_endpoint,
-            self.audio_url_endpoint,
-            self.cortex_endpoint,
-            self.youtube_endpoint,
-            self.live_endpoint,
-        ]
-        if not any(endpoints):
-            raise ValueError("At least one endpoint configuration must be set to True.")
-
         if self.debug is False:
             if self.username == "admin" or self.username is None:  # noqa: S105
                 logger.warning(
@@ -281,11 +257,7 @@ settings = Settings(
     # ASR type
     asr_type=getenv("ASR_TYPE", "async"),
     # Endpoints configuration
-    audio_file_endpoint=getenv("AUDIO_FILE_ENDPOINT", True),
-    audio_url_endpoint=getenv("AUDIO_URL_ENDPOINT", True),
     cortex_endpoint=getenv("CORTEX_ENDPOINT", True),
-    youtube_endpoint=getenv("YOUTUBE_ENDPOINT", True),
-    live_endpoint=getenv("LIVE_ENDPOINT", False),
     # API authentication configuration
     username=getenv("USERNAME", "admin"),
     password=getenv("PASSWORD", "admin"),

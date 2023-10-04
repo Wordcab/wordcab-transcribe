@@ -20,9 +20,11 @@
 
 """Logging module to add a logging middleware to the Wordcab Transcribe API."""
 
+import asyncio
 import sys
 import time
 import uuid
+from functools import partial
 from typing import Any, Awaitable, Callable, Tuple
 
 from loguru import logger
@@ -93,7 +95,42 @@ def time_and_tell(
         The appropriate wrapper for the function.
     """
     start_time = time.time()
-    result = func()
+    result = func
+    process_time = time.time() - start_time
+
+    if debug_mode:
+        logger.debug(f"{func_name} executed in {process_time:.4f} secs")
+
+    return result, process_time
+
+
+async def time_and_tell_async(
+    func: Callable, func_name: str, debug_mode: bool
+) -> Tuple[Any, float]:
+    """
+    This decorator logs the execution time of an async function only if the debug setting is True.
+
+    Args:
+        func: The function to call in the wrapper.
+        func_name: The name of the function for logging purposes.
+        debug_mode: The debug setting for logging purposes.
+
+    Returns:
+        The appropriate wrapper for the function.
+    """
+    start_time = time.time()
+
+    if asyncio.iscoroutinefunction(func) or asyncio.iscoroutine(func):
+        result = await func
+    else:
+        loop = asyncio.get_event_loop()
+        if isinstance(func, partial):
+            result = await loop.run_in_executor(
+                None, func.func, *func.args, **func.keywords
+            )
+        else:
+            result = await loop.run_in_executor(None, func)
+
     process_time = time.time() - start_time
 
     if debug_mode:
