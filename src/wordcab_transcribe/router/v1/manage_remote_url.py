@@ -19,18 +19,44 @@
 # and limitations under the License.
 """Add Remote URL endpoint for remote transcription or diarization."""
 
-from typing import Union
+from typing import List, Union
 
 from fastapi import APIRouter, HTTPException
 from fastapi import status as http_status
 from loguru import logger
-from pydantic import ValidationError
+from pydantic import HttpUrl
+from typing_extensions import Literal
 
 from wordcab_transcribe.dependencies import asr
-from wordcab_transcribe.models import UrlRequest, UrlSchema
-from wordcab_transcribe.services.asr_service import ProcessException
+from wordcab_transcribe.models import UrlSchema
+from wordcab_transcribe.services.asr_service import ExceptionSource, ProcessException
 
 router = APIRouter()
+
+
+@router.get(
+    "",
+    response_model=Union[List[HttpUrl], str],
+    status_code=http_status.HTTP_200_OK,
+)
+async def get_url(task: Literal["transcription", "diarization"]) -> List[HttpUrl]:
+    """Get Remote URL endpoint for remote transcription or diarization."""
+    result: List[UrlSchema] = await asr.get_url(task)
+
+    if isinstance(result, ProcessException):
+        logger.error(result.message)
+        if result.source == ExceptionSource.get_url:
+            raise HTTPException(
+                status_code=http_status.HTTP_405_METHOD_NOT_ALLOWED,
+                detail=str(result.message),
+            )
+        else:
+            raise HTTPException(
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(result.message),
+            )
+
+    return result
 
 
 @router.post(
@@ -38,17 +64,9 @@ router = APIRouter()
     response_model=Union[UrlSchema, str],
     status_code=http_status.HTTP_200_OK,
 )
-async def add_url(data: UrlRequest) -> UrlSchema:
+async def add_url(data: UrlSchema) -> UrlSchema:
     """Add Remote URL endpoint for remote transcription or diarization."""
-    try:
-        _data = UrlSchema(task=data.task, url=data.url)
-    except ValidationError as e:
-        raise HTTPException(  # noqa: B904
-            status_code=http_status.HTTP_400_BAD_REQUEST,
-            detail=f"Your request is invalid: {e}",
-        )
-
-    result: UrlSchema = await asr.add_url(_data)
+    result: UrlSchema = await asr.add_url(data)
 
     if isinstance(result, ProcessException):
         logger.error(result.message)
@@ -65,17 +83,9 @@ async def add_url(data: UrlRequest) -> UrlSchema:
     response_model=Union[UrlSchema, str],
     status_code=http_status.HTTP_200_OK,
 )
-async def remove_url(data: UrlRequest) -> UrlSchema:
+async def remove_url(data: UrlSchema) -> UrlSchema:
     """Remove Remote URL endpoint for remote transcription or diarization."""
-    try:
-        _data = UrlSchema(task=data.task, url=data.url)
-    except ValidationError as e:
-        raise HTTPException(  # noqa: B904
-            status_code=http_status.HTTP_400_BAD_REQUEST,
-            detail=f"Your request is invalid: {e}",
-        )
-
-    result: UrlSchema = await asr.remove_url(_data)
+    result: UrlSchema = await asr.remove_url(data)
 
     if isinstance(result, ProcessException):
         logger.error(result.message)

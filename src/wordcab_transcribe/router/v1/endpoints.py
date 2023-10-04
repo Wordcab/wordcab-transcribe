@@ -48,7 +48,7 @@ transcribe_routers = (transcribe_router, "/transcribe", "transcription")
 diarize_routers = (diarize_router, "/diarize", "diarization")
 manage_remote_url_routers = (
     manage_remote_url_router,
-    "/remote-url",
+    "/url",
     "remote-url",
 )
 

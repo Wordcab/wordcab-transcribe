@@ -484,13 +484,6 @@ class PongResponse(BaseModel):
         }
 
 
-class UrlRequest(BaseModel):
-    """Request model for the add_url endpoint."""
-
-    task: Literal["transcription", "diarization"]
-    url: str
-
-
 class UrlSchema(BaseModel):
     """Request model for the add_url endpoint."""
 

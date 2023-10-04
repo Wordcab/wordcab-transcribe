@@ -33,6 +33,7 @@ import torch
 from loguru import logger
 from pydantic import BaseModel, ConfigDict
 from tensorshare import Backend, TensorShare
+from typing_extensions import Literal
 
 from wordcab_transcribe.logging import time_and_tell, time_and_tell_async
 from wordcab_transcribe.models import (
@@ -58,6 +59,7 @@ class ExceptionSource(str, Enum):
 
     add_url = "add_url"
     diarization = "diarization"
+    get_url = "get_url"
     post_processing = "post_processing"
     remove_url = "remove_url"
     transcription = "transcription"
@@ -720,26 +722,66 @@ class ASRAsyncService(ASRService):
                 else:
                     return DiarizationOutput(**await response.json())
 
-    async def add_url(self, data: UrlSchema) -> UrlSchema:
+    async def get_url(
+        self, task: Literal["transcription", "diarization"]
+    ) -> Union[List[str], ProcessException]:
+        """Get the list of remote URLs."""
+        try:
+            if task == "transcription":
+                # Case 1: We are not using remote transcription
+                if self.use_remote_transcription is False:
+                    return ProcessException(
+                        source=ExceptionSource.get_url,
+                        message="You are not using remote transcription.",
+                    )
+                # Case 2: We are using remote transcription
+                else:
+                    return self.transcription_url_handler.get_urls()
+
+            elif task == "diarization":
+                # Case 1: We are not using remote diarization
+                if self.use_remote_diarization is False:
+                    return ProcessException(
+                        source=ExceptionSource.get_url,
+                        message="You are not using remote diarization.",
+                    )
+                # Case 2: We are using remote diarization
+                else:
+                    return self.diarization_url_handler.get_urls()
+
+            else:
+                raise ValueError(f"{task} is not a valid task.")
+
+        except Exception as e:
+            return ProcessException(
+                source=ExceptionSource.get_url,
+                message=f"Error in getting URL: {e}\n{traceback.format_exc()}",
+            )
+
+    async def add_url(self, data: UrlSchema) -> Union[UrlSchema, ProcessException]:
         """Add a remote URL to the list of URLs."""
         try:
             if data.task == "transcription":
                 # Case 1: We are not using remote transcription yet
                 if self.use_remote_transcription is False:
                     self.use_remote_transcription = True
-                    self.transcription_url_handler = URLService(remote_urls=[data.url])
+                    self.transcription_url_handler = URLService(
+                        remote_urls=[str(data.url)]
+                    )
                 # Case 2: We are already using remote transcription
                 else:
-                    self.transcription_url_handler.add_url(data.url)
+                    await self.transcription_url_handler.add_url(data.url)
 
             elif data.task == "diarization":
                 # Case 1: We are not using remote diarization yet
                 if self.use_remote_diarization is False:
                     self.use_remote_diarization = True
-                    self.diarization_url_handler = URLService(remote_urls=[data.url])
+                    self.diarization_url_handler = URLService(
+                        remote_urls=[str(data.url)]
+                    )
                 # Case 2: We are already using remote diarization
                 else:
-                    self.diarization_url_handler.add_url(data.url)
+                    await self.diarization_url_handler.add_url(data.url)
 
             else:
                 raise ValueError(f"{data.task} is not a valid task.")
@@ -761,7 +803,7 @@ class ASRAsyncService(ASRService):
                     raise ValueError("You are not using remote transcription.")
                 # Case 2: We are using remote transcription
                 else:
-                    self.transcription_url_handler.remove_url(data.url)
+                    await self.transcription_url_handler.remove_url(str(data.url))
                     if self.transcription_url_handler.get_queue_size() == 0:
                         # TODO: Add a way to switch back to local transcription
                         pass
@@ -772,7 +814,7 @@ class ASRAsyncService(ASRService):
                     raise ValueError("You are not using remote diarization.")
                 # Case 2: We are using remote diarization
                 else:
-                    self.diarization_url_handler.remove_url(data.url)
+                    await self.diarization_url_handler.remove_url(str(data.url))
                     if self.diarization_url_handler.get_queue_size() == 0:
                         # TODO: Add a way to switch back to local diarization
                         pass

@@ -94,6 +94,15 @@ class URLService:
         """
         return self.queue.qsize()
 
+    def get_urls(self) -> List[str]:
+        """
+        Get the list of available URLs.
+
+        Returns:
+            List[str]: List of available URLs.
+        """
+        return self.remote_urls
+
     async def next_url(self) -> str:
         """
         We use this to iterate equally over the available URLs.
