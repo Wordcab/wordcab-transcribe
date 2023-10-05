@@ -388,7 +388,7 @@ class TranscribeService:
                         "start": word.start,
                         "end": word.end,
                         "word": word.word,
-                        "score": word.probability,
+                        "probability": word.probability,
                     }
                 )
 
