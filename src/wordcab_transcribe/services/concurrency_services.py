@@ -77,14 +77,31 @@ class URLService:
             remote_urls (List[str]): List of remote URLs to use.
         """
         self.remote_urls: List[str] = remote_urls
+        self._init_queue()
 
-        # If there is only one URL, we don't need to use a queue
-        if len(self.remote_urls) == 1:
-            self.queue = None
-        else:
-            self.queue = asyncio.Queue(maxsize=len(self.remote_urls))
-            for url in self.remote_urls:
-                self.queue.put_nowait(url)
+    def _init_queue(self) -> None:
+        """Initialize the queue with the available URLs."""
+        self.queue = asyncio.Queue(maxsize=len(self.remote_urls))
+        for url in self.remote_urls:
+            self.queue.put_nowait(url)
+
+    def get_queue_size(self) -> int:
+        """
+        Get the current queue size.
+
+        Returns:
+            int: Current queue size.
+        """
+        return self.queue.qsize()
+
+    def get_urls(self) -> List[str]:
+        """
+        Get the list of available URLs.
+
+        Returns:
+            List[str]: List of available URLs.
+        """
+        return self.remote_urls
 
     async def next_url(self) -> str:
         """
@@ -93,13 +110,35 @@ class URLService:
         Returns:
             str: Next available URL.
         """
-        if self.queue is None:
-            return self.remote_urls[0]
+        url = self.queue.get_nowait()
+        # Unlike GPU we don't want to block remote ASR requests.
+        # So we re-insert the URL back into the queue after getting it.
+        self.queue.put_nowait(url)
 
-        else:
-            url = self.queue.get_nowait()
-            # Unlike GPU we don't want to block remote ASR requests.
-            # So we re-insert the URL back into the queue after getting it.
-            self.queue.put_nowait(url)
+        return url
 
-            return url
+    async def add_url(self, url: str) -> None:
+        """
+        Add a URL to the pool of available URLs.
+
+        Args:
+            url (str): URL to add to the queue.
+        """
+        if url not in self.remote_urls:
+            self.remote_urls.append(url)
+
+            # Re-initialize the queue with the new URL.
+            self._init_queue()
+
+    async def remove_url(self, url: str) -> None:
+        """
+        Remove a URL from the pool of available URLs.
+
+        Args:
+            url (str): URL to remove from the queue.
+        """
+        if url in self.remote_urls:
+            self.remote_urls.remove(url)
+
+            # Re-initialize the queue without the removed URL.
+            self._init_queue()
