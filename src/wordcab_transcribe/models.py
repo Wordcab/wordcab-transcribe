@@ -53,6 +53,16 @@ class Word(BaseModel):
     probability: float
 
 
+class MultiChannelSegment(NamedTuple):
+    """Multi-channel segment model for the API."""
+
+    start: float
+    end: float
+    text: str
+    words: List[Word]
+    speaker: int
+
+
 class Utterance(BaseModel):
     """Utterance model for the API."""
 
@@ -511,6 +521,12 @@ class DiarizationRequest(BaseModel):
     audio: TensorShare
     duration: float
     num_speakers: int
+
+
+class MultiChannelTranscriptionOutput(BaseModel):
+    """Multi-channel transcription output model for the API."""
+
+    segments: List[MultiChannelSegment]
 
 
 class TranscriptionOutput(BaseModel):

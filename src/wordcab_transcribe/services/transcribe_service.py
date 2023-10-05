@@ -26,7 +26,12 @@ from faster_whisper import WhisperModel
 from loguru import logger
 from tensorshare import Backend, TensorShare
 
-from wordcab_transcribe.models import TranscriptionOutput
+from wordcab_transcribe.models import (
+    MultiChannelSegment,
+    MultiChannelTranscriptionOutput,
+    TranscriptionOutput,
+    Word,
+)
 
 
 class FasterWhisperModel(NamedTuple):
@@ -312,7 +317,7 @@ class TranscribeService:
         no_speech_threshold: float = 0.6,
         condition_on_previous_text: bool = False,
         prompt: Optional[str] = None,
-    ) -> TranscriptionOutput:
+    ) -> MultiChannelTranscriptionOutput:
         """
         Transcribe an audio file using the faster-whisper original pipeline.
 
@@ -342,7 +347,7 @@ class TranscribeService:
             prompt (Optional[str]): Initial prompt to use for the generation.
 
         Returns:
-            TranscriptionOutput: Transcription output.
+            MultiChannelTranscriptionOutput: Multi-channel transcription segments in a list.
         """
         if isinstance(audio, torch.Tensor):
             _audio = audio.numpy()
@@ -374,27 +379,13 @@ class TranscribeService:
         )
 
         for segment in segments:
-            segment_dict: dict = {
-                "start": None,
-                "end": None,
-                "text": segment.text,
-                "words": [],
-                "speaker": speaker_id,
-            }
+            _segment = MultiChannelSegment(
+                start=segment.start,
+                end=segment.end,
+                text=segment.text,
+                words=[Word(**word._asdict()) for word in segment.words],
+                speaker=speaker_id,
+            )
+            final_segments.append(_segment)
 
-            for word in segment.words:
-                segment_dict["words"].append(
-                    {
-                        "start": word.start,
-                        "end": word.end,
-                        "word": word.word,
-                        "probability": word.probability,
-                    }
-                )
-
-            segment_dict["start"] = segment_dict["words"][0]["start"]
-            segment_dict["end"] = segment_dict["words"][-1]["end"]
-
-            final_segments.append(segment_dict)
-
-        return TranscriptionOutput(segments=final_segments)
+        return MultiChannelTranscriptionOutput(segments=final_segments)

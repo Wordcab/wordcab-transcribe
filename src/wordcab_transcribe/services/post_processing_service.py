@@ -24,6 +24,7 @@ from typing import List, Tuple, Union
 from wordcab_transcribe.models import (
     DiarizationOutput,
     DiarizationSegment,
+    MultiChannelTranscriptionOutput,
     Timestamps,
     TranscriptionOutput,
     Utterance,
@@ -75,13 +76,13 @@ class PostProcessingService:
         return utterances
 
     def multi_channel_speaker_mapping(
-        self, multi_channel_segments: List[TranscriptionOutput]
+        self, multi_channel_segments: List[MultiChannelTranscriptionOutput]
     ) -> TranscriptionOutput:
         """
         Run the multi-channel post-processing functions on the inputs by merging the segments based on the timestamps.
 
         Args:
-            multi_channel_segments (List[TranscriptionOutput]):
+            multi_channel_segments (List[MultiChannelTranscriptionOutput]):
                 List of segments from multi speakers.
 
         Returns:
@@ -93,7 +94,7 @@ class PostProcessingService:
             for segment in output.segments
             for word in segment.words
         ]
-        words_with_speaker_mapping.sort(key=lambda _, word: word.start)
+        words_with_speaker_mapping.sort(key=lambda x: x[1].start)
 
         utterances: List[Utterance] = self.reconstruct_multi_channel_utterances(
             words_with_speaker_mapping
