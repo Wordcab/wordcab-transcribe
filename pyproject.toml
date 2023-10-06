@@ -67,6 +67,12 @@ runtime = [
   "uvicorn>=0.21.1",
   "websockets>=11.0.3",
 ]
+docs = [
+  "mkdocs>=1.4.0",
+  "mkdocs-material>=8.5.4",
+  "mkdocs-git-revision-date-localized-plugin>=1.1.0",
+  "mkdocstrings[python]>=0.20.0",
+]
 quality = [
   "black>=22.10.0",
   "ruff>=0.0.263",
@@ -129,6 +135,19 @@ features = [
 
 [tool.hatch.envs.tests.scripts]
 run = "pytest --cov=wordcab_transcribe --cov-report=term-missing tests/ --durations 0 -s -vv"
+
+[tool.hatch.envs.docs]
+features = [
+  "docs",
+]
+
+[tool.hatch.envs.docs.scripts]
+build = [
+  "mkdocs build",
+]
+serve = [
+  "mkdocs serve",
+]
 
 [[tool.hatch.envs.tests.matrix]]
 python = ["310"]
