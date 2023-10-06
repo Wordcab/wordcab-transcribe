@@ -73,6 +73,6 @@ nav:
   - 📖 Usage:
     - Launch: usage/launch.md
     - ENV variables: usage/env.md
-    - Execution Modes: usage/executions.md
+    - ASR Engines: usage/asr.md
   - 🚀 Contributing: contributing.md
   - 📝 License: license.md

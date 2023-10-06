@@ -58,4 +58,4 @@ cd wordcab-transcribe
 hatch env create
 ```
 
-Then, you can start using the API. Head to the [Usage](./usage/env) section to learn more.
+Then, you can start using the API. Head to the [Usage](usage/launch) section to learn more.

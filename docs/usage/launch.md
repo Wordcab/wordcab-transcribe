@@ -1,7 +1,7 @@
 You can run the API either locally or using Docker. The API is built using FastAPI and Uvicorn. 
 
 We are using environment variables to configure and customize the API runtime, find the list of available environment
-variables in the [ENV](docs/usage/env) section.
+variables in the [ENV](usage/env) section.
 
 ## Run locally
 
