@@ -45,3 +45,17 @@ and [Auto-Tuning-Spectral-Clustering](https://arxiv.org/pdf/2003.02405.pdf) for 
 
 - [Docker](https://docs.docker.com/engine/install/ubuntu/) _(optional for deployment)_
 - NVIDIA GPU + [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) _(optional for deployment)_
+
+## How to start?
+
+You need to clone the repository and install the dependencies:
+
+```bash
+git clone https://github.com/Wordcab/wordcab-transcribe.git
+
+cd wordcab-transcribe
+
+hatch env create
+```
+
+Then, you can start using the API. Head to the [Usage](./usage/env) section to learn more.
