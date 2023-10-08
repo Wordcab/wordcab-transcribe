@@ -38,7 +38,7 @@ class VadService:
             max_speech_duration_s=30,
             min_silence_duration_ms=100,
             window_size_samples=512,
-            speech_pad_ms=30,
+            speech_pad_ms=400,
         )
 
     def __call__(
