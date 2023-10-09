@@ -84,3 +84,19 @@ docker logs nginx
 ```
 
 Your API should now be exposed on port 80.
+
+## Run `only_transcription`
+
+You can run the API in transcription only mode by setting the `asr_type` in the `.env` file to `only_transcription`.
+
+## Run `only_diarization`
+
+You can run the API in diarization only mode by setting the `asr_type` in the `.env` file to `only_diarization`.
+
+## Use remote servers
+
+You can use remote servers for transcription and diarization by setting the `asr_type` in the `.env` file to `async` and
+adding URLs to the `transcribe_server_urls` and `diarize_server_urls` environment variables.
+
+If an async server is already running, you can simply add remote servers to the list of URLs by using the endpoints,
+check [Management endpoints](usage/asr/#management-endpoints) for more details.

@@ -71,9 +71,9 @@ extra:
 nav:
   - 👋 Getting Started: index.md
   - 📖 Usage:
-    - Launch: usage/launch.md
     - ENV variables: usage/env.md
     - ASR Engines: usage/asr.md
+    - Launch: usage/launch.md
   - 📚 Reference:
     - Config: reference/config.md
     - Services: reference/services.md
