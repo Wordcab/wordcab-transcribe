@@ -346,21 +346,26 @@ class PostProcessingService:
 
         Returns:
             List[Utterance]:
-                List of utterances with final processing.
+                List of utterances after final processing.
         """
         if offset_start is not None:
             offset_start = float(offset_start)
         else:
             offset_start = 0.0
 
+        final_utterances = []
         for utterance in utterances:
-            utterance.text = format_punct(utterance.text)
-            utterance.start = convert_timestamp(
-                (utterance.start + offset_start), timestamps_format
-            )
-            utterance.end = convert_timestamp(
-                (utterance.end + offset_start), timestamps_format
-            )
-            utterance.words = utterance.words if word_timestamps else None
+            # Check if the utterance is not empty
+            if utterance.text.strip():
+                utterance.text = format_punct(utterance.text)
+                utterance.start = convert_timestamp(
+                    (utterance.start + offset_start), timestamps_format
+                )
+                utterance.end = convert_timestamp(
+                    (utterance.end + offset_start), timestamps_format
+                )
+                utterance.words = utterance.words if word_timestamps else None
 
-        return utterances
+                final_utterances.append(utterance)
+
+        return final_utterances
