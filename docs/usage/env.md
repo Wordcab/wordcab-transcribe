@@ -1,0 +1,172 @@
+The configuration is defined in the `.env` file at the root of the project.
+
+On this page, we will list all the variables with their default values and a description of their usage.
+
+!!! warning
+    Never remove this file or any of the variables below. You can only modify
+    the values of the variables to customize the configuration of the API.
+
+## General configuration
+
+The name of the project, used for API documentation.
+
+> PROJECT_NAME="Wordcab Transcribe"
+
+The version of the project, used for API documentation.
+
+> VERSION="0.5.1"
+
+The description of the project, used for API documentation.
+
+> DESCRIPTION="💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering for diarization."
+
+This API prefix is used for all endpoints in the API outside of the status and cortex endpoints.
+
+> API_PREFIX="/api/v1"
+
+Debug mode for the API, used to control the API authentication. Set to `True` to disable authentication and enable
+debug mode.
+
+> DEBUG=True
+
+## Models configuration
+
+The models configuration is divided between the transcription and diarization models.
+
+### Transcription models
+
+The `whisper_model` parameter is used to control the model used for transcription.
+
+* Cloud models:
+
+The available models are: tiny, tiny.en, base, base.en, small, small.en, medium, medium.en, large-v1, or large-v2
+You can try different model size, but you should see a trade-off between performance and speed.
+
+* Local models:
+
+You can also link a local folder path to use a custom model. If you do so, you should also mount the folder in the
+docker run command as a volume.
+
+e.g. WHISPER_MODEL="/app/models/custom"
+
+docker cmd: `-v /path/to/custom/model:/app/models/custom`
+
+> WHISPER_MODEL="large-v2"
+
+The `compute_type` parameter is used to control the precision of the model. You can choose between:
+`"int8"`, `"int8_float16"`, `"int8_bfloat16"`, `"int16"`, `"float_16"`, `"bfloat16"`, `"float32"`.
+
+The default value is `"float16"`.
+
+> COMPUTE_TYPE="float16"
+
+The `extra_languages` parameter is used to control the languages that need an extra model to be loaded.
+You can specify multiple languages separated by a comma. The available languages are: 
+
+* `he` (Hebrew).
+* `th` (Thai).
+
+> EXTRA_LANGUAGES=
+
+### Diarization models
+
+In a MSDD (Multiscale Diarization Decoder) model, the diarization model is trained on multiple window lengths.
+The `window_lengths` are specified in seconds, and separated by a comma. If not specified, the default value will
+be `"1.5, 1.25, 1.0, 0.75, 0.5"`.
+
+> WINDOW_LENGTHS="1.5,1.25,1.0,0.75,0.5"
+
+The `shift_lengths` are specified in seconds, and separated by a comma. If not specified, the default value will
+be `"0.75, 0.625, 0.5, 0.375, 0.25"`.
+
+> SHIFT_LENGTHS="0.75,0.625,0.5,0.375,0.25"
+
+The `multiscale_weights` are float values separated by a comma. If not specified, the default value will be
+`"1.0, 1.0, 1.0, 1.0, 1.0"`.
+
+> MULTISCALE_WEIGHTS="1.0,1.0,1.0,1.0,1.0"
+
+## ASR type configuration
+
+The `asr_type` parameter is used to control the type of ASR used. The available options are: `async` or `live`.
+
+* `async` is the default option. It will process the audio files in batches, and return the results when all the
+files are processed.
+* `live` is the option to use when you want to process a live audio stream. It will process the audio in chunks,
+and return the results as soon as they are available. Live option is still a feature in development.
+* `only_transcription` is used to deploy a single transcription server.
+This option is used when you want to deploy each service in a separate server.
+* `only_diarization` is used to deploy a single diarization server.
+This option is used when you want to deploy each service in a separate server.
+Use `live` only if you need live results, otherwise, use `async`.
+
+> ASR_TYPE="async"
+
+## Endpoints configuration
+
+Include the cortex endpoint in the API. This endpoint is used to process audio files from the Cortex API.
+Use this only if you deploy the API using Cortex and Kubernetes.
+
+>CORTEX_ENDPOINT=True
+
+## API authentication configuration
+
+The API authentication is used to control the access to the API endpoints.
+It's activated only when the debug mode is set to False.
+
+The `username` and `password` are the credentials used to authenticate with the API.
+> USERNAME="admin"
+> PASSWORD="admin"
+
+This `openssl_key` parameter is used to control the key used to encrypt the access tokens.
+You should absolutely change this value before deploying the API in production.
+
+> OPENSSL_KEY="0123456789abcdefghijklmnopqrstuvwyz" <--- CHANGE ABSOLUTELY THIS VALUE
+
+This `openssl_algorithm` parameter is used to control the algorithm used to encrypt the access tokens.
+You should in most case not change this value.
+
+> OPENSSL_ALGORITHM="HS256"
+
+The `access_token_expire_minutes` parameter is used to control the expiration time of the access tokens.
+You can modify it, it's not a critical parameter. Note that this parameter is in minutes.
+
+> ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+## CORTEX configuration
+
+At Wordcab, we are using Cortex to deploy the API in production. You probably don't need to change these values.
+
+The `cortex_api_key` parameter is used to control the API key used to authenticate the requests to the cortex endpoint.
+> WORDCAB_TRANSCRIBE_API_KEY=
+
+## SVIX configuration
+
+The `svix_api_key` parameter is used in the cortex implementation to enable webhooks.
+
+> SVIX_API_KEY=
+
+The `svix_app_id` parameter is used in the cortex implementation to enable webhooks.
+
+> SVIX_APP_ID=
+
+## Remote servers configuration
+
+The remote servers configuration is used to control the number of servers used to process the requests if you don't
+want to group all the services in one server.
+
+!!! tip
+    Check the [Execution Modes](executions.md) page to learn more about the different execution modes.
+
+The `transcribe_server_urls` parameter is used to control the URLs of the servers used to process the requests.
+Each url should be separated by a comma and have this format: "host:port".
+
+e.g. TRANSCRIBE_SERVER_URLS="http://1.2.3.4:8000,http://4.3.2.1:8000"
+
+> TRANSCRIBE_SERVER_URLS=
+
+The `diarize_server_urls` parameter is used to control the URLs of the servers used to process the requests.
+Each url should be separated by a comma and have this format: "host:port".
+e.g. DIARIZE_SERVER_URLS="http://1.2.3.4:8000,http://4.3.2.1:8000"
+
+> DIARIZE_SERVER_URLS=
