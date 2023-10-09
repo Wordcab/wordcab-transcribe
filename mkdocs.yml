@@ -74,5 +74,9 @@ nav:
     - Launch: usage/launch.md
     - ENV variables: usage/env.md
     - ASR Engines: usage/asr.md
+  - 📚 Reference:
+    - Config: reference/config.md
+    - Services: reference/services.md
+    - Schemas: reference/schemas.md
   - 🚀 Contributing: contributing.md
   - 📝 License: license.md
