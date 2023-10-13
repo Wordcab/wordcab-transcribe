@@ -27,8 +27,10 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
+  "accelerate",
   "aiohttp>=3.8.4",
   "aiofiles>=23.1.0",
+  "bitsandbytes",
   "ctranslate2>=3.18.0",
   "faster-whisper @ git+https://github.com/Wordcab/faster-whisper@master",
   "ffmpeg-python>=0.2.0",
@@ -36,11 +38,13 @@ dependencies = [
   "loguru>=0.6.0",
   "numpy==1.23.1",
   "onnxruntime>=1.15.0",
+  "optimum",
   "pydantic>=1.10.9",
   "python-dotenv>=1.0.0",
   "tensorshare>=0.1.1",
   "torch>=2.0.0",
   "torchaudio>=2.0.1",
+  "transformers @ git+https://github.com/huggingface/transformers",
   "wget>=3.2.0",
   "yt-dlp>=2023.3.4",
 ]

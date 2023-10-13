@@ -22,9 +22,9 @@
 from typing import Iterable, List, NamedTuple, Optional, Union
 
 import torch
-from faster_whisper import WhisperModel
 from loguru import logger
 from tensorshare import Backend, TensorShare
+from transformers import pipeline
 
 from wordcab_transcribe.models import (
     MultiChannelSegment,
@@ -32,13 +32,6 @@ from wordcab_transcribe.models import (
     TranscriptionOutput,
     Word,
 )
-
-
-class FasterWhisperModel(NamedTuple):
-    """Faster Whisper Model."""
-
-    model: WhisperModel
-    lang: str
 
 
 class TranscribeService:
@@ -75,12 +68,16 @@ class TranscribeService:
         self.compute_type = compute_type
         self.model_path = model_path
 
-        self.model = WhisperModel(
+        self.pipe = pipeline(
+            "automatic-speech-recognition",
             self.model_path,
-            device=self.device,
-            device_index=device_index,
-            compute_type=self.compute_type,
+            torch_dtype=torch.float16,
+            device=f"{self.device}:{device_index[0]}",
         )
+        self.pipe.model = self.pipe.model.to_bettertransformer()
+
+        self.last_lang = "en"
+        self.pipe.tokenizer.set_prefix_tokens(language=self.last_lang)
 
         self.extra_lang = extra_languages
         self.extra_lang_models = extra_languages_model_paths
@@ -173,16 +170,16 @@ class TranscribeService:
         #         lang=source_lang,
         #     )
 
-        if (
-            vocab is not None
-            and isinstance(vocab, list)
-            and len(vocab) > 0
-            and vocab[0].strip()
-        ):
-            words = ", ".join(vocab)
-            prompt = f"Vocab: {words.strip()}"
-        else:
-            prompt = None
+        # if (
+        #     vocab is not None
+        #     and isinstance(vocab, list)
+        #     and len(vocab) > 0
+        #     and vocab[0].strip()
+        # ):
+        #     words = ", ".join(vocab)
+        #     prompt = f"Vocab: {words.strip()}"
+        # else:
+        #     prompt = None
 
         if not isinstance(audio, list):
             if isinstance(audio, torch.Tensor):
@@ -191,201 +188,171 @@ class TranscribeService:
                 ts = audio.to_tensors(backend=Backend.NUMPY)
                 audio = ts["audio"]
 
-            segments, _ = self.model.transcribe(
+            if source_lang != self.last_lang:
+                self.pipe.tokenizer.set_prefix_tokens(language=source_lang)
+
+            pipe_outputs = self.pipe(
                 audio,
-                language=source_lang,
-                initial_prompt=prompt,
-                repetition_penalty=repetition_penalty,
-                compression_ratio_threshold=compression_ratio_threshold,
-                log_prob_threshold=log_prob_threshold,
-                no_speech_threshold=no_speech_threshold,
-                condition_on_previous_text=condition_on_previous_text,
-                suppress_blank=suppress_blank,
-                word_timestamps=word_timestamps,
-                vad_filter=internal_vad,
-                vad_parameters={
-                    "threshold": 0.5,
-                    "min_speech_duration_ms": 250,
-                    "min_silence_duration_ms": 100,
-                    "speech_pad_ms": 30,
-                    "window_size_samples": 512,
-                },
+                chunk_length_s=30,
+                batch_size=16,
+                return_timestamps=True,
             )
 
-            segments = list(segments)
-            if not segments:
-                logger.warning(
-                    "Empty transcription result. Trying with vad_filter=True."
-                )
-                segments, _ = self.model.transcribe(
-                    audio,
-                    language=source_lang,
-                    initial_prompt=prompt,
-                    repetition_penalty=repetition_penalty,
-                    compression_ratio_threshold=compression_ratio_threshold,
-                    log_prob_threshold=log_prob_threshold,
-                    no_speech_threshold=no_speech_threshold,
-                    condition_on_previous_text=condition_on_previous_text,
-                    suppress_blank=False,
-                    word_timestamps=True,
-                    vad_filter=False if internal_vad else True,
-                )
-
-            _outputs = [segment._asdict() for segment in segments]
-            outputs = TranscriptionOutput(segments=_outputs)
+            outputs = TranscriptionOutput.get_segments_from_outputs(pipe_outputs["chunks"])
 
         else:
-            outputs = []
-            for audio_index, audio_file in enumerate(audio):
-                outputs.append(
-                    self.multi_channel(
-                        audio_file,
-                        source_lang=source_lang,
-                        speaker_id=audio_index,
-                        suppress_blank=suppress_blank,
-                        word_timestamps=word_timestamps,
-                        internal_vad=internal_vad,
-                        repetition_penalty=repetition_penalty,
-                        compression_ratio_threshold=compression_ratio_threshold,
-                        log_prob_threshold=log_prob_threshold,
-                        no_speech_threshold=no_speech_threshold,
-                        prompt=prompt,
-                    )
-                )
+            pass
+            # outputs = []
+            # for audio_index, audio_file in enumerate(audio):
+            #     outputs.append(
+            #         self.multi_channel(
+            #             audio_file,
+            #             source_lang=source_lang,
+            #             speaker_id=audio_index,
+            #             suppress_blank=suppress_blank,
+            #             word_timestamps=word_timestamps,
+            #             internal_vad=internal_vad,
+            #             repetition_penalty=repetition_penalty,
+            #             compression_ratio_threshold=compression_ratio_threshold,
+            #             log_prob_threshold=log_prob_threshold,
+            #             no_speech_threshold=no_speech_threshold,
+            #             prompt=prompt,
+            #         )
+            #     )
 
         return outputs
 
-    async def async_live_transcribe(
-        self,
-        audio: torch.Tensor,
-        source_lang: str,
-        model_index: int,
-    ) -> Iterable[dict]:
-        """Async generator for live transcriptions.
+    # async def async_live_transcribe(
+    #     self,
+    #     audio: torch.Tensor,
+    #     source_lang: str,
+    #     model_index: int,
+    # ) -> Iterable[dict]:
+    #     """Async generator for live transcriptions.
 
-        This method wraps the live_transcribe method to make it async.
+    #     This method wraps the live_transcribe method to make it async.
 
-        Args:
-            audio (torch.Tensor): Audio tensor.
-            source_lang (str): Language of the audio file.
-            model_index (int): Index of the model to use.
+    #     Args:
+    #         audio (torch.Tensor): Audio tensor.
+    #         source_lang (str): Language of the audio file.
+    #         model_index (int): Index of the model to use.
 
-        Yields:
-            Iterable[dict]: Iterable of transcribed segments.
-        """
-        for result in self.live_transcribe(audio, source_lang, model_index):
-            yield result
+    #     Yields:
+    #         Iterable[dict]: Iterable of transcribed segments.
+    #     """
+    #     for result in self.live_transcribe(audio, source_lang, model_index):
+    #         yield result
 
-    def live_transcribe(
-        self,
-        audio: torch.Tensor,
-        source_lang: str,
-        model_index: int,
-    ) -> Iterable[dict]:
-        """
-        Transcribe audio from a WebSocket connection.
+    # def live_transcribe(
+    #     self,
+    #     audio: torch.Tensor,
+    #     source_lang: str,
+    #     model_index: int,
+    # ) -> Iterable[dict]:
+    #     """
+    #     Transcribe audio from a WebSocket connection.
 
-        Args:
-            audio (torch.Tensor): Audio tensor.
-            source_lang (str): Language of the audio file.
-            model_index (int): Index of the model to use.
+    #     Args:
+    #         audio (torch.Tensor): Audio tensor.
+    #         source_lang (str): Language of the audio file.
+    #         model_index (int): Index of the model to use.
 
-        Yields:
-            Iterable[dict]: Iterable of transcribed segments.
-        """
-        segments, _ = self.model.transcribe(
-            audio.numpy(),
-            language=source_lang,
-            suppress_blank=True,
-            word_timestamps=False,
-        )
+    #     Yields:
+    #         Iterable[dict]: Iterable of transcribed segments.
+    #     """
+    #     segments, _ = self.model.transcribe(
+    #         audio.numpy(),
+    #         language=source_lang,
+    #         suppress_blank=True,
+    #         word_timestamps=False,
+    #     )
 
-        for segment in segments:
-            yield segment._asdict()
+    #     for segment in segments:
+    #         yield segment._asdict()
 
-    def multi_channel(
-        self,
-        audio: Union[str, torch.Tensor, TensorShare],
-        source_lang: str,
-        speaker_id: int,
-        suppress_blank: bool = False,
-        word_timestamps: bool = True,
-        internal_vad: bool = True,
-        repetition_penalty: float = 1.0,
-        compression_ratio_threshold: float = 2.4,
-        log_prob_threshold: float = -1.0,
-        no_speech_threshold: float = 0.6,
-        condition_on_previous_text: bool = False,
-        prompt: Optional[str] = None,
-    ) -> MultiChannelTranscriptionOutput:
-        """
-        Transcribe an audio file using the faster-whisper original pipeline.
+    # def multi_channel(
+    #     self,
+    #     audio: Union[str, torch.Tensor, TensorShare],
+    #     source_lang: str,
+    #     speaker_id: int,
+    #     suppress_blank: bool = False,
+    #     word_timestamps: bool = True,
+    #     internal_vad: bool = True,
+    #     repetition_penalty: float = 1.0,
+    #     compression_ratio_threshold: float = 2.4,
+    #     log_prob_threshold: float = -1.0,
+    #     no_speech_threshold: float = 0.6,
+    #     condition_on_previous_text: bool = False,
+    #     prompt: Optional[str] = None,
+    # ) -> MultiChannelTranscriptionOutput:
+    #     """
+    #     Transcribe an audio file using the faster-whisper original pipeline.
 
-        Args:
-            audio (Union[str, torch.Tensor, TensorShare]): Audio file path or loaded audio.
-            source_lang (str): Language of the audio file.
-            speaker_id (int): Speaker ID used in the diarization.
-            suppress_blank (bool):
-                Whether to suppress blank at the beginning of the sampling.
-            word_timestamps (bool):
-                Whether to return word timestamps.
-            internal_vad (bool):
-                Whether to use faster-whisper's VAD or not.
-            repetition_penalty (float):
-                Repetition penalty to use during generation beamed search.
-            compression_ratio_threshold (float):
-                If the gzip compression ratio is above this value, treat as failed.
-            log_prob_threshold (float):
-                If the average log probability over sampled tokens is below this value, treat as failed.
-            no_speech_threshold (float):
-                If the no_speech probability is higher than this value AND the average log probability
-                over sampled tokens is below `log_prob_threshold`, consider the segment as silent.
-            condition_on_previous_text (bool):
-                If True, the previous output of the model is provided as a prompt for the next window;
-                disabling may make the text inconsistent across windows, but the model becomes less prone
-                to getting stuck in a failure loop, such as repetition looping or timestamps going out of sync.
-            prompt (Optional[str]): Initial prompt to use for the generation.
+    #     Args:
+    #         audio (Union[str, torch.Tensor, TensorShare]): Audio file path or loaded audio.
+    #         source_lang (str): Language of the audio file.
+    #         speaker_id (int): Speaker ID used in the diarization.
+    #         suppress_blank (bool):
+    #             Whether to suppress blank at the beginning of the sampling.
+    #         word_timestamps (bool):
+    #             Whether to return word timestamps.
+    #         internal_vad (bool):
+    #             Whether to use faster-whisper's VAD or not.
+    #         repetition_penalty (float):
+    #             Repetition penalty to use during generation beamed search.
+    #         compression_ratio_threshold (float):
+    #             If the gzip compression ratio is above this value, treat as failed.
+    #         log_prob_threshold (float):
+    #             If the average log probability over sampled tokens is below this value, treat as failed.
+    #         no_speech_threshold (float):
+    #             If the no_speech probability is higher than this value AND the average log probability
+    #             over sampled tokens is below `log_prob_threshold`, consider the segment as silent.
+    #         condition_on_previous_text (bool):
+    #             If True, the previous output of the model is provided as a prompt for the next window;
+    #             disabling may make the text inconsistent across windows, but the model becomes less prone
+    #             to getting stuck in a failure loop, such as repetition looping or timestamps going out of sync.
+    #         prompt (Optional[str]): Initial prompt to use for the generation.
 
-        Returns:
-            MultiChannelTranscriptionOutput: Multi-channel transcription segments in a list.
-        """
-        if isinstance(audio, torch.Tensor):
-            _audio = audio.numpy()
-        elif isinstance(audio, TensorShare):
-            ts = audio.to_tensors(backend=Backend.NUMPY)
-            _audio = ts["audio"]
+    #     Returns:
+    #         MultiChannelTranscriptionOutput: Multi-channel transcription segments in a list.
+    #     """
+    #     if isinstance(audio, torch.Tensor):
+    #         _audio = audio.numpy()
+    #     elif isinstance(audio, TensorShare):
+    #         ts = audio.to_tensors(backend=Backend.NUMPY)
+    #         _audio = ts["audio"]
 
-        final_segments = []
+    #     final_segments = []
 
-        segments, _ = self.model.transcribe(
-            _audio,
-            language=source_lang,
-            initial_prompt=prompt,
-            repetition_penalty=repetition_penalty,
-            compression_ratio_threshold=compression_ratio_threshold,
-            log_prob_threshold=log_prob_threshold,
-            no_speech_threshold=no_speech_threshold,
-            condition_on_previous_text=condition_on_previous_text,
-            suppress_blank=suppress_blank,
-            word_timestamps=word_timestamps,
-            vad_filter=internal_vad,
-            vad_parameters={
-                "threshold": 0.5,
-                "min_speech_duration_ms": 250,
-                "min_silence_duration_ms": 100,
-                "speech_pad_ms": 30,
-                "window_size_samples": 512,
-            },
-        )
+    #     segments, _ = self.model.transcribe(
+    #         _audio,
+    #         language=source_lang,
+    #         initial_prompt=prompt,
+    #         repetition_penalty=repetition_penalty,
+    #         compression_ratio_threshold=compression_ratio_threshold,
+    #         log_prob_threshold=log_prob_threshold,
+    #         no_speech_threshold=no_speech_threshold,
+    #         condition_on_previous_text=condition_on_previous_text,
+    #         suppress_blank=suppress_blank,
+    #         word_timestamps=word_timestamps,
+    #         vad_filter=internal_vad,
+    #         vad_parameters={
+    #             "threshold": 0.5,
+    #             "min_speech_duration_ms": 250,
+    #             "min_silence_duration_ms": 100,
+    #             "speech_pad_ms": 30,
+    #             "window_size_samples": 512,
+    #         },
+    #     )
 
-        for segment in segments:
-            _segment = MultiChannelSegment(
-                start=segment.start,
-                end=segment.end,
-                text=segment.text,
-                words=[Word(**word._asdict()) for word in segment.words],
-                speaker=speaker_id,
-            )
-            final_segments.append(_segment)
+    #     for segment in segments:
+    #         _segment = MultiChannelSegment(
+    #             start=segment.start,
+    #             end=segment.end,
+    #             text=segment.text,
+    #             words=[Word(**word._asdict()) for word in segment.words],
+    #             speaker=speaker_id,
+    #         )
+    #         final_segments.append(_segment)
 
-        return MultiChannelTranscriptionOutput(segments=final_segments)
+    #     return MultiChannelTranscriptionOutput(segments=final_segments)

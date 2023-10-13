@@ -22,7 +22,6 @@
 from enum import Enum
 from typing import List, Literal, NamedTuple, Optional, Union
 
-from faster_whisper.transcribe import Segment
 from pydantic import BaseModel, HttpUrl, field_validator
 from tensorshare import TensorShare
 
@@ -529,10 +528,36 @@ class MultiChannelTranscriptionOutput(BaseModel):
     segments: List[MultiChannelSegment]
 
 
+class Chunk(BaseModel):
+    """Whisper transcription chunk."""
+
+    start: float
+    end: float
+    text: str
+    words: None
+
+
 class TranscriptionOutput(BaseModel):
     """Transcription output model for the API."""
 
-    segments: List[Segment]
+    segments: List[Chunk]
+
+    @classmethod
+    def get_segments_from_outputs(cls, outputs: List[dict]) -> "TranscriptionOutput":
+        """Create a TranscriptionOutput object from a list of outputs."""
+        chunks = []
+        for out in outputs:
+            start, end = out["timestamp"]
+            chunks.append(
+                Chunk(
+                    start=start,
+                    end=end,
+                    text=out["text"],
+                    words=None,
+                )
+            )
+
+        return cls(segments=chunks)
 
 
 class TranscribeRequest(BaseModel):
