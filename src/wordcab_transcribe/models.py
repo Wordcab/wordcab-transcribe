@@ -534,7 +534,7 @@ class Chunk(BaseModel):
     start: float
     end: float
     text: str
-    words: None
+    words: Union[None, list]
 
 
 class TranscriptionOutput(BaseModel):
@@ -553,7 +553,7 @@ class TranscriptionOutput(BaseModel):
                     start=start,
                     end=end,
                     text=out["text"],
-                    words=None,
+                    words=[],
                 )
             )
 
