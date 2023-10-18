@@ -110,7 +110,7 @@ async def lifespan(app: FastAPI) -> None:
                     if model_path is not None:
                         settings.extra_languages_model_paths[model] = model_path
                     else:
-                        raise Exception(f"Coudn't download model for {model}")
+                        raise Exception(f"Couldn't download model for {model}")
 
                 except Exception as e:
                     logger.error(f"Error downloading model for {model}: {e}")

@@ -185,7 +185,7 @@ class RemoteServiceRegistry:
 
 
 class ASRService(ABC):
-    """Base ASR Service module that handle all AI interactions and batch processing."""
+    """Base ASR Service module that handles all AI interactions and batch processing."""
 
     def __init__(self) -> None:
         """Initialize the ASR Service.
@@ -209,7 +209,8 @@ class ASRService(ABC):
 
     @abstractmethod
     async def process_input(self) -> None:
-        """Process the input request by creating a task and adding it to the appropriate queues."""
+        """Process the input request by creating a task and adding it to the appropriate queues.
+        """
         raise NotImplementedError("This method should be implemented in subclasses.")
 
 
@@ -264,9 +265,9 @@ class ASRAsyncService(ASRService):
         self.shift_lengths: List[float] = shift_lengths
         self.multiscale_weights: List[float] = multiscale_weights
         self.extra_languages: Union[List[str], None] = extra_languages
-        self.extra_languages_model_paths: Union[List[str], None] = (
-            extra_languages_model_paths
-        )
+        self.extra_languages_model_paths: Union[
+            List[str], None
+        ] = extra_languages_model_paths
 
         self.local_services: LocalServiceRegistry = LocalServiceRegistry()
         self.remote_services: RemoteServiceRegistry = RemoteServiceRegistry()
@@ -868,7 +869,17 @@ class ASRLiveService(ASRService):
     """ASR Service module for live endpoints."""
 
     def __init__(self, whisper_model: str, compute_type: str, debug_mode: bool) -> None:
-        """Initialize the ASRLiveService class."""
+        """
+        Initialize the ASRLiveService class.
+
+        Args:
+            whisper_model (str):
+                The path to the whisper model.
+            compute_type (str):
+                The compute type to use for inference.
+            debug_mode (bool):
+                Whether to run in debug mode.
+        """
         super().__init__()
 
         self.transcription_service = TranscribeService(

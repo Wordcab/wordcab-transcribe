@@ -21,9 +21,12 @@
 
 from typing import List
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from loguru import logger
 
+from wordcab_transcribe.config import settings
 from wordcab_transcribe.dependencies import asr
+from wordcab_transcribe.services.vad_service import VadService
 
 router = APIRouter()
 
@@ -33,25 +36,35 @@ class ConnectionManager:
 
     def __init__(self) -> None:
         """Initialize the connection manager."""
+        self.max_live_connections = settings.max_live_connections
         self.active_connections: List[WebSocket] = []
 
     async def connect(self, websocket: WebSocket) -> None:
         """Connect a WebSocket."""
-        if len(self.active_connections) > 1:
+        if len(self.active_connections) >= self.max_live_connections:
             await websocket.close(
                 code=1001, reason="Too many connections, try again later."
             )
-
         else:
             await websocket.accept()
             self.active_connections.append(websocket)
+            logger.info(
+                f"Connected: {websocket}. Active connections:"
+                f" {len(self.active_connections)}"
+            )
 
     def disconnect(self, websocket: WebSocket) -> None:
         """Disconnect a WebSocket."""
         self.active_connections.remove(websocket)
+        logger.info(
+            f"Disconnected: {websocket}. Active connections:"
+            f" {len(self.active_connections)}"
+        )
 
 
 manager = ConnectionManager()
+
+vad_service = VadService(live=True)
 
 
 @router.websocket("")
@@ -63,9 +76,26 @@ async def websocket_endpoint(source_lang: str, websocket: WebSocket) -> None:
         while True:
             data = await websocket.receive_bytes()
 
-            async for result in asr.process_input(data=data, source_lang=source_lang):
-                await websocket.send_json(result)
-                del result
+            speech_probability = vad_service.get_speech_probability(data)
+            speech_probability = speech_probability if speech_probability else 0
+            logger.info(f"Speech probability: {speech_probability}")
+
+            if speech_probability > vad_service.options.threshold:
+                try:
+                    async for result in asr.process_input(
+                        data=data, source_lang=source_lang
+                    ):
+                        await websocket.send_json(result)
+                except Exception as e:
+                    logger.error(f"Error processing data: {str(e)}")
+                    raise HTTPException(detail=str(e)) from e
+            else:
+                continue
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+        await websocket.close(code=1000)  # Close WebSocket gracefully
+
+    except Exception as e:
+        logger.error(f"Error in WebSocket connection: {str(e)}")
+        await websocket.close(code=1002, reason="Unexpected error.")

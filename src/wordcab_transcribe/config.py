@@ -69,6 +69,7 @@ class Settings:
     # Remote servers configuration
     transcribe_server_urls: Union[List[str], None]
     diarize_server_urls: Union[List[str], None]
+    max_live_connections: int
 
     @field_validator("project_name")
     def project_name_must_not_be_none(cls, value: str):  # noqa: B902, N805
@@ -272,4 +273,5 @@ settings = Settings(
     # Remote servers configuration
     transcribe_server_urls=transcribe_server_urls,
     diarize_server_urls=diarize_server_urls,
+    max_live_connections=getenv("MAX_LIVE_CONNECTIONS", 1),
 )

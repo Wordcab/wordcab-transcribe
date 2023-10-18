@@ -261,7 +261,8 @@ class TranscribeService:
         source_lang: str,
         model_index: int,
     ) -> Iterable[dict]:
-        """Async generator for live transcriptions.
+        """
+        Async generator for live transcriptions.
 
         This method wraps the live_transcribe method to make it async.
 

@@ -18,18 +18,21 @@
 # See the License for the specific language governing permissions
 # and limitations under the License.
 """Voice Activation Detection (VAD) Service for audio files."""
-
+from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
+import numpy as np
 import torch
 import torchaudio
-from faster_whisper.vad import VadOptions, get_speech_timestamps
+from faster_whisper.vad import SileroVADModel, VadOptions, get_speech_timestamps
+
+from wordcab_transcribe.utils import read_audio
 
 
 class VadService:
     """VAD Service for audio files."""
 
-    def __init__(self) -> None:
+    def __init__(self, live=False) -> None:
         """Initialize the VAD Service."""
         self.sample_rate = 16000
         self.options = VadOptions(
@@ -40,6 +43,11 @@ class VadService:
             window_size_samples=512,
             speech_pad_ms=400,
         )
+
+        self.live_vad_model = None
+        if live:
+            vad_model_path = Path(__file__).parent.parent / "assets/silero_vad.onnx"
+            self.live_vad_model = SileroVADModel(vad_model_path)
 
     def __call__(
         self, waveform: torch.Tensor, group_timestamps: Optional[bool] = True
@@ -71,6 +79,26 @@ class VadService:
             speech_timestamps_list = _speech_timestamps_list
 
         return speech_timestamps_list, waveform
+
+    def get_speech_probability(self, audio_chunk):
+        """Get speech probability from VAD model."""
+        if self.live_vad_model:
+            audio_chunk, _ = read_audio(audio_chunk)
+            audio_chunk = audio_chunk.float()
+
+            state = self.live_vad_model.get_initial_state(batch_size=1)
+
+            if len(audio_chunk) < self.options.window_size_samples:
+                audio_chunk = np.pad(
+                    audio_chunk,
+                    (0, int(self.options.window_size_samples - len(audio_chunk))),
+                )
+
+            speech_prob, _ = self.live_vad_model(audio_chunk, state, self.sample_rate)
+            del audio_chunk
+
+            return speech_prob
+        return
 
     def group_timestamps(
         self, timestamps: List[dict], threshold: Optional[float] = 3.0
