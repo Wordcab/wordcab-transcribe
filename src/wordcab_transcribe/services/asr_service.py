@@ -776,7 +776,10 @@ class ASRAsyncService(ASRService):
         data: DiarizationRequest,
     ) -> DiarizationOutput:
         """Remote diarization method."""
-        async with aiohttp.ClientSession() as session:
+        # Set the timeout to 12 hours for several hours long audio files
+        verylongtimeout = ClientTimeout(total=12 * 60 * 60)
+
+        async with aiohttp.ClientSession(timeout=verylongtimeout) as session:
             async with session.post(
                 url=f"{url}/api/v1/diarize",
                 data=data.model_dump_json(),
