@@ -19,6 +19,7 @@
 # and limitations under the License.
 """ASR Service module that handle all AI interactions."""
 
+import os
 import asyncio
 import time
 import traceback
