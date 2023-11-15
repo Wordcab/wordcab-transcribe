@@ -776,7 +776,10 @@ class ASRAsyncService(ASRService):
         data: DiarizationRequest,
     ) -> DiarizationOutput:
         """Remote diarization method."""
-        async with aiohttp.ClientSession() as session:
+        # Set the timeout according to the env value of the REMOTE_DIARIZE_SERVER_REQUEST_TIMEOUT_SEC variable
+
+        specifictimeout = aiohttp.ClientTimeout(total=int(os.getenv("REMOTE_DIARIZE_SERVER_REQUEST_TIMEOUT_SEC", 300)))
+        async with aiohttp.ClientSession(timeout=specifictimeout) as session:
             async with session.post(
                 url=f"{url}/api/v1/diarize",
                 data=data.model_dump_json(),
