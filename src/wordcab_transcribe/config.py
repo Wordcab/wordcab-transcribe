@@ -19,6 +19,7 @@
 # and limitations under the License.
 """Configuration module of the Wordcab Transcribe."""
 
+import os
 from os import getenv
 from typing import Dict, List, Union
 
@@ -69,6 +70,7 @@ class Settings:
     # Remote servers configuration
     transcribe_server_urls: Union[List[str], None]
     diarize_server_urls: Union[List[str], None]
+    remote_diarization_request_timeout: int
 
     @field_validator("project_name")
     def project_name_must_not_be_none(cls, value: str):  # noqa: B902, N805
@@ -272,4 +274,5 @@ settings = Settings(
     # Remote servers configuration
     transcribe_server_urls=transcribe_server_urls,
     diarize_server_urls=diarize_server_urls,
+    remote_diarization_request_timeout=int(os.getenv("REMOTE_DIARIZE_SERVER_REQUEST_TIMEOUT_SEC", 300)),
 )

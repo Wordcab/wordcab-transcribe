@@ -53,7 +53,7 @@ from wordcab_transcribe.services.post_processing_service import PostProcessingSe
 from wordcab_transcribe.services.transcribe_service import TranscribeService
 from wordcab_transcribe.services.vad_service import VadService
 from wordcab_transcribe.utils import early_return, format_segments, read_audio
-
+from wordcab_transcribe.config import settings
 
 class ExceptionSource(str, Enum):
     """Exception source enum."""
@@ -778,9 +778,10 @@ class ASRAsyncService(ASRService):
     ) -> DiarizationOutput:
         """Remote diarization method."""
         # Set the timeout according to the env value of the REMOTE_DIARIZE_SERVER_REQUEST_TIMEOUT_SEC variable
+        logger.info(f"settings.remote_diarization_request_timeout={settings.remote_diarization_request_timeout} secs")
 
-        specifictimeout = aiohttp.ClientTimeout(total=int(os.getenv("REMOTE_DIARIZE_SERVER_REQUEST_TIMEOUT_SEC", 300)))
-        async with aiohttp.ClientSession(timeout=specifictimeout) as session:
+        diarization_timeout = aiohttp.ClientTimeout(total=settings.remote_diarization_request_timeout)
+        async with aiohttp.ClientSession(timeout=diarization_timeout) as session:
             async with session.post(
                 url=f"{url}/api/v1/diarize",
                 data=data.model_dump_json(),
