@@ -301,6 +301,9 @@ class ASRAsyncService(ASRService):
                 "You provided URLs for remote diarization server, no local model will"
                 " be used."
             )
+            logger.info(
+                f"remote diarization server timeout is {settings.remote_diarization_request_timeout}"
+            )
             self.remote_services.diarization = RemoteServiceConfig(
                 use_remote=True,
                 url_handler=URLService(remote_urls=diarize_server_urls),
