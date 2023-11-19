@@ -34,6 +34,7 @@ from wordcab_transcribe.models import (
 )
 from wordcab_transcribe.services.alignment.align_service import (
     align,
+    estimate_none_timestamps,
     load_align_model,
 )
 
@@ -268,6 +269,8 @@ class TranscribeService:
             for output in outputs["chunks"]:
                 output["text"] = output["text"].strip()
                 segments.append(output)
+
+            segments = estimate_none_timestamps(segments)
 
             # segments = self.align(
             #     transcript=segments,
