@@ -46,7 +46,7 @@ app = FastAPI(
 # Add logging middleware
 app.add_middleware(LoggingMiddleware, debug_mode=settings.debug)
 
-# Include the appropiate routers based on the settings
+# Include the appropriate routers based on the settings
 if settings.debug is False:
     app.include_router(auth_router, tags=["authentication"])
     app.include_router(

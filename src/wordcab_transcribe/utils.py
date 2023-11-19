@@ -222,6 +222,37 @@ async def download_audio_file(
 
 
 # pragma: no cover
+def download_audio_file_sync(
+    source: str,
+    url: str,
+    filename: str,
+    url_headers: Optional[Dict[str, str]] = None,
+) -> Union[str, Awaitable[str]]:
+    """
+    Download an audio file from a URL.
+
+    Args:
+        source (str): Source of the audio file. Can be "youtube" or "url".
+        url (str): URL of the audio file.
+        filename (str): Filename to save the file as.
+
+    Raises:
+        ValueError: If the source is invalid. Valid sources are: youtube, url.
+
+    Returns:
+        Union[str, Awaitable[str]]: Path to the downloaded file.
+    """
+    if source == "youtube":
+        filename = _download_file_from_youtube(url, filename)
+    elif source == "url":
+        filename = _download_file_from_youtube(url, filename)
+    else:
+        raise ValueError(f"Invalid source: {source}. Valid sources are: youtube, url.")
+
+    return filename
+
+
+# pragma: no cover
 def _download_file_from_youtube(url: str, filename: str) -> str:
     """
     Download a file from YouTube using youtube-dl.
@@ -522,6 +553,52 @@ async def process_audio_file(
             )
 
         return output_files
+
+
+def process_audio_file_sync(filepath: str) -> Union[str, List[str]]:
+    """Prepare the audio for inference.
+
+    Process an audio file using ffmpeg. The file will be converted to WAV.
+    The codec used is pcm_s16le and the sample rate is 16000.
+
+    Args:
+        filepath (str):
+            Path to the file to process.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        Exception: If there's an error in processing.
+
+    Returns:
+        Union[str, List[str]]: Path to the converted/split files.
+    """
+    _filepath = Path(filepath)
+
+    if not _filepath.exists():
+        raise FileNotFoundError(f"File {filepath} does not exist.")
+
+    new_filepath = f"{_filepath.stem}_{_filepath.stat().st_mtime_ns}.wav"
+    cmd = [
+        "ffmpeg",
+        "-i",
+        filepath,
+        "-vn",
+        "-acodec",
+        "pcm_s16le",
+        "-ar",
+        "16000",
+        "-ac",
+        "1",
+        "-y",
+        new_filepath,
+    ]
+
+    result = run_subprocess(cmd)
+
+    if result[0] != 0:
+        raise Exception(f"Error converting file {filepath} to wav format: {result[2]}")
+
+    return new_filepath
 
 
 def read_audio(

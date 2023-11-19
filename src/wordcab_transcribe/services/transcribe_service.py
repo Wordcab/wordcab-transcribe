@@ -23,14 +23,18 @@ from typing import Iterable, List, NamedTuple, Optional, Union
 
 import torch
 from faster_whisper import WhisperModel
-from loguru import logger
 from tensorshare import Backend, TensorShare
 
 from wordcab_transcribe.models import (
     MultiChannelSegment,
     MultiChannelTranscriptionOutput,
+    Segment,
     TranscriptionOutput,
     Word,
+)
+from wordcab_transcribe.services.alignment.align_service import (
+    align,
+    load_align_model,
 )
 
 
@@ -75,12 +79,52 @@ class TranscribeService:
         self.compute_type = compute_type
         self.model_path = model_path
 
-        self.model = WhisperModel(
-            self.model_path,
-            device=self.device,
-            device_index=device_index,
-            compute_type=self.compute_type,
+        # self.model = WhisperModel(
+        #     self.model_path,
+        #     device=self.device,
+        #     device_index=device_index,
+        #     compute_type=self.compute_type,
+        # )
+        from transformers import (
+            AutoModelForCausalLM,
+            AutoModelForSpeechSeq2Seq,
+            AutoProcessor,
+            pipeline,
         )
+
+        model_id = "openai/whisper-medium.en"
+        model = AutoModelForSpeechSeq2Seq.from_pretrained(
+            model_id,
+            torch_dtype=torch.float16,
+            low_cpu_mem_usage=False,
+            use_safetensors=False,
+            use_flash_attention_2=False,
+        )
+        model.to(device)
+        self.processor = AutoProcessor.from_pretrained(model_id)
+        assistant_model_id = "distil-whisper/distil-medium.en"
+        assistant_model = AutoModelForCausalLM.from_pretrained(
+            assistant_model_id,
+            torch_dtype=torch.float16,
+            low_cpu_mem_usage=False,
+            use_safetensors=False,
+            use_flash_attention_2=False,
+        )
+        assistant_model.to(device)
+        self.model_id = "distil-whisper/medium.en"
+        self.model = pipeline(
+            "automatic-speech-recognition",
+            model=model,
+            tokenizer=self.processor.tokenizer,
+            feature_extractor=self.processor.feature_extractor,
+            max_new_tokens=128,
+            chunk_length_s=30,
+            torch_dtype=torch.float16,
+            generate_kwargs={"assistant_model": assistant_model},
+            device="cuda",
+        )
+        self.align_model, self.align_model_metadata = load_align_model("en", "cuda")
+        self.align = align
 
         self.extra_lang = extra_languages
         self.extra_lang_models = extra_languages_model_paths
@@ -191,45 +235,69 @@ class TranscribeService:
                 ts = audio.to_tensors(backend=Backend.NUMPY)
                 audio = ts["audio"]
 
-            segments, _ = self.model.transcribe(
-                audio,
-                language=source_lang,
-                initial_prompt=prompt,
-                repetition_penalty=repetition_penalty,
-                compression_ratio_threshold=compression_ratio_threshold,
-                log_prob_threshold=log_prob_threshold,
-                no_speech_threshold=no_speech_threshold,
-                condition_on_previous_text=condition_on_previous_text,
-                suppress_blank=suppress_blank,
-                word_timestamps=word_timestamps,
-                vad_filter=internal_vad,
-                vad_parameters={
-                    "threshold": 0.5,
-                    "min_speech_duration_ms": 250,
-                    "min_silence_duration_ms": 100,
-                    "speech_pad_ms": 30,
-                    "window_size_samples": 512,
-                },
-            )
+            # segments, _ = self.model.transcribe(
+            #     audio,
+            #     language=source_lang,
+            #     initial_prompt=prompt,
+            #     repetition_penalty=repetition_penalty,
+            #     compression_ratio_threshold=compression_ratio_threshold,
+            #     log_prob_threshold=log_prob_threshold,
+            #     no_speech_threshold=no_speech_threshold,
+            #     condition_on_previous_text=condition_on_previous_text,
+            #     suppress_blank=suppress_blank,
+            #     word_timestamps=word_timestamps,
+            #     vad_filter=internal_vad,
+            #     vad_parameters={
+            #         "threshold": 0.5,
+            #         "min_speech_duration_ms": 250,
+            #         "min_silence_duration_ms": 100,
+            #         "speech_pad_ms": 30,
+            #         "window_size_samples": 512,
+            #     },
+            # )
 
-            segments = list(segments)
-            if not segments:
-                logger.warning(
-                    "Empty transcription result. Trying with vad_filter=True."
-                )
-                segments, _ = self.model.transcribe(
-                    audio,
-                    language=source_lang,
-                    initial_prompt=prompt,
-                    repetition_penalty=repetition_penalty,
-                    compression_ratio_threshold=compression_ratio_threshold,
-                    log_prob_threshold=log_prob_threshold,
-                    no_speech_threshold=no_speech_threshold,
-                    condition_on_previous_text=condition_on_previous_text,
-                    suppress_blank=False,
-                    word_timestamps=True,
-                    vad_filter=False if internal_vad else True,
-                )
+            segments = []
+            outputs = self.model(audio, return_timestamps=True, batch_size=8)
+            for output in outputs["chunks"]:
+                output["text"] = output["text"].strip()
+                segments.append(output)
+
+            # segments = self.align(
+            #     transcript=segments,
+            #     align_model_metadata=self.align_model_metadata,
+            #     model=self.align_model,
+            #     audio=audio,
+            #     device="cuda",
+            # )["segments"]
+
+            for ix, segment in enumerate(segments):
+                # for _ix, word in enumerate(segment["words"]):
+                #     word = {
+                #         "start": word.pop("start"),
+                #         "end": word.pop("end"),
+                #         "word": word.pop("word"),
+                #         "probability": word.pop("score")
+                #     }
+                #     segment["words"][_ix] = word
+                # if not segment["words"]:
+                #     segment = fill_missing_words(segment)
+                # segment["start"] = segment["words"][0]["start"]
+                # segment["end"] = segment["words"][-1]["end"]
+                # segment["text"] = " ".join([word["word"].strip() for word in segment["words"]]).strip()
+                extra = {
+                    "seek": 1,
+                    "id": 1,
+                    "tokens": [1],
+                    "temperature": 0.0,
+                    "avg_logprob": 0.0,
+                    "compression_ratio": 0.0,
+                    "no_speech_prob": 0.0,
+                }
+                segments[ix]["start"] = segment["timestamp"][0]
+                segments[ix]["end"] = segment["timestamp"][1]
+                segments[ix].pop("timestamp")
+                segments[ix]["words"] = []
+                segments[ix] = Segment(**{**segment, **extra})
 
             _outputs = [segment._asdict() for segment in segments]
             outputs = TranscriptionOutput(segments=_outputs)

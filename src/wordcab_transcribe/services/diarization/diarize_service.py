@@ -19,7 +19,7 @@
 # and limitations under the License.
 """Diarization Service for audio files."""
 
-from typing import List, NamedTuple, Tuple, Union
+from typing import List, NamedTuple, Optional, Tuple, Union
 
 import torch
 from tensorshare import Backend, TensorShare
@@ -33,6 +33,12 @@ from wordcab_transcribe.services.diarization.segmentation_module import (
     SegmentationModule,
 )
 from wordcab_transcribe.services.vad_service import VadService
+from wordcab_transcribe.utils import (
+    delete_file,
+    download_audio_file_sync,
+    process_audio_file_sync,
+    read_audio,
+)
 
 
 class DiarizationModels(NamedTuple):
@@ -98,11 +104,13 @@ class DiarizeService:
 
     def __call__(
         self,
-        waveform: Union[torch.Tensor, TensorShare],
         audio_duration: float,
         oracle_num_speakers: int,
         model_index: int,
         vad_service: VadService,
+        waveform: Optional[Union[torch.Tensor, TensorShare]] = None,
+        url: Optional[str] = None,
+        url_type: Optional[str] = None,
     ) -> DiarizationOutput:
         """
         Run inference with the diarization model.
@@ -123,9 +131,19 @@ class DiarizeService:
             DiarizationOutput:
                 List of segments with the following keys: "start", "end", "speaker".
         """
-        if isinstance(waveform, TensorShare):
+        if url and url_type:
+            import shortuuid
+
+            filename = f"audio_{shortuuid.ShortUUID().random(length=32)}.wav"
+            filepath = download_audio_file_sync(url_type, url, filename)
+            filepath = process_audio_file_sync(filepath)
+            waveform, _ = read_audio(filepath)
+            delete_file(filepath)
+        elif isinstance(waveform, TensorShare):
             ts = waveform.to_tensors(backend=Backend.TORCH)
             waveform = ts["audio"]
+        else:
+            return None
 
         vad_outputs, _ = vad_service(waveform, group_timestamps=False)
 

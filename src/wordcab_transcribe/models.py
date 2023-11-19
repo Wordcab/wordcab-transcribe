@@ -518,7 +518,8 @@ class DiarizationOutput(BaseModel):
 class DiarizationRequest(BaseModel):
     """Request model for the diarize endpoint."""
 
-    audio: TensorShare
+    audio: Union[TensorShare, str]
+    audio_type: Optional[str]
     duration: float
     num_speakers: int
 

@@ -74,6 +74,8 @@ async def inference_with_audio_url(
         task = asyncio.create_task(
             asr.process_input(
                 filepath=filepath,
+                url=url,
+                url_type="url",
                 offset_start=data.offset_start,
                 offset_end=data.offset_end,
                 num_speakers=data.num_speakers,
