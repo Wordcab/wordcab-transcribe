@@ -35,6 +35,7 @@ from pydantic import BaseModel, ConfigDict
 from tensorshare import Backend, TensorShare
 from typing_extensions import Literal
 
+from wordcab_transcribe.config import settings
 from wordcab_transcribe.logging import time_and_tell, time_and_tell_async
 from wordcab_transcribe.models import (
     DiarizationOutput,
@@ -791,12 +792,31 @@ class ASRAsyncService(ASRService):
         data: DiarizationRequest,
     ) -> DiarizationOutput:
         """Remote diarization method."""
-        diarization_timeout = aiohttp.ClientTimeout(total=300)
+        headers = {"Content-Type": "application/json"}
+
+        if not settings.debug:
+            headers = {"Content-Type": "application/x-www-form-urlencoded"}
+            auth_url = f"{url}/api/v1/auth"
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    url=auth_url,
+                    data={"username": settings.username, "password": settings.password},
+                    headers=headers,
+                ) as response:
+                    if response.status != 200:
+                        raise Exception(response.status)
+                    else:
+                        token = await response.json()
+                        headers = {
+                            "Content-Type": "application/json",
+                            "Authorization": f"Bearer {token['access_token']}",
+                        }
+        diarization_timeout = aiohttp.ClientTimeout(total=1200)
         async with aiohttp.ClientSession(timeout=diarization_timeout) as session:
             async with session.post(
                 url=f"{url}/api/v1/diarize",
                 data=data.model_dump_json(),
-                headers={"Content-Type": "application/json"},
+                headers=headers,
             ) as response:
                 if response.status != 200:
                     r = await response.json()
