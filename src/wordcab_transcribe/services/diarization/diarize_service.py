@@ -22,6 +22,7 @@ import os
 from typing import List, NamedTuple, Optional, Tuple, Union
 
 import torch
+from loguru import logger
 from tensorshare import Backend, TensorShare
 
 from wordcab_transcribe.models import DiarizationOutput
@@ -91,7 +92,7 @@ class DiarizeService:
                 self.default_segmentation_batch_size = 128
             else:
                 self.default_segmentation_batch_size = 256
-
+        logger.info(f"segmentation_batch_size set to {self.seg_batch_size}")
         self.default_scale_dict = dict(enumerate(zip(window_lengths, shift_lengths)))
 
         for idx in device_index:

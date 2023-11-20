@@ -23,6 +23,7 @@ from typing import Iterable, List, NamedTuple, Optional, Union
 
 import torch
 from faster_whisper import WhisperModel
+from loguru import logger
 from tensorshare import Backend, TensorShare
 
 from wordcab_transcribe.models import (
@@ -94,6 +95,7 @@ class TranscribeService:
         )
 
         model_id = os.getenv("WHISPER_TEACHER_MODEL", "openai/whisper-medium.en")
+        logger.info(f"WHISPER_TEACHER_MODEL set to {model_id}")
         model = AutoModelForSpeechSeq2Seq.from_pretrained(
             model_id,
             torch_dtype=torch.float16,
@@ -108,6 +110,7 @@ class TranscribeService:
         assistant_model_id = os.getenv(
             "DISTIL_WHISPER_ASSISTANT_MODEL", "distil-whisper/distil-medium.en"
         )
+        logger.info(f"DISTIL_WHISPER_ASSISTANT_MODEL set to {assistant_model_id}")
         assistant_model = AutoModelForCausalLM.from_pretrained(
             assistant_model_id,
             torch_dtype=torch.float16,
@@ -263,6 +266,7 @@ class TranscribeService:
 
             segments = []
             batch_size = os.getenv("WHISPER_BATCH_SIZE", 8)
+            logger.info(f"WHISPER_BATCH_SIZE set to {batch_size}")
             outputs = self.model(
                 audio, return_timestamps=True, batch_size=int(batch_size)
             )
