@@ -243,75 +243,77 @@ class TranscribeService:
                 ts = audio.to_tensors(backend=Backend.NUMPY)
                 audio = ts["audio"]
 
-            # segments, _ = self.model.transcribe(
-            #     audio,
-            #     language=source_lang,
-            #     initial_prompt=prompt,
-            #     repetition_penalty=repetition_penalty,
-            #     compression_ratio_threshold=compression_ratio_threshold,
-            #     log_prob_threshold=log_prob_threshold,
-            #     no_speech_threshold=no_speech_threshold,
-            #     condition_on_previous_text=condition_on_previous_text,
-            #     suppress_blank=suppress_blank,
-            #     word_timestamps=word_timestamps,
-            #     vad_filter=internal_vad,
-            #     vad_parameters={
-            #         "threshold": 0.5,
-            #         "min_speech_duration_ms": 250,
-            #         "min_silence_duration_ms": 100,
-            #         "speech_pad_ms": 30,
-            #         "window_size_samples": 512,
-            #     },
-            # )
+            whisper_engine = os.getenv("WHISPER_ENGINE", "faster-whisper")
+            if whisper_engine == "faster-whisper":
+                segments, _ = self.model.transcribe(
+                    audio,
+                    language=source_lang,
+                    initial_prompt=prompt,
+                    repetition_penalty=repetition_penalty,
+                    compression_ratio_threshold=compression_ratio_threshold,
+                    log_prob_threshold=log_prob_threshold,
+                    no_speech_threshold=no_speech_threshold,
+                    condition_on_previous_text=condition_on_previous_text,
+                    suppress_blank=suppress_blank,
+                    word_timestamps=word_timestamps,
+                    vad_filter=internal_vad,
+                    vad_parameters={
+                        "threshold": 0.5,
+                        "min_speech_duration_ms": 250,
+                        "min_silence_duration_ms": 100,
+                        "speech_pad_ms": 30,
+                        "window_size_samples": 512,
+                    },
+                )
+            else:
+                segments = []
+                batch_size = os.getenv("WHISPER_BATCH_SIZE", 8)
+                logger.info(f"WHISPER_BATCH_SIZE set to {batch_size}")
+                outputs = self.model(
+                    audio, return_timestamps=True, batch_size=int(batch_size)
+                )
+                for output in outputs["chunks"]:
+                    output["text"] = output["text"].strip()
+                    segments.append(output)
 
-            segments = []
-            batch_size = os.getenv("WHISPER_BATCH_SIZE", 8)
-            logger.info(f"WHISPER_BATCH_SIZE set to {batch_size}")
-            outputs = self.model(
-                audio, return_timestamps=True, batch_size=int(batch_size)
-            )
-            for output in outputs["chunks"]:
-                output["text"] = output["text"].strip()
-                segments.append(output)
+                segments = estimate_none_timestamps(segments)
 
-            segments = estimate_none_timestamps(segments)
+                # segments = self.align(
+                #     transcript=segments,
+                #     align_model_metadata=self.align_model_metadata,
+                #     model=self.align_model,
+                #     audio=audio,
+                #     device="cuda",
+                # )["segments"]
 
-            # segments = self.align(
-            #     transcript=segments,
-            #     align_model_metadata=self.align_model_metadata,
-            #     model=self.align_model,
-            #     audio=audio,
-            #     device="cuda",
-            # )["segments"]
-
-            for ix, segment in enumerate(segments):
-                # for _ix, word in enumerate(segment["words"]):
-                #     word = {
-                #         "start": word.pop("start"),
-                #         "end": word.pop("end"),
-                #         "word": word.pop("word"),
-                #         "probability": word.pop("score")
-                #     }
-                #     segment["words"][_ix] = word
-                # if not segment["words"]:
-                #     segment = fill_missing_words(segment)
-                # segment["start"] = segment["words"][0]["start"]
-                # segment["end"] = segment["words"][-1]["end"]
-                # segment["text"] = " ".join([word["word"].strip() for word in segment["words"]]).strip()
-                extra = {
-                    "seek": 1,
-                    "id": 1,
-                    "tokens": [1],
-                    "temperature": 0.0,
-                    "avg_logprob": 0.0,
-                    "compression_ratio": 0.0,
-                    "no_speech_prob": 0.0,
-                }
-                segments[ix]["start"] = segment["timestamp"][0]
-                segments[ix]["end"] = segment["timestamp"][1]
-                segments[ix].pop("timestamp")
-                segments[ix]["words"] = []
-                segments[ix] = Segment(**{**segment, **extra})
+                for ix, segment in enumerate(segments):
+                    # for _ix, word in enumerate(segment["words"]):
+                    #     word = {
+                    #         "start": word.pop("start"),
+                    #         "end": word.pop("end"),
+                    #         "word": word.pop("word"),
+                    #         "probability": word.pop("score")
+                    #     }
+                    #     segment["words"][_ix] = word
+                    # if not segment["words"]:
+                    #     segment = fill_missing_words(segment)
+                    # segment["start"] = segment["words"][0]["start"]
+                    # segment["end"] = segment["words"][-1]["end"]
+                    # segment["text"] = " ".join([word["word"].strip() for word in segment["words"]]).strip()
+                    extra = {
+                        "seek": 1,
+                        "id": 1,
+                        "tokens": [1],
+                        "temperature": 0.0,
+                        "avg_logprob": 0.0,
+                        "compression_ratio": 0.0,
+                        "no_speech_prob": 0.0,
+                    }
+                    segments[ix]["start"] = segment["timestamp"][0]
+                    segments[ix]["end"] = segment["timestamp"][1]
+                    segments[ix].pop("timestamp")
+                    segments[ix]["words"] = []
+                    segments[ix] = Segment(**{**segment, **extra})
 
             _outputs = [segment._asdict() for segment in segments]
             outputs = TranscriptionOutput(segments=_outputs)
