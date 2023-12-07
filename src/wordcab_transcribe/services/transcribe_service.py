@@ -81,58 +81,61 @@ class TranscribeService:
         self.compute_type = compute_type
         self.model_path = model_path
 
-        # self.model = WhisperModel(
-        #     self.model_path,
-        #     device=self.device,
-        #     device_index=device_index,
-        #     compute_type=self.compute_type,
-        # )
-        from transformers import (
-            AutoModelForCausalLM,
-            AutoModelForSpeechSeq2Seq,
-            AutoProcessor,
-            pipeline,
-        )
+        whisper_engine = os.getenv("WHISPER_ENGINE", "faster-whisper")
+        if whisper_engine == "faster-whisper":
+            self.model = WhisperModel(
+                self.model_path,
+                device=self.device,
+                device_index=device_index,
+                compute_type=self.compute_type,
+            )
+        else:
+            from transformers import (
+                AutoModelForCausalLM,
+                AutoModelForSpeechSeq2Seq,
+                AutoProcessor,
+                pipeline,
+            )
 
-        model_id = os.getenv("WHISPER_TEACHER_MODEL", "openai/whisper-medium.en")
-        logger.info(f"WHISPER_TEACHER_MODEL set to {model_id}")
-        model = AutoModelForSpeechSeq2Seq.from_pretrained(
-            model_id,
-            torch_dtype=torch.float16,
-            low_cpu_mem_usage=False,
-            use_safetensors=False,
-            use_flash_attention_2=False,
-        )
-        model.to(device)
+            model_id = os.getenv("WHISPER_TEACHER_MODEL", "openai/whisper-medium.en")
+            logger.info(f"WHISPER_TEACHER_MODEL set to {model_id}")
+            model = AutoModelForSpeechSeq2Seq.from_pretrained(
+                model_id,
+                torch_dtype=torch.float16,
+                low_cpu_mem_usage=False,
+                use_safetensors=False,
+                use_flash_attention_2=False,
+            )
+            model.to(device)
 
-        self.processor = AutoProcessor.from_pretrained(model_id)
+            self.processor = AutoProcessor.from_pretrained(model_id)
 
-        assistant_model_id = os.getenv(
-            "DISTIL_WHISPER_ASSISTANT_MODEL", "distil-whisper/distil-medium.en"
-        )
-        logger.info(f"DISTIL_WHISPER_ASSISTANT_MODEL set to {assistant_model_id}")
-        assistant_model = AutoModelForCausalLM.from_pretrained(
-            assistant_model_id,
-            torch_dtype=torch.float16,
-            low_cpu_mem_usage=False,
-            use_safetensors=False,
-            use_flash_attention_2=False,
-        )
-        assistant_model.to(device)
+            assistant_model_id = os.getenv(
+                "DISTIL_WHISPER_ASSISTANT_MODEL", "distil-whisper/distil-medium.en"
+            )
+            logger.info(f"DISTIL_WHISPER_ASSISTANT_MODEL set to {assistant_model_id}")
+            assistant_model = AutoModelForCausalLM.from_pretrained(
+                assistant_model_id,
+                torch_dtype=torch.float16,
+                low_cpu_mem_usage=False,
+                use_safetensors=False,
+                use_flash_attention_2=False,
+            )
+            assistant_model.to(device)
 
-        self.model = pipeline(
-            "automatic-speech-recognition",
-            model=model,
-            tokenizer=self.processor.tokenizer,
-            feature_extractor=self.processor.feature_extractor,
-            max_new_tokens=128,
-            chunk_length_s=30,
-            torch_dtype=torch.float16,
-            generate_kwargs={"assistant_model": assistant_model},
-            device="cuda",
-        )
-        self.align_model, self.align_model_metadata = load_align_model("en", "cuda")
-        self.align = align
+            self.model = pipeline(
+                "automatic-speech-recognition",
+                model=model,
+                tokenizer=self.processor.tokenizer,
+                feature_extractor=self.processor.feature_extractor,
+                max_new_tokens=128,
+                chunk_length_s=30,
+                torch_dtype=torch.float16,
+                generate_kwargs={"assistant_model": assistant_model},
+                device="cuda",
+            )
+            self.align_model, self.align_model_metadata = load_align_model("en", "cuda")
+            self.align = align
 
         self.extra_lang = extra_languages
         self.extra_lang_models = extra_languages_model_paths
