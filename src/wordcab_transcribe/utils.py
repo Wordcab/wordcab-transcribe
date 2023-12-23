@@ -227,7 +227,6 @@ def download_audio_file_sync(
     source: str,
     url: str,
     filename: str,
-    url_headers: Optional[Dict[str, str]] = None,
 ) -> Union[str, Awaitable[str]]:
     """
     Download an audio file from a URL.
@@ -246,7 +245,7 @@ def download_audio_file_sync(
     if source == "youtube":
         filename = _download_file_from_youtube(url, filename)
     elif source == "url":
-        filename = download_file_from_url_sync(url, filename)
+        filename = _download_file_from_url_sync(url, filename)
     else:
         raise ValueError(f"Invalid source: {source}. Valid sources are: youtube, url.")
 
@@ -265,6 +264,7 @@ def _download_file_from_youtube(url: str, filename: str) -> str:
     Returns:
         str: Path to the downloaded file.
     """
+    logger.info(f"Downloading YouTube file from {url} to {filename}...")
     with YoutubeDL(
         {
             "format": "bestaudio",
@@ -318,7 +318,7 @@ async def _download_file_from_url(
     return filename
 
 
-def download_file_from_url_sync(
+def _download_file_from_url_sync(
     url: str, filename: str, url_headers: Optional[Dict[str, str]] = None
 ) -> str:
     """
@@ -337,7 +337,7 @@ def download_file_from_url_sync(
     """
     url_headers = url_headers or {}
 
-    print(f"Downloading audio file from {url} to {filename}...")
+    logger.info(f"Downloading audio file from {url} to {filename}...")
 
     response = requests.get(url, headers=url_headers, stream=True)
 

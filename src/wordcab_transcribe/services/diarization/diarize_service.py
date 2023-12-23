@@ -139,7 +139,7 @@ class DiarizeService:
         if url and url_type:
             import shortuuid
 
-            filename = f"audio_{shortuuid.ShortUUID().random(length=32)}.wav"
+            filename = f"audio_{shortuuid.ShortUUID().random(length=32)}"
             filepath = download_audio_file_sync(url_type, url, filename)
             filepath = process_audio_file_sync(filepath)
             waveform, _ = read_audio(filepath)
