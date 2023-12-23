@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Awaitable, Dict, List, Optional, Tuple, Union
 import aiofiles
 import aiohttp
 import huggingface_hub
+import requests
 import soundfile as sf
 import torch
 import torchaudio
@@ -245,7 +246,7 @@ def download_audio_file_sync(
     if source == "youtube":
         filename = _download_file_from_youtube(url, filename)
     elif source == "url":
-        filename = _download_file_from_youtube(url, filename)
+        filename = download_file_from_url_sync(url, filename)
     else:
         raise ValueError(f"Invalid source: {source}. Valid sources are: youtube, url.")
 
@@ -313,6 +314,40 @@ async def _download_file_from_url(
                         await f.write(chunk)
             else:
                 raise Exception(f"Failed to download file. Status: {response.status}")
+
+    return filename
+
+
+def download_file_from_url_sync(
+    url: str, filename: str, url_headers: Optional[Dict[str, str]] = None
+) -> str:
+    """
+    Download a file from a URL using requests.
+
+    Args:
+        url (str): URL of the audio file.
+        filename (str): Filename to save the file as.
+        url_headers (Optional[Dict[str, str]]): Headers to send with the request. Defaults to None.
+
+    Returns:
+        str: Path to the downloaded file.
+
+    Raises:
+        Exception: If the file failed to download.
+    """
+    url_headers = url_headers or {}
+
+    print(f"Downloading audio file from {url} to {filename}...")
+
+    response = requests.get(url, headers=url_headers, stream=True)
+
+    if response.status_code == 200:
+        with open(filename, "wb") as f:
+            for chunk in response.iter_content(chunk_size=1024):
+                if chunk:  # filter out keep-alive new chunks
+                    f.write(chunk)
+    else:
+        raise Exception(f"Failed to download file. Status: {response.status_code}")
 
     return filename
 
