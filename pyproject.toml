@@ -29,6 +29,7 @@ classifiers = [
 dependencies = [
   "aiohttp>=3.8.4",
   "aiofiles>=23.1.0",
+  "boto3",
   "ctranslate2>=3.18.0",
   "faster-whisper @ git+https://github.com/Wordcab/faster-whisper@master",
   "ffmpeg-python>=0.2.0",

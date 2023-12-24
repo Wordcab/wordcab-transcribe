@@ -50,7 +50,7 @@ router = APIRouter()
     response_model=Union[
         CortexError, CortexUrlResponse, CortexYoutubeResponse, PongResponse
     ],
-    status_code=http_status.HTTP_200_OK,
+    status_code=http_status.HTTP_202_ACCEPTED,
 )
 async def run_cortex(
     payload: CortexPayload, request: Request

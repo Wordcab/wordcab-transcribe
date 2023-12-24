@@ -41,7 +41,6 @@ async def remote_diarization(
     data: DiarizationRequest,
 ) -> DiarizationOutput:
     """Diarize endpoint for the `only_diarization` asr type."""
-    logger.info(f"Received remote diarization request: {data}")
     result: DiarizationOutput = await asr.process_input(data)
 
     if isinstance(result, ProcessException):
