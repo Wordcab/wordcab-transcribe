@@ -1055,6 +1055,10 @@ class SpeakerClustering(torch.nn.Module):
         absolute_merge_mapping: List[List[torch.Tensor]],
         org_len: int,
     ) -> torch.LongTensor:
+        print(f"Y_aggr:{Y_aggr}\n")
+        print(f"window_range_list:{window_range_list}\n")
+        print(f"absolute_merge_mapping:{absolute_merge_mapping}\n")
+        print(f"org_len:{org_len}\n")
         """
         Unpack the labels from the aggregated labels to the original labels.
 
