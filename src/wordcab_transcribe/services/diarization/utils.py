@@ -648,32 +648,65 @@ def get_context_embeddings(
     Returns:
         torch.Tensor: A set of scale-interpolated embedding vectors.
     """
-    rep_mat_list = []
-    multiscale_weights_tensor = torch.tensor(
-        multiscale_weights, device=device
-    ).unsqueeze(-1)
-    scale_list = list(range(len(embeddings_in_scales)))
+    print(f"\nmultiscale_weights: {multiscale_weights}")
+    print(f"embeddings_in_scales: {embeddings_in_scales}")
+    print(f"session_scale_mapping_list: {session_scale_mapping_list}")
+    print(f"device: {device}\n")
+    try:
+        rep_mat_list = []
+        multiscale_weights_tensor = torch.tensor(
+            multiscale_weights, device=device
+        ).unsqueeze(-1)
+        scale_list = list(range(len(embeddings_in_scales)))
 
-    for scale_idx in scale_list:
-        emb_t = torch.tensor(embeddings_in_scales[scale_idx], device=device)
-        mapping_argmat = torch.tensor(
-            session_scale_mapping_list[scale_idx], device=device, dtype=torch.int64
-        )
-        repeat_list = torch.bincount(mapping_argmat, minlength=emb_t.shape[0]).to(
-            device
-        )
-        rep_emb_t = torch.repeat_interleave(emb_t, repeats=repeat_list, dim=0)
-        rep_mat_list.append(rep_emb_t)
+        for scale_idx in scale_list:
+            emb_t = torch.tensor(embeddings_in_scales[scale_idx], device=device)
+            mapping_argmat = torch.tensor(
+                session_scale_mapping_list[scale_idx], device=device, dtype=torch.int64
+            )
+            repeat_list = torch.bincount(mapping_argmat, minlength=emb_t.shape[0]).to(
+                device
+            )
+            rep_emb_t = torch.repeat_interleave(emb_t, repeats=repeat_list, dim=0)
+            rep_mat_list.append(rep_emb_t)
 
-    stacked_scale_embs = torch.stack(rep_mat_list)
-    context_emb = (
-        torch.matmul(stacked_scale_embs.permute(2, 1, 0), multiscale_weights_tensor.t())
-        .squeeze()
-        .t()
-    )
-    if len(context_emb.shape) < 2:
-        context_emb = context_emb.unsqueeze(0)
-    context_emb = context_emb.to(device)
+        stacked_scale_embs = torch.stack(rep_mat_list)
+        context_emb = (
+            torch.matmul(
+                stacked_scale_embs.permute(2, 1, 0), multiscale_weights_tensor.t()
+            )
+            .squeeze()
+            .t()
+        )
+        if len(context_emb.shape) < 2:
+            context_emb = context_emb.unsqueeze(0)
+        context_emb = context_emb.to(device)
+    except Exception as e:
+        print(f"ERROR: {e}\n")
+        rep_mat_list = []
+        multiscale_weights_tensor = torch.tensor(
+            multiscale_weights, device=device
+        ).unsqueeze(1)
+        scale_list = list(range(len(embeddings_in_scales)))
+
+        for scale_idx in scale_list:
+            emb_t = torch.tensor(embeddings_in_scales[scale_idx], device=device)
+            mapping_argmat = torch.tensor(
+                session_scale_mapping_list[scale_idx], device=device, dtype=torch.int64
+            )
+            repeat_list = torch.bincount(mapping_argmat, minlength=emb_t.shape[0]).to(
+                device
+            )
+            rep_emb_t = torch.repeat_interleave(emb_t, repeats=repeat_list, dim=0)
+            rep_mat_list.append(rep_emb_t)
+
+        stacked_scale_embs = torch.stack(rep_mat_list)
+        stacked_scale_embs_permuted = stacked_scale_embs.permute(1, 2, 0)
+
+        # Adjusted matrix multiplication
+        context_emb = torch.bmm(
+            stacked_scale_embs_permuted, multiscale_weights_tensor
+        ).squeeze(2)
 
     return context_emb
 

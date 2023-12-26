@@ -746,7 +746,6 @@ class SpeakerClustering(torch.nn.Module):
         )
 
         if self.longform_clustering:
-            print("ENGAGING IN LONGFORM CLUSTERING")
             context_embeddings = get_context_embeddings(
                 multiscale_weights,
                 embeddings_in_scales,
