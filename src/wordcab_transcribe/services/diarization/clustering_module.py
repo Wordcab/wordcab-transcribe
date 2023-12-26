@@ -770,6 +770,18 @@ class SpeakerClustering(torch.nn.Module):
             reduce_embeddings = torch.cat(total_embeddings)
             reduced_matrix = get_cosine_affinity_matrix(reduce_embeddings)
 
+            print(f"\n\nmatrix: {reduced_matrix}")
+            print(f"max_num_speakers: {max_num_speakers}")
+            print(f"max_rp_threshold: {max_rp_threshold}")
+            print(f"sparse_search_volume: {sparse_search_volume}")
+            print(f"fixed_thres: {fixed_thres}")
+            print(f"oracle_num_speakers: {oracle_num_speakers}")
+            print(
+                "estimation_number_of_speaker_enhanced:"
+                f" {estimation_number_of_speaker_enhanced}"
+            )
+            print(f"kmeans_random_trials: {kmeans_random_trials}\n\n")
+
             Y_aggregate = self.forward_unit(
                 matrix=reduced_matrix,
                 max_num_speakers=max_num_speakers,
@@ -1055,10 +1067,6 @@ class SpeakerClustering(torch.nn.Module):
         absolute_merge_mapping: List[List[torch.Tensor]],
         org_len: int,
     ) -> torch.LongTensor:
-        print(f"Y_aggr:{Y_aggr}\n")
-        print(f"window_range_list:{window_range_list}\n")
-        print(f"absolute_merge_mapping:{absolute_merge_mapping}\n")
-        print(f"org_len:{org_len}\n")
         """
         Unpack the labels from the aggregated labels to the original labels.
 
