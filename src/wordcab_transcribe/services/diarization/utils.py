@@ -827,6 +827,10 @@ def merge_vectors(
             Cluster labels for the merged feature vectors
             Dimension: (merged vector counts)
     """
+    print(f"{selected_inds}: selected_inds\n")
+    print(f"{emb_ndx}: emb_ndx\n")
+    print(f"{pre_cluster_labels}: pre_cluster_labels\n")
+
     if emb_ndx.shape[0] != pre_cluster_labels.shape[0]:
         raise ValueError("pre_cluster_labels and emb_ndx have mismatch in dimension")
     avg_emb = torch.mean(emb_ndx[selected_inds, :], dim=0)
