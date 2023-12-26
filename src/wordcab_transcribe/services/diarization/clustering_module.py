@@ -989,13 +989,17 @@ class SpeakerClustering(torch.nn.Module):
                 embeddings_per_chunk=embeddings_per_chunk,
             )
 
+            # Ensure emb_part is a 2D tensor
+            if emb_part.ndim == 3 and emb_part.shape[-1] == 1:
+                emb_part = emb_part.squeeze(-1)
+
             # Perform overclustering on the chunks
             if emb_part.shape[0] == 1:
                 Y_part = torch.zeros((1,), dtype=torch.int64)
             else:
                 matrix = get_cosine_affinity_matrix(emb_part)
                 overcluster_count = min(chunk_cluster_count, matrix.shape[0])
-                Y_part = self.speaker_clustering.forward_unit_infer(
+                Y_part = self.forward_unit_infer(
                     mat=matrix,
                     oracle_num_speakers=overcluster_count,
                     max_rp_threshold=max_rp_threshold,
