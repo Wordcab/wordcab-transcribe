@@ -41,7 +41,7 @@
 
 """Clustering module for the diarization service."""
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
 
@@ -763,6 +763,8 @@ class SpeakerClustering(torch.nn.Module):
                 chunk_cluster_count=self.chunk_cluster_count,
                 max_rp_threshold=max_rp_threshold,
                 sparse_search_volume=sparse_search_volume,
+                fixed_thres=fixed_thres,
+                kmeans_random_trials=kmeans_random_trials,
             )
 
             reduce_embeddings = torch.cat(total_embeddings)
@@ -820,8 +822,8 @@ class SpeakerClustering(torch.nn.Module):
         sparse_search_volume: int,
         fixed_thres: float,
         oracle_num_speakers: int,
-        estimation_number_of_speaker_enhanced: torch.Tensor,
         kmeans_random_trials: int,
+        estimation_number_of_speaker_enhanced: Optional[torch.Tensor] = 0,
     ) -> torch.LongTensor:
         """
         Performs the forward pass of the unit processing, involving speaker clustering using a multiscale cosine
@@ -954,6 +956,9 @@ class SpeakerClustering(torch.nn.Module):
         chunk_cluster_count: int,
         max_rp_threshold: float,
         sparse_search_volume: int,
+        fixed_thres: float,
+        kmeans_random_trials: int,
+        estimation_number_of_speaker_enhanced: Optional[torch.Tensor] = 0,
     ) -> Tuple:
         """
         Processes the given embeddings by splitting them into smaller chunks,
@@ -999,12 +1004,14 @@ class SpeakerClustering(torch.nn.Module):
             else:
                 matrix = get_cosine_affinity_matrix(emb_part)
                 overcluster_count = min(chunk_cluster_count, matrix.shape[0])
-                Y_part = self.forward_unit_infer(
-                    mat=matrix,
-                    oracle_num_speakers=overcluster_count,
-                    max_rp_threshold=max_rp_threshold,
+                Y_part = self.forward_unit(
+                    matrix=matrix,
                     max_num_speakers=chunk_cluster_count,
+                    max_rp_threshold=max_rp_threshold,
                     sparse_search_volume=sparse_search_volume,
+                    fixed_thres=fixed_thres,
+                    oracle_num_speakers=overcluster_count,
+                    kmeans_random_trials=kmeans_random_trials,
                 )
 
             # Merge the clusters
