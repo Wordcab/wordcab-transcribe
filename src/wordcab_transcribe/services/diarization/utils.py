@@ -650,24 +650,27 @@ def get_context_embeddings(
     """
     rep_mat_list = []
     multiscale_weights_tensor = torch.tensor(
-        [multiscale_weights], device=device
-    ).transpose(0, 1)
+        multiscale_weights, dtype=torch.float32, device=device
+    ).unsqueeze(1)
 
     for scale_idx, emb_t in enumerate(embeddings_in_scales):
         emb_t = emb_t.to(device)
         mapping_argmat = session_scale_mapping_list[scale_idx].to(device)
-        repeat_list = torch.bincount(mapping_argmat, minlength=emb_t.shape[0]).to(
-            device
-        )
+        repeat_list = torch.bincount(mapping_argmat, minlength=emb_t.shape[0])
         rep_emb_t = torch.repeat_interleave(emb_t, repeats=repeat_list, dim=0)
         rep_mat_list.append(rep_emb_t)
 
     stacked_scale_embs = torch.stack(rep_mat_list).permute(
-        1, 0, 2
-    )  # Shape: [num_segments, num_scales, emb_dim]
+        2, 1, 0
+    )  # Shape: [emb_dim, num_scales, num_segments]
 
-    # Adjusted matrix multiplication
-    context_emb = torch.bmm(stacked_scale_embs, multiscale_weights_tensor).squeeze(2)
+    # Matrix multiplication
+    context_emb = (
+        torch.matmul(stacked_scale_embs, multiscale_weights_tensor).squeeze(1).t()
+    )
+
+    if len(context_emb.shape) < 2:
+        context_emb = context_emb.unsqueeze(0)
 
     return context_emb
 
