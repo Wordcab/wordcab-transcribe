@@ -969,6 +969,7 @@ class SpeakerClustering(torch.nn.Module):
         Returns:
             List[torch.Tensor]: A list of merged embeddings.
         """
+        print(f"Context embeddings: {context_embeddings}\n\n")
         offset_index = 0
         window_offset = 0
         total_emb = []
