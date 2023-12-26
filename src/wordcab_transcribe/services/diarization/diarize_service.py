@@ -61,6 +61,7 @@ class DiarizeService:
         shift_lengths: List[float],
         multiscale_weights: List[int],
         max_num_speakers: int = 8,
+        longform_clustering: bool = True,
     ) -> None:
         """Initialize the Diarize Service.
 
@@ -94,18 +95,21 @@ class DiarizeService:
                 self.default_segmentation_batch_size = 256
         logger.info(f"segmentation_batch_size set to {self.seg_batch_size}")
         self.default_scale_dict = dict(enumerate(zip(window_lengths, shift_lengths)))
-
+        print(f"Device index: {device_index} | {device}")
         for idx in device_index:
             _device = f"cuda:{idx}" if self.device == "cuda" else "cpu"
 
             segmentation_module = SegmentationModule(_device)
-            clustering_module = ClusteringModule(_device, self.max_num_speakers)
+            clustering_module = ClusteringModule(
+                _device, self.max_num_speakers, longform_clustering
+            )
 
             self.models[idx] = DiarizationModels(
                 segmentation=segmentation_module,
                 clustering=clustering_module,
                 device=_device,
             )
+            print("HERE0", self.models[idx])
 
     def __call__(
         self,
@@ -137,6 +141,7 @@ class DiarizeService:
                 List of segments with the following keys: "start", "end", "speaker".
         """
         if url and url_type:
+            print("HERE1")
             import shortuuid
 
             filename = f"audio_{shortuuid.ShortUUID().random(length=32)}"
@@ -145,13 +150,27 @@ class DiarizeService:
             waveform, _ = read_audio(filepath)
             delete_file(filepath)
         elif isinstance(waveform, TensorShare):
+            print("HERE2")
             ts = waveform.to_tensors(backend=Backend.TORCH)
             waveform = ts["audio"]
+        elif isinstance(waveform, torch.Tensor):
+            print("HERE3")
+            pass
         else:
+            print("HERE4")
+            print(
+                audio_duration,
+                oracle_num_speakers,
+                model_index,
+                vad_service,
+                waveform,
+                url,
+                url_type,
+            )
             return None
 
         vad_outputs, _ = vad_service(waveform, group_timestamps=False)
-
+        print("VAD", vad_outputs)
         if len(vad_outputs) == 0:  # Empty audio
             return None
 

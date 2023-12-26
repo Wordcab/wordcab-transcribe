@@ -638,6 +638,7 @@ class ASRAsyncService(ASRService):
         """
         try:
             if isinstance(task.diarization.execution, LocalExecution):
+                print("LOCAL EXECUTION")
                 out = await time_and_tell_async(
                     lambda: self.local_services.diarization(
                         waveform=task.audio,
