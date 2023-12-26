@@ -833,18 +833,20 @@ def merge_vectors(
 
     if emb_ndx.shape[0] != pre_cluster_labels.shape[0]:
         raise ValueError("pre_cluster_labels and emb_ndx have mismatch in dimension")
+
+    # Ensure that indices are long tensors for indexing
+    selected_inds = selected_inds.long()
+    bypass_inds = torch.tensor(
+        [k for k in range(emb_ndx.shape[0]) if k not in selected_inds], dtype=torch.long
+    )
+
     avg_emb = torch.mean(emb_ndx[selected_inds, :], dim=0)
     merged_clus_labels = pre_cluster_labels[selected_inds]
-    selected_inds_list: List[int] = selected_inds.tolist()
-    bypass_inds_list: List[int] = []
-    for k in range(emb_ndx.shape[0]):
-        if k not in selected_inds_list:
-            bypass_inds_list.append(k)
-    bypass_inds = torch.tensor(bypass_inds_list)
-    merged_vecs = torch.vstack((emb_ndx[bypass_inds], avg_emb))
+    merged_vecs = torch.vstack((emb_ndx[bypass_inds], avg_emb.unsqueeze(0)))
     merged_clus_labels = torch.hstack(
-        (pre_cluster_labels[bypass_inds], merged_clus_labels[0])
+        (pre_cluster_labels[bypass_inds], merged_clus_labels[0].unsqueeze(0))
     )
+
     return merged_vecs, merged_clus_labels
 
 
