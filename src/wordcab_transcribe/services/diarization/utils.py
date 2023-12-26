@@ -664,13 +664,14 @@ def get_context_embeddings(
         2, 1, 0
     )  # Shape: [emb_dim, num_scales, num_segments]
 
-    # Matrix multiplication
-    context_emb = (
-        torch.matmul(stacked_scale_embs, multiscale_weights_tensor).squeeze(1).t()
-    )
+    # Matrix multiplication and reshaping
+    context_emb = torch.matmul(stacked_scale_embs, multiscale_weights_tensor).squeeze(1)
 
-    if len(context_emb.shape) < 2:
-        context_emb = context_emb.unsqueeze(0)
+    # Ensure the tensor is 2D before transposing
+    if context_emb.ndim == 3:
+        context_emb = context_emb.squeeze(1)
+    if context_emb.ndim == 2:
+        context_emb = context_emb.t()
 
     return context_emb
 
