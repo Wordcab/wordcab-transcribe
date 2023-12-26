@@ -789,7 +789,6 @@ class SpeakerClustering(torch.nn.Module):
                 sparse_search_volume=sparse_search_volume,
                 fixed_thres=fixed_thres,
                 oracle_num_speakers=oracle_num_speakers,
-                estimation_number_of_speaker_enhanced=estimation_number_of_speaker_enhanced,
                 kmeans_random_trials=kmeans_random_trials,
             )
 
