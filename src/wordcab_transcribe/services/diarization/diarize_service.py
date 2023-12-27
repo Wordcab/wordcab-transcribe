@@ -147,6 +147,8 @@ class DiarizeService:
         elif isinstance(waveform, TensorShare):
             ts = waveform.to_tensors(backend=Backend.TORCH)
             waveform = ts["audio"]
+        elif isinstance(waveform, torch.Tensor):
+            pass
         else:
             return None
 
