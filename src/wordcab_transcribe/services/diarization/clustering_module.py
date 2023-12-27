@@ -765,6 +765,7 @@ class SpeakerClustering(torch.nn.Module):
                 sparse_search_volume=sparse_search_volume,
                 fixed_thres=fixed_thres,
                 kmeans_random_trials=kmeans_random_trials,
+                estimation_number_of_speaker_enhanced=estimation_number_of_speaker_enhanced,
             )
 
             reduce_embeddings = torch.cat(total_embeddings)
@@ -790,6 +791,7 @@ class SpeakerClustering(torch.nn.Module):
                 fixed_thres=fixed_thres,
                 oracle_num_speakers=oracle_num_speakers,
                 kmeans_random_trials=kmeans_random_trials,
+                estimation_number_of_speaker_enhanced=estimation_number_of_speaker_enhanced,
             )
 
             if reduce_embeddings.shape[0] != Y_aggregate.shape[0]:
@@ -798,6 +800,10 @@ class SpeakerClustering(torch.nn.Module):
                     f" number of clustered labels ({Y_aggregate.shape[0]}) do not"
                     " match."
                 )
+
+            print(f"Y_aggr: {Y_aggregate}\n")
+            print(f"window_range_list: {window_range_list}\n")
+            print(f"absolute_merge_mapping: {absolute_merge_mapping}\n")
 
             # Reassign the labels to the original embeddings
             Y_unpack = self.unpack_labels(
@@ -821,8 +827,8 @@ class SpeakerClustering(torch.nn.Module):
                 sparse_search_volume=sparse_search_volume,
                 fixed_thres=fixed_thres,
                 oracle_num_speakers=oracle_num_speakers,
-                estimation_number_of_speaker_enhanced=estimation_number_of_speaker_enhanced,
                 kmeans_random_trials=kmeans_random_trials,
+                estimation_number_of_speaker_enhanced=estimation_number_of_speaker_enhanced,
             )
 
     def forward_unit(
@@ -1004,6 +1010,8 @@ class SpeakerClustering(torch.nn.Module):
                 emb=context_embeddings,
                 embeddings_per_chunk=embeddings_per_chunk,
             )
+            print(f"win_index: {win_index} | emb_part: {emb_part}\n")
+            print(f"win_index: {win_index} | offset_index: {offset_index}\n")
 
             # Ensure emb_part is a 2D tensor
             if emb_part.ndim == 3 and emb_part.shape[-1] == 1:
@@ -1023,6 +1031,7 @@ class SpeakerClustering(torch.nn.Module):
                     fixed_thres=fixed_thres,
                     oracle_num_speakers=overcluster_count,
                     kmeans_random_trials=kmeans_random_trials,
+                    estimation_number_of_speaker_enhanced=estimation_number_of_speaker_enhanced,
                 )
 
             # Merge the clusters
@@ -1049,6 +1058,8 @@ class SpeakerClustering(torch.nn.Module):
                     merge_quantity=merge_quantity,
                     pre_clus_labels=Y_part,
                 )
+                print(f"merged_embs: {merged_embs}\n")
+                print(f"merged_clus_labels: {merged_clus_labels}\n")
                 total_emb.append(merged_embs)
                 absolute_index_mapping = [x + offset_index for x in index_mapping]
                 absolute_merge_mapping.append(absolute_index_mapping)
@@ -1068,35 +1079,28 @@ class SpeakerClustering(torch.nn.Module):
     ) -> torch.LongTensor:
         """
         Unpack the labels from the aggregated labels to the original labels.
-
-        Args:
-            Y_aggr (Tensor):
-                Aggregated label vector from the merged segments.
-            window_range_list (List[List[int]]):
-                List of window ranges for each of the merged segments.
-            absolute_merge_mapping (List[List[torch.Tensor]]):
-                List of absolute mappings for each of the merged segments. Each list element contains two tensors:
-                    - The first tensor represents the absolute index of the bypassed segment (segments that remain unchanged).
-                    - The second tensor represents the absolute index of the merged segment (segments that have had their indexes changed).
-            org_len (int):
-                Original length of the labels. In most cases, this is a fairly large number (on the order of 10^5).
-
-        Returns:
-            Y_unpack (Tensor):
-                Unpacked labels derived from the aggregated labels.
         """
         Y_unpack = torch.zeros((org_len,)).long().to(Y_aggr.device)
+
         for win_rng, abs_mapping in zip(window_range_list, absolute_merge_mapping):
             inferred_merged_embs = Y_aggr[win_rng[0] : win_rng[1]]
-            if len(abs_mapping[1]) > 0:
-                Y_unpack[abs_mapping[1]] = inferred_merged_embs[-1].clone()  # Merged
-                if len(abs_mapping[0]) > 0:
-                    Y_unpack[abs_mapping[0]] = inferred_merged_embs[
-                        :-1
-                    ].clone()  # Bypass
-            else:
-                if len(abs_mapping[0]) > 0:
-                    Y_unpack[abs_mapping[0]] = inferred_merged_embs.clone()
+
+            # Ensure the indices are of correct type and within range
+            bypass_inds = abs_mapping[0].to(torch.long)
+            merge_inds = abs_mapping[1].to(torch.long)
+            bypass_inds = bypass_inds[bypass_inds < org_len]
+            merge_inds = merge_inds[merge_inds < org_len]
+
+            # Assign labels to bypassed and merged segments
+            if len(merge_inds) > 0 and len(inferred_merged_embs) > 0:
+                Y_unpack[merge_inds] = inferred_merged_embs[-1].clone()  # Merged
+            if len(bypass_inds) > 0 and len(inferred_merged_embs) > 0:
+                Y_unpack[bypass_inds] = (
+                    inferred_merged_embs.clone()
+                    if len(inferred_merged_embs) == 1
+                    else inferred_merged_embs[:-1].clone()
+                )  # Bypass
+
         return Y_unpack
 
     @staticmethod
@@ -1175,6 +1179,9 @@ class ClusteringModule:
         torch.cuda.empty_cache()
 
         cluster_labels = cluster_labels.cpu().numpy()
+
+        print(f"cluster_labels ({len(cluster_labels)}): {cluster_labels}\n")
+        print(f"timestamps.shape[0]: {timestamps.shape[0]}\n")
 
         if len(cluster_labels) != timestamps.shape[0]:
             raise ValueError(

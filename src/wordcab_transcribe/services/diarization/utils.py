@@ -976,33 +976,28 @@ def run_reducer(
     return merged_embs, merged_clus_labels, index_mapping
 
 
-def split_embs_to_windows(
-    index: int,
-    emb: torch.Tensor,
-    embeddings_per_chunk: int,
-) -> Tuple[torch.Tensor, int]:
+def split_embs_to_windows(index, emb, embeddings_per_chunk):
     """
-    Splits the embedding tensor into smaller window-sized tensors based on a given index.
+    Split embeddings into smaller chunks.
 
     Args:
-        index (int): The index of the desired window. This determines the starting point
-                     of the window using the formula:
-                     start = embeddings_per_chunk * index
-        emb (Tensor): The embedding tensor which needs to be split.
-        embeddings_per_chunk (int):
-            The size of the windows in which the algorithm aims to identify `chunk_cluster_count` clusters.
+        index (int): Index of the current chunk.
+        emb (Tensor): Embeddings tensor.
+        embeddings_per_chunk (int): Number of embeddings per chunk.
+
     Returns:
-        emb_part (Tensor):
-            The window-sized tensor, which is a portion of the `emb`.
-        offset_index (int):
-            The starting position of the window in the `emb` tensor.
+        Tuple[Tensor, int]: Chunk of embeddings and corresponding offset index.
     """
-    if embeddings_per_chunk * (index + 1) > emb.shape[0]:
-        emb_part = emb[-1 * embeddings_per_chunk :]
-        offset_index = emb.shape[0] - embeddings_per_chunk
-    else:
-        emb_part = emb[
-            embeddings_per_chunk * index : embeddings_per_chunk * (index + 1)
-        ]
-        offset_index = embeddings_per_chunk * index
+    start_index = embeddings_per_chunk * index
+    end_index = start_index + embeddings_per_chunk
+
+    # If the end index exceeds the length of emb, adjust it to the end of emb
+    if end_index > emb.shape[0]:
+        end_index = emb.shape[0]
+
+    emb_part = emb[start_index:end_index]
+
+    # The offset index is just the start index of the chunk
+    offset_index = start_index
+
     return emb_part, offset_index
