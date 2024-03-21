@@ -26,7 +26,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Iterable, List, Tuple, Union
+from typing import Iterable, List, Optional, Tuple, Union
 
 import aiohttp
 import torch
@@ -35,6 +35,7 @@ from pydantic import BaseModel, ConfigDict
 from tensorshare import Backend, TensorShare
 from typing_extensions import Literal
 
+from wordcab_transcribe.config import settings
 from wordcab_transcribe.logging import time_and_tell, time_and_tell_async
 from wordcab_transcribe.models import (
     DiarizationOutput,
@@ -90,6 +91,8 @@ class ASRTask(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     audio: Union[torch.Tensor, List[torch.Tensor]]
+    url: Union[str, None]
+    url_type: Union[str, None]
     diarization: "DiarizationTask"
     duration: float
     multi_channel: bool
@@ -209,7 +212,8 @@ class ASRService(ABC):
 
     @abstractmethod
     async def process_input(self) -> None:
-        """Process the input request by creating a task and adding it to the appropriate queues."""
+        """Process the input request by creating a task and adding it to the appropriate queues.
+        """
         raise NotImplementedError("This method should be implemented in subclasses.")
 
 
@@ -264,9 +268,9 @@ class ASRAsyncService(ASRService):
         self.shift_lengths: List[float] = shift_lengths
         self.multiscale_weights: List[float] = multiscale_weights
         self.extra_languages: Union[List[str], None] = extra_languages
-        self.extra_languages_model_paths: Union[List[str], None] = (
-            extra_languages_model_paths
-        )
+        self.extra_languages_model_paths: Union[
+            List[str], None
+        ] = extra_languages_model_paths
 
         self.local_services: LocalServiceRegistry = LocalServiceRegistry()
         self.remote_services: RemoteServiceRegistry = RemoteServiceRegistry()
@@ -388,6 +392,8 @@ class ASRAsyncService(ASRService):
         log_prob_threshold: float,
         no_speech_threshold: float,
         condition_on_previous_text: bool,
+        url: Optional[str] = None,
+        url_type: Optional[str] = None,
     ) -> Union[Tuple[List[dict], ProcessTimes, float], Exception]:
         """Process the input request and return the results.
 
@@ -481,6 +487,8 @@ class ASRAsyncService(ASRService):
 
         task = ASRTask(
             audio=audio,
+            url=url,
+            url_type=url_type,
             diarization=DiarizationTask(
                 execution=diarization_execution, num_speakers=num_speakers
             ),
@@ -644,10 +652,18 @@ class ASRAsyncService(ASRService):
                 result, process_time = out
 
             elif isinstance(task.diarization.execution, RemoteExecution):
-                ts = TensorShare.from_dict({"audio": task.audio}, backend=Backend.TORCH)
+                if task.url:
+                    audio = task.url
+                    audio_type = task.url_type
+                else:
+                    audio = TensorShare.from_dict(
+                        {"audio": task.audio}, backend=Backend.TORCH
+                    )
+                    audio_type = "tensor"
 
                 data = DiarizationRequest(
-                    audio=ts,
+                    audio=audio,
+                    audio_type=audio_type,
                     duration=task.duration,
                     num_speakers=task.diarization.num_speakers,
                 )
@@ -776,11 +792,31 @@ class ASRAsyncService(ASRService):
         data: DiarizationRequest,
     ) -> DiarizationOutput:
         """Remote diarization method."""
-        async with aiohttp.ClientSession() as session:
+        headers = {"Content-Type": "application/json"}
+
+        if not settings.debug:
+            headers = {"Content-Type": "application/x-www-form-urlencoded"}
+            auth_url = f"{url}/api/v1/auth"
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    url=auth_url,
+                    data={"username": settings.username, "password": settings.password},
+                    headers=headers,
+                ) as response:
+                    if response.status != 200:
+                        raise Exception(response.status)
+                    else:
+                        token = await response.json()
+                        headers = {
+                            "Content-Type": "application/json",
+                            "Authorization": f"Bearer {token['access_token']}",
+                        }
+        diarization_timeout = aiohttp.ClientTimeout(total=1200)
+        async with aiohttp.ClientSession(timeout=diarization_timeout) as session:
             async with session.post(
                 url=f"{url}/api/v1/diarize",
                 data=data.model_dump_json(),
-                headers={"Content-Type": "application/json"},
+                headers=headers,
             ) as response:
                 if response.status != 200:
                     r = await response.json()
@@ -1044,6 +1080,7 @@ class ASRDiarizationOnly(ASRService):
 
         data = DiarizationRequest(
             audio=ts,
+            audio_type="tensor",
             duration=duration,
             num_speakers=1,
         )
@@ -1067,13 +1104,28 @@ class ASRDiarizationOnly(ASRService):
         gpu_index = await self.gpu_handler.get_device()
 
         try:
-            result = self.diarization_service(
-                waveform=data.audio,
-                audio_duration=data.duration,
-                oracle_num_speakers=data.num_speakers,
-                model_index=gpu_index,
-                vad_service=self.vad_service,
-            )
+            if data.audio_type == "tensor":
+                result = self.diarization_service(
+                    waveform=data.audio,
+                    audio_duration=data.duration,
+                    oracle_num_speakers=data.num_speakers,
+                    model_index=gpu_index,
+                    vad_service=self.vad_service,
+                )
+            elif data.audio_type and data.audio_type in ["youtube", "url"]:
+                result = self.diarization_service(
+                    url=data.audio,
+                    url_type=data.audio_type,
+                    audio_duration=data.duration,
+                    oracle_num_speakers=data.num_speakers,
+                    model_index=gpu_index,
+                    vad_service=self.vad_service,
+                )
+            else:
+                raise ValueError(
+                    f"Invalid audio type: {data.audio_type}. "
+                    "Must be one of ['tensor', 'youtube', 'url']."
+                )
 
         except Exception as e:
             result = ProcessException(

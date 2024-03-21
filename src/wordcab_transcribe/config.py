@@ -63,6 +63,11 @@ class Settings:
     access_token_expire_minutes: int
     # Cortex configuration
     cortex_api_key: str
+    # AWS configuration
+    aws_access_key_id: str
+    aws_secret_access_key: str
+    aws_storage_bucket_name: str
+    aws_region_name: str
     # Svix configuration
     svix_api_key: str
     svix_app_id: str
@@ -266,6 +271,11 @@ settings = Settings(
     access_token_expire_minutes=getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30),
     # Cortex configuration
     cortex_api_key=getenv("WORDCAB_TRANSCRIBE_API_KEY", ""),
+    # AWS configuration
+    aws_access_key_id=getenv("AWS_ACCESS_KEY_ID", ""),
+    aws_secret_access_key=getenv("AWS_SECRET_ACCESS_KEY", ""),
+    aws_storage_bucket_name=getenv("AWS_STORAGE_BUCKET_NAME", ""),
+    aws_region_name=getenv("AWS_REGION_NAME", ""),
     # Svix configuration
     svix_api_key=getenv("SVIX_API_KEY", ""),
     svix_app_id=getenv("SVIX_APP_ID", ""),

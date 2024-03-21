@@ -52,6 +52,8 @@ async def inference_with_youtube(
         task = asyncio.create_task(
             asr.process_input(
                 filepath=filepath,
+                url=url,
+                url_type="youtube",
                 offset_start=data.offset_start,
                 offset_end=data.offset_end,
                 num_speakers=data.num_speakers,

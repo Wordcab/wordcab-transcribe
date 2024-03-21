@@ -18,10 +18,11 @@
 # See the License for the specific language governing permissions
 # and limitations under the License.
 """Diarization Service for audio files."""
-
-from typing import List, NamedTuple, Tuple, Union
+import os
+from typing import List, NamedTuple, Optional, Tuple, Union
 
 import torch
+from loguru import logger
 from tensorshare import Backend, TensorShare
 
 from wordcab_transcribe.models import DiarizationOutput
@@ -33,6 +34,12 @@ from wordcab_transcribe.services.diarization.segmentation_module import (
     SegmentationModule,
 )
 from wordcab_transcribe.services.vad_service import VadService
+from wordcab_transcribe.utils import (
+    delete_file,
+    download_audio_file_sync,
+    process_audio_file_sync,
+    read_audio,
+)
 
 
 class DiarizationModels(NamedTuple):
@@ -75,13 +82,17 @@ class DiarizeService:
         self.default_shift_lengths = shift_lengths
         self.default_multiscale_weights = multiscale_weights
 
-        if len(self.default_multiscale_weights) > 3:
-            self.default_segmentation_batch_size = 64
-        elif len(self.default_multiscale_weights) > 1:
-            self.default_segmentation_batch_size = 128
+        self.seg_batch_size = os.getenv("DIARIZATION_SEGMENTATION_BATCH_SIZE", None)
+        if self.seg_batch_size is not None:
+            self.default_segmentation_batch_size = int(self.seg_batch_size)
         else:
-            self.default_segmentation_batch_size = 256
-
+            if len(self.default_multiscale_weights) > 3:
+                self.default_segmentation_batch_size = 64
+            elif len(self.default_multiscale_weights) > 1:
+                self.default_segmentation_batch_size = 128
+            else:
+                self.default_segmentation_batch_size = 256
+        logger.info(f"segmentation_batch_size set to {self.seg_batch_size}")
         self.default_scale_dict = dict(enumerate(zip(window_lengths, shift_lengths)))
 
         for idx in device_index:
@@ -98,11 +109,13 @@ class DiarizeService:
 
     def __call__(
         self,
-        waveform: Union[torch.Tensor, TensorShare],
         audio_duration: float,
         oracle_num_speakers: int,
         model_index: int,
         vad_service: VadService,
+        waveform: Optional[Union[torch.Tensor, TensorShare]] = None,
+        url: Optional[str] = None,
+        url_type: Optional[str] = None,
     ) -> DiarizationOutput:
         """
         Run inference with the diarization model.
@@ -123,9 +136,21 @@ class DiarizeService:
             DiarizationOutput:
                 List of segments with the following keys: "start", "end", "speaker".
         """
-        if isinstance(waveform, TensorShare):
+        if url and url_type:
+            import shortuuid
+
+            filename = f"audio_{shortuuid.ShortUUID().random(length=32)}"
+            filepath = download_audio_file_sync(url_type, url, filename)
+            filepath = process_audio_file_sync(filepath)
+            waveform, _ = read_audio(filepath)
+            delete_file(filepath)
+        elif isinstance(waveform, TensorShare):
             ts = waveform.to_tensors(backend=Backend.TORCH)
             waveform = ts["audio"]
+        elif isinstance(waveform, torch.Tensor):
+            pass
+        else:
+            return None
 
         vad_outputs, _ = vad_service(waveform, group_timestamps=False)
 
@@ -145,11 +170,17 @@ class DiarizeService:
                     )
                 )
             )
-            segmentation_batch_size = 64
+            if self.seg_batch_size:
+                segmentation_batch_size = int(self.seg_batch_size)
+            else:
+                segmentation_batch_size = 64
             multiscale_weights = self.default_multiscale_weights
         else:
             scale_dict = dict(enumerate(zip([3.0, 2.0, 1.0], [0.75, 0.5, 0.25])))
-            segmentation_batch_size = 32
+            if self.seg_batch_size:
+                segmentation_batch_size = int(self.seg_batch_size)
+            else:
+                segmentation_batch_size = 32
             multiscale_weights = [1.0, 1.0, 1.0]
 
         ms_emb_ts: MultiscaleEmbeddingsAndTimestamps = self.models[

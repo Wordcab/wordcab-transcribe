@@ -93,6 +93,8 @@ class BaseResponse(BaseModel):
     no_speech_threshold: float
     condition_on_previous_text: bool
     process_times: ProcessTimes
+    job_name: Optional[str] = None
+    task_token: Optional[str] = None
 
 
 class AudioResponse(BaseResponse):
@@ -240,6 +242,7 @@ class CortexPayload(BaseModel):
     no_speech_threshold: Optional[float] = 0.6
     condition_on_previous_text: Optional[bool] = True
     job_name: Optional[str] = None
+    task_token: Optional[str] = None
     ping: Optional[bool] = False
 
     class Config:
@@ -406,6 +409,8 @@ class BaseRequest(BaseModel):
     log_prob_threshold: float = -1.0
     no_speech_threshold: float = 0.6
     condition_on_previous_text: bool = True
+    job_name: Optional[str] = None
+    task_token: Optional[str] = None
 
     @field_validator("vocab")
     def validate_each_vocab_value(
@@ -518,7 +523,8 @@ class DiarizationOutput(BaseModel):
 class DiarizationRequest(BaseModel):
     """Request model for the diarize endpoint."""
 
-    audio: TensorShare
+    audio: Union[TensorShare, str]
+    audio_type: Optional[str]
     duration: float
     num_speakers: int
 
