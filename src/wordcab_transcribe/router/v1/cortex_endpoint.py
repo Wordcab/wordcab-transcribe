@@ -137,7 +137,7 @@ async def run_cortex(
         return CortexError(message=error_message)
 
     _cortex_response = {
-        **response.model_dump(),
+        **response,
         "job_name": payload.job_name,
         "request_id": request_id,
     }

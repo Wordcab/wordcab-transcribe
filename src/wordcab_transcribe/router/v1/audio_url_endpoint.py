@@ -154,7 +154,6 @@ async def inference_with_audio_url(
                 )
 
                 background_tasks.add_task(delete_file, filepath=filepath)
-
                 await send_update_with_svix(
                     data.job_name,
                     "finished",
