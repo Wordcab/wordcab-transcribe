@@ -1,15 +1,13 @@
-import os
 from functools import cached_property
-
-from __init__ import BASE_PATH
 
 _TASKS = (
     "transcribe",
     "translate",
 )
 
+
 # TODO: add language dict
-with open(os.path.join(BASE_PATH, "assets/lang_codes.txt"), "r") as f:
+with open("assets/lang_codes.txt", "r") as f:
     _LANGUAGE_CODES = [_ for _ in f.read().split("\n") if _]
 
 

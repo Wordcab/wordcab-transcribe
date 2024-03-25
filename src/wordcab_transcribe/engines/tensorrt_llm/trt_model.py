@@ -10,6 +10,8 @@ from tensorrt_llm.runtime.session import Session, TensorInfo
 
 
 class WhisperEncoding:
+    """Class for encoding audio to features using TensorRT."""
+
     def __init__(self, engine_dir):
         self.session = self.get_session(engine_dir)
 
@@ -34,6 +36,7 @@ class WhisperEncoding:
         return session
 
     def get_audio_features(self, mel):
+        """Get audio features from mel spectrogram."""
         input_lengths = torch.tensor(
             [mel.shape[2] // 2 for _ in range(mel.shape[0])],
             dtype=torch.int32,
@@ -66,6 +69,8 @@ class WhisperEncoding:
 
 
 class WhisperDecoding:
+    """Class for decoding features to text using TensorRT."""
+
     def __init__(self, engine_dir, runtime_mapping, debug_mode=False):
         self.decoder_config = self.get_config(engine_dir)
         self.decoder_generation_session = self.get_session(
@@ -87,6 +92,7 @@ class WhisperDecoding:
         with open(serialize_path, "rb") as f:
             decoder_engine_buffer = f.read()
 
+        # TODO: Make dynamic max_batch_size and max_beam_width
         decoder_model_config = ModelConfig(
             max_batch_size=8,
             max_beam_width=1,

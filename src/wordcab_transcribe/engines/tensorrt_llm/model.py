@@ -2,10 +2,12 @@ import os
 
 import ctranslate2
 import numpy as np
-import tokenizers
 
+from wordcab_transcribe.engines.tensorrt_llm.engine_builder.create_trt_model import (
+    build_whisper_trt_model,
+)
 from wordcab_transcribe.engines.tensorrt_llm.hf_utils import download_model
-from wordcab_transcribe.engines.tensorrt_llm.tokenizer import Tokenizer
+from wordcab_transcribe.engines.tensorrt_llm.tokenizers import Tokenizer
 from wordcab_transcribe.engines.tensorrt_llm.trt_model import WhisperTRT
 from wordcab_transcribe.engines.tensorrt_llm.whisper_model import WhisperModel
 
@@ -77,11 +79,11 @@ BEST_ASR_CONFIG = {
 
 
 class WhisperModelTRT(WhisperModel):
-    """TensorRT implementation of the Whisper model."""
+    """TensorRT-LLM implementation of the Whisper model."""
 
     def __init__(
         self,
-        model_name_or_path: str,
+        model_name: str,
         asr_options: dict,
         cpu_threads=4,
         num_workers=1,
@@ -91,20 +93,20 @@ class WhisperModelTRT(WhisperModel):
         max_text_token_len=15,
         **model_kwargs
     ):
-        # ASR Options
         self.asr_options = FAST_ASR_OPTIONS
         self.asr_options.update(asr_options)
-        self.model_path = model_name_or_path
-        # # TODO build engine if not exists
+        self.model_name = model_name
+        self.model_path = os.path.join("models", self.model_name)
 
-        # Load model
+        if not os.path.exists(self.model_path):
+            self.model_path = build_whisper_trt_model(
+                self.model_path, model_name=self.model_name
+            )
         self.model = WhisperTRT(self.model_path)
 
-        # Load tokenizer
-        # TODO: Have this downloaded as well
         tokenizer_file = os.path.join(self.model_path, "tokenizer.json")
         tokenizer = Tokenizer(
-            tokenizers.Tokenizer.from_file(tokenizer_file), self.model.is_multilingual
+            Tokenizer.from_file(tokenizer_file), self.model.is_multilingual
         )
 
         if self.asr_options["word_timestamps"]:

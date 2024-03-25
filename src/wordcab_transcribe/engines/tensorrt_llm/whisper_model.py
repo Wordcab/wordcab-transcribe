@@ -4,7 +4,7 @@ import torch
 
 from wordcab_transcribe.engines.tensorrt_llm.audio import LogMelSpectogram
 from wordcab_transcribe.engines.tensorrt_llm.data import WhisperTRTDataLoader
-from wordcab_transcribe.engines.tensorrt_llm.speech_segmenter import SpeechSegmenter
+from wordcab_transcribe.engines.tensorrt_llm.segmenter import SpeechSegmenter
 
 
 class NoneTokenizer:

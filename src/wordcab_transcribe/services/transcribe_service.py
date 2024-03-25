@@ -26,6 +26,7 @@ from faster_whisper import WhisperModel
 from loguru import logger
 from tensorshare import Backend, TensorShare
 
+from wordcab_transcribe.engines.tensorrt_llm.model import WhisperModelTRT
 from wordcab_transcribe.models import (
     MultiChannelSegment,
     MultiChannelTranscriptionOutput,
@@ -88,7 +89,12 @@ class TranscribeService:
                 compute_type=self.compute_type,
             )
         elif model_engine == "tensorrt-llm":
-            pass
+            self.model = WhisperModelTRT(
+                self.model_path,
+                device=self.device,
+                device_index=device_index,
+                compute_type=self.compute_type,
+            )
         else:
             self.model = WhisperModel(
                 self.model_path,
