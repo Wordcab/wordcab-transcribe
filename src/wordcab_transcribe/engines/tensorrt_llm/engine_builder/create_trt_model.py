@@ -85,11 +85,11 @@ def build_whisper_trt_model(
     """
     model_url = _MODELS[model_name]
     expected_sha256 = model_url.split("/")[-2]
-    model_ckpt_path = f"../assets/{model_name}.pt"
+    model_ckpt_path = f"assets/{model_name}.pt"
     tokenizer_path = f"{output_dir}/tokenizer.json"
 
     if not os.path.exists(model_ckpt_path):
-        os.makedirs("../assets", exist_ok=True)
+        os.makedirs("assets", exist_ok=True)
 
         logger.info(f"Downloading model '{model_name}' from {model_url}...")
 
@@ -115,7 +115,9 @@ def build_whisper_trt_model(
                     "Model has been downloaded but the SHA256 checksum does not not"
                     " match. Please retry loading the model."
                 )
+        logger.info(f"Model '{model_name}' has been downloaded successfully.")
 
+    print(output_dir, os.path.exists(output_dir))
     if not os.path.exists(output_dir):
         logger.info("Building the model...")
         command = [
