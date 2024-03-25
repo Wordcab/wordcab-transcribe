@@ -1,4 +1,4 @@
-# Copyright 2023 The Wordcab Team. All rights reserved.
+# Copyright 2024 The Wordcab Team. All rights reserved.
 #
 # Licensed under the Wordcab Transcribe License 0.1 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,6 +44,7 @@ class Settings:
     # Models configuration
     # Whisper
     whisper_model: str
+    whisper_engine: str
     compute_type: str
     extra_languages: Union[List[str], None]
     extra_languages_model_paths: Union[Dict[str, str], None]
@@ -81,6 +82,16 @@ class Settings:
         if value is None:
             raise ValueError(
                 "`project_name` must not be None, please verify the `.env` file."
+            )
+
+        return value
+
+    @field_validator("whisper_engine")
+    def whisper_engine_compatibility_check(cls, value: str):  # noqa: B902, N805
+        """Check that the whisper engine is compatible."""
+        if value.lower() not in ["faster-whisper", "tensorrt-llm"]:
+            raise ValueError(
+                "The whisper engine must be one of `faster-whisper` or `tensorrt-llm`."
             )
 
         return value
@@ -252,6 +263,7 @@ settings = Settings(
     # Models configuration
     # Transcription
     whisper_model=getenv("WHISPER_MODEL", "large-v2"),
+    whisper_engine=getenv("WHISPER_ENGINE", "faster-whisper"),
     compute_type=getenv("COMPUTE_TYPE", "float16"),
     extra_languages=extra_languages,
     extra_languages_model_paths=extra_languages_model_paths,

@@ -1,4 +1,4 @@
-# Copyright 2023 The Wordcab Team. All rights reserved.
+# Copyright 2024 The Wordcab Team. All rights reserved.
 #
 # Licensed under the Wordcab Transcribe License 0.1 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,9 +41,9 @@ async def only_transcription(
     data: TranscribeRequest,
 ) -> Union[TranscriptionOutput, List[TranscriptionOutput]]:
     """Transcribe endpoint for the `only_transcription` asr type."""
-    result: Union[TranscriptionOutput, List[TranscriptionOutput]] = (
-        await asr.process_input(data)
-    )
+    result: Union[
+        TranscriptionOutput, List[TranscriptionOutput]
+    ] = await asr.process_input(data)
 
     if isinstance(result, ProcessException):
         logger.error(result.message)

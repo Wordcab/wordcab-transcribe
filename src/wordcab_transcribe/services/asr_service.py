@@ -1,4 +1,4 @@
-# Copyright 2023 The Wordcab Team. All rights reserved.
+# Copyright 2024 The Wordcab Team. All rights reserved.
 #
 # Licensed under the Wordcab Transcribe License 0.1 (the "License");
 # you may not use this file except in compliance with the License.
@@ -321,6 +321,7 @@ class ASRAsyncService(ASRService):
         """Create a local transcription service."""
         self.local_services.transcription = TranscribeService(
             model_path=self.whisper_model,
+            model_engine=settings.model_engine,
             compute_type=self.compute_type,
             device=self.device,
             device_index=self.device_index,
@@ -909,6 +910,7 @@ class ASRLiveService(ASRService):
 
         self.transcription_service = TranscribeService(
             model_path=whisper_model,
+            model_engine=settings.model_engine,
             compute_type=compute_type,
             device=self.device,
             device_index=self.device_index,
@@ -973,6 +975,7 @@ class ASRTranscriptionOnly(ASRService):
 
         self.transcription_service = TranscribeService(
             model_path=whisper_model,
+            model_engine=settings.model_engine,
             compute_type=compute_type,
             device=self.device,
             device_index=self.device_index,
