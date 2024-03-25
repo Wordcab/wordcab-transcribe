@@ -1,4 +1,4 @@
-# Copyright 2023 The Wordcab Team. All rights reserved.
+# Copyright 2024 The Wordcab Team. All rights reserved.
 #
 # Licensed under the Wordcab Transcribe License 0.1 (the "License");
 # you may not use this file except in compliance with the License.

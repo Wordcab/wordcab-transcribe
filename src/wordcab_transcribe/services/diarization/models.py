@@ -1,4 +1,4 @@
-# Copyright 2023 The Wordcab Team. All rights reserved.
+# Copyright 2024 The Wordcab Team. All rights reserved.
 #
 # Licensed under the Wordcab Transcribe License 0.1 (the "License");
 # you may not use this file except in compliance with the License.
@@ -637,7 +637,8 @@ class SpeakerDecoder(nn.Module):
 # Inspired from NVIDIA NeMo's EncDecSpeakerLabelModel
 # https://github.com/NVIDIA/NeMo/blob/main/nemo/collections/asr/models/label_models.py
 class EncDecSpeakerLabelModel(nn.Module):
-    """The EncDecSpeakerLabelModel class encapsulates the encoder-decoder speaker label model."""
+    """The EncDecSpeakerLabelModel class encapsulates the encoder-decoder speaker label model.
+    """
 
     def __init__(self, device: str, model_name: str = "titanet_large") -> None:
         """Initialize the EncDecSpeakerLabelModel class.
