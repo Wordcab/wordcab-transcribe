@@ -1,6 +1,6 @@
 # Copyright 2024 The Wordcab Team. All rights reserved.
 #
-# Licensed under the Wordcab Transcribe License 0.1 (the "License");
+# Licensed under the MIT License (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -18,7 +18,6 @@
 # See the License for the specific language governing permissions
 # and limitations under the License.
 """Transcribe Service for audio files."""
-import os
 from typing import Iterable, List, NamedTuple, Optional, Union
 
 import torch
@@ -33,9 +32,6 @@ from wordcab_transcribe.models import (
     Segment,
     TranscriptionOutput,
     Word,
-)
-from wordcab_transcribe.services.alignment.align_service import (
-    estimate_none_timestamps,
 )
 
 
@@ -80,15 +76,18 @@ class TranscribeService:
         self.device = device
         self.compute_type = compute_type
         self.model_path = model_path
+        self.model_engine = model_engine
 
-        if model_engine == "faster-whisper":
+        if self.model_engine == "faster-whisper":
+            logger.info("Using faster-whisper model engine.")
             self.model = WhisperModel(
                 self.model_path,
                 device=self.device,
                 device_index=device_index,
                 compute_type=self.compute_type,
             )
-        elif model_engine == "tensorrt-llm":
+        elif self.model_engine == "tensorrt-llm":
+            logger.info("Using tensorrt-llm model engine.")
             self.model = WhisperModelTRT(
                 self.model_path,
                 device=self.device,
@@ -118,6 +117,8 @@ class TranscribeService:
         ],
         source_lang: str,
         model_index: int,
+        batch_size: int = 1,
+        num_beams: int = 1,
         suppress_blank: bool = False,
         vocab: Union[List[str], None] = None,
         word_timestamps: bool = True,
@@ -139,6 +140,10 @@ class TranscribeService:
                 Language of the audio file.
             model_index (int):
                 Index of the model to use.
+            batch_size (int):
+                Batch size to use during generation.
+            num_beams (int):
+                Number of beams to use during generation.
             suppress_blank (bool):
                 Whether to suppress blank at the beginning of the sampling.
             vocab (Union[List[str], None]):
@@ -165,34 +170,6 @@ class TranscribeService:
             Union[TranscriptionOutput, List[TranscriptionOutput]]:
                 Transcription output. If the task is a multi_channel task, a list of TranscriptionOutput is returned.
         """
-        # Extra language models are disabled until we can handle an index mapping
-        # if (
-        #     source_lang in self.extra_lang
-        #     and self.models[model_index].lang != source_lang
-        # ):
-        #     logger.debug(f"Loading model for language {source_lang} on GPU {model_index}.")
-        #     self.models[model_index] = FasterWhisperModel(
-        #         model=WhisperModel(
-        #             self.extra_lang_models[source_lang],
-        #             device=self.device,
-        #             device_index=model_index,
-        #             compute_type=self.compute_type,
-        #         ),
-        #         lang=source_lang,
-        #     )
-        #     self.loaded_model_lang = source_lang
-
-        # elif source_lang not in self.extra_lang and self.models[model_index].lang != "multi":
-        #     logger.debug(f"Re-loading multi-language model on GPU {model_index}.")
-        #     self.models[model_index] = FasterWhisperModel(
-        #         model=WhisperModel(
-        #             self.model_path,
-        #             device=self.device,
-        #             device_index=model_index,
-        #             compute_type=self.compute_type,
-        #         ),
-        #         lang=source_lang,
-        #     )
 
         if (
             vocab is not None
@@ -201,7 +178,7 @@ class TranscribeService:
             and vocab[0].strip()
         ):
             words = ", ".join(vocab)
-            prompt = f"Vocab: {words.strip()}"
+            prompt = f"Vocab: {words.strip()}."
         else:
             prompt = None
 
@@ -212,8 +189,7 @@ class TranscribeService:
                 ts = audio.to_tensors(backend=Backend.NUMPY)
                 audio = ts["audio"]
 
-            whisper_engine = os.getenv("WHISPER_ENGINE", "faster-whisper")
-            if whisper_engine == "faster-whisper":
+            if self.model_engine == "faster-whisper":
                 segments, _ = self.model.transcribe(
                     audio,
                     language=source_lang,
@@ -234,41 +210,22 @@ class TranscribeService:
                         "window_size_samples": 512,
                     },
                 )
-            else:
-                segments = []
-                batch_size = os.getenv("WHISPER_BATCH_SIZE", 8)
-                logger.info(f"WHISPER_BATCH_SIZE set to {batch_size}")
-                outputs = self.model(
-                    audio, return_timestamps=True, batch_size=int(batch_size)
-                )
-                for output in outputs["chunks"]:
-                    output["text"] = output["text"].strip()
-                    segments.append(output)
-
-                segments = estimate_none_timestamps(segments)
-
-                # segments = self.align(
-                #     transcript=segments,
-                #     align_model_metadata=self.align_model_metadata,
-                #     model=self.align_model,
-                #     audio=audio,
-                #     device="cuda",
-                # )["segments"]
+            elif self.model_engine == "tensorrt-llm":
+                segments = self.model.transcribe(
+                    audio_data=[audio],
+                    lang_codes=[source_lang],
+                    tasks=["transcribe"],
+                    initial_prompts=[prompt],
+                    batch_size=batch_size,
+                    use_vad=internal_vad,
+                    generate_kwargs={"num_beams": num_beams},
+                )[0]
+                #  TODO: make batch compatible
 
                 for ix, segment in enumerate(segments):
-                    # for _ix, word in enumerate(segment["words"]):
-                    #     word = {
-                    #         "start": word.pop("start"),
-                    #         "end": word.pop("end"),
-                    #         "word": word.pop("word"),
-                    #         "probability": word.pop("score")
-                    #     }
-                    #     segment["words"][_ix] = word
-                    # if not segment["words"]:
-                    #     segment = fill_missing_words(segment)
-                    # segment["start"] = segment["words"][0]["start"]
-                    # segment["end"] = segment["words"][-1]["end"]
-                    # segment["text"] = " ".join([word["word"].strip() for word in segment["words"]]).strip()
+                    segment["words"] = segment.pop("word_timestamps")
+                    segment["start"] = segment.pop("start_time")
+                    segment["end"] = segment.pop("end_time")
                     extra = {
                         "seek": 1,
                         "id": 1,
@@ -278,10 +235,6 @@ class TranscribeService:
                         "compression_ratio": 0.0,
                         "no_speech_prob": 0.0,
                     }
-                    segments[ix]["start"] = segment["timestamp"][0]
-                    segments[ix]["end"] = segment["timestamp"][1]
-                    segments[ix].pop("timestamp")
-                    segments[ix]["words"] = []
                     segments[ix] = Segment(**{**segment, **extra})
 
             _outputs = [segment._asdict() for segment in segments]

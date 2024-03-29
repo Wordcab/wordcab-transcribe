@@ -50,13 +50,13 @@ def main():
     output_name = args.output_name
 
     if cache_dir is not None:
-        print("Trying to load the model from the cache")
         model = AutoModel.from_pretrained(
-            model_name, cache_dir=cache_dir, use_safetensors=False
+            model_name, cache_dir=cache_dir, use_safetensors=False, from_flax=True
         )
     else:
-        print("Downloading the model:")
-        model = AutoModel.from_pretrained(model_name, use_safetensors=False)
+        model = AutoModel.from_pretrained(
+            model_name, use_safetensors=False, from_flax=True
+        )
 
     config = model.config
     model_dims = {
@@ -77,7 +77,6 @@ def main():
 
     for key, value in tqdm(original_model_state_dict.items()):
         new_state_dict[translate(key)] = value
-    print("Param keys have been changed. Saving the model...")
 
     pytorch_model = {"dims": model_dims, "model_state_dict": new_state_dict}
 

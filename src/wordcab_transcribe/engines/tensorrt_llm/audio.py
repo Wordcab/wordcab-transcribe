@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -73,8 +75,7 @@ class LogMelSpectogram(nn.Module):
         self.n_mels = n_mels
         self.hop_length = hop_length
         self.padding = padding
-
-        mel_filters = np.load("assets/mel_filters.npz")
+        mel_filters = np.load(Path(__file__).parent / "assets/mel_filters.npz")
         mel_filters = torch.from_numpy(mel_filters[f"mel_{n_mels}"])
         self.register_buffer("mel_filters", mel_filters)
         self.stft = TorchSTFT(n_fft, hop_length)

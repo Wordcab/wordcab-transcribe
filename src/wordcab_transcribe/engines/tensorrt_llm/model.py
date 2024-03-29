@@ -1,13 +1,14 @@
-import os
+from pathlib import Path
 
 import ctranslate2
 import numpy as np
+import tokenizers
 
 from wordcab_transcribe.engines.tensorrt_llm.engine_builder.create_trt_model import (
     build_whisper_trt_model,
 )
 from wordcab_transcribe.engines.tensorrt_llm.hf_utils import download_model
-from wordcab_transcribe.engines.tensorrt_llm.tokenizers import Tokenizer
+from wordcab_transcribe.engines.tensorrt_llm.tokenizer import Tokenizer
 from wordcab_transcribe.engines.tensorrt_llm.trt_model import WhisperTRT
 from wordcab_transcribe.engines.tensorrt_llm.whisper_model import WhisperModel
 
@@ -23,7 +24,7 @@ N_MELS = 80
 HOP_LENGTH = 160
 CHUNK_LENGTH = 30
 SAMPLE_RATE = 16000
-MAX_TEXT_TOKEN_LENGTH = 448
+MAX_TEXT_TOKEN_LENGTH = 1024
 N_SAMPLES = CHUNK_LENGTH * SAMPLE_RATE  # 480000 samples in a 30-second chunk
 N_FRAMES = exact_div(N_SAMPLES, HOP_LENGTH)  # 3000 frames in a mel spectrogram input
 
@@ -34,21 +35,21 @@ TIME_PRECISION = 1 / TOKENS_PER_SECOND
 
 
 FAST_ASR_OPTIONS = {
-    "beam_size": 1,
-    "best_of": 1,
+    "num_beams": 1,
+    "best_of": 5,
     "patience": 1,
     "length_penalty": 1,
     "repetition_penalty": 1.01,
     "no_repeat_ngram_size": 0,
     "compression_ratio_threshold": 2.4,
     "log_prob_threshold": -1.0,
-    "no_speech_threshold": 0.5,
+    "no_speech_threshold": 0.3,
     "prefix": None,
-    "suppress_blank": True,
+    "suppress_blank": False,
     "suppress_tokens": [-1],
-    "without_timestamps": True,
+    "without_timestamps": False,
     "max_initial_timestamp": 1.0,
-    "word_timestamps": False,
+    "word_timestamps": True,
     "sampling_temperature": 1.0,
     "return_scores": True,
     "return_no_speech_prob": True,
@@ -56,7 +57,7 @@ FAST_ASR_OPTIONS = {
 }
 
 BEST_ASR_CONFIG = {
-    "beam_size": 5,
+    "num_beams": 5,
     "best_of": 1,
     "patience": 2,
     "length_penalty": 1,
@@ -68,7 +69,7 @@ BEST_ASR_CONFIG = {
     "prefix": None,
     "suppress_blank": True,
     "suppress_tokens": [-1],
-    "without_timestamps": True,
+    "without_timestamps": False,
     "max_initial_timestamp": 1.0,
     "word_timestamps": True,
     "sampling_temperature": 1.0,
@@ -84,38 +85,51 @@ class WhisperModelTRT(WhisperModel):
     def __init__(
         self,
         model_name: str,
-        asr_options: dict,
+        asr_options="default",
         cpu_threads=4,
         num_workers=1,
         device="cuda",
         device_index=0,
         compute_type="float16",
-        max_text_token_len=15,
-        **model_kwargs
+        max_text_token_len=1024,
+        **model_kwargs,
     ):
-        self.asr_options = FAST_ASR_OPTIONS
-        self.asr_options.update(asr_options)
-        self.model_name = model_name
-        self.model_path = os.path.join("models", self.model_name)
+        if asr_options == "best":
+            self.asr_options = BEST_ASR_CONFIG
+        elif asr_options in ["fast", "default"]:
+            self.asr_options = FAST_ASR_OPTIONS
 
-        if not os.path.exists(self.model_path):
+        if isinstance(asr_options, dict):
+            self.asr_options.update(asr_options)
+
+        self.model_name = model_name
+        self.model_dir = Path(__file__).parent.parent.parent / "whisper_models"
+        self.model_path = self.model_dir / self.model_name
+
+        if not self.model_path.exists():
             self.model_path = build_whisper_trt_model(
                 self.model_path, model_name=self.model_name
             )
         self.model = WhisperTRT(self.model_path)
 
-        tokenizer_file = os.path.join(self.model_path, "tokenizer.json")
+        tokenizer_file = self.model_path / "tokenizer.json"
         tokenizer = Tokenizer(
-            Tokenizer.from_file(tokenizer_file), self.model.is_multilingual
+            tokenizers.Tokenizer.from_file(str(tokenizer_file)),
+            self.model.is_multilingual,
         )
 
         if self.asr_options["word_timestamps"]:
-            # TODO: Option to load word aligner model from file
-            self.aligner_model_path = download_model(
-                self.asr_options["word_aligner_model"]
-            )
+            aligner_model = self.model_dir / self.asr_options["word_aligner_model"]
+            if not aligner_model.exists():
+                self.aligner_model_path = download_model(
+                    self.asr_options["word_aligner_model"],
+                    output_dir=aligner_model,
+                )
+            else:
+                self.aligner_model_path = aligner_model
+
             self.aligner_model = ctranslate2.models.Whisper(
-                self.aligner_model_path,
+                str(self.aligner_model_path),
                 device=device,
                 device_index=device_index,
                 compute_type=compute_type,
@@ -129,7 +143,7 @@ class WhisperModelTRT(WhisperModel):
             "max_new_tokens": max_text_token_len,
             "length_penalty": self.asr_options["length_penalty"],
             "repetition_penalty": self.asr_options["repetition_penalty"],
-            "num_beams": self.asr_options["beam_size"],
+            "num_beams": self.asr_options["num_beams"],
             "stop_words_list": self.asr_options["suppress_blank"],
             "bad_words_list": self.asr_options["suppress_tokens"],
             "temperature": self.asr_options["sampling_temperature"],
@@ -141,7 +155,7 @@ class WhisperModelTRT(WhisperModel):
             device_index=device_index,
             compute_type=compute_type,
             max_text_token_len=max_text_token_len,
-            **model_kwargs
+            **model_kwargs,
         )
 
     def update_generation_kwargs(self, params: dict):
@@ -183,7 +197,7 @@ class WhisperModelTRT(WhisperModel):
                 "word": word,
                 "start": round(start, 2),
                 "end": round(end, 2),
-                "prob": round(prob, 2),
+                "probability": round(prob, 2),
             }
             for word, start, end, prob in zip(words, start_times, end_times, word_probs)
         ]
@@ -199,7 +213,6 @@ class WhisperModelTRT(WhisperModel):
         start_seq_wise_req = {}
         for _idx, _sot_seq in enumerate(sot_seqs):
             try:
-                # print(_sot_seq)
                 start_seq_wise_req[_sot_seq].append(_idx)
             except Exception:
                 start_seq_wise_req[_sot_seq] = [_idx]
@@ -246,11 +259,13 @@ class WhisperModelTRT(WhisperModel):
 
         return word_timings
 
-    def generate_segment_batched(self, features, prompts, seq_lens, seg_metadata):
+    def generate_segment_batched(
+        self, features, prompts, seq_lens, seg_metadata, generate_kwargs=None
+    ):
+        if generate_kwargs is not None:
+            self.update_generation_kwargs(generate_kwargs)
         result = self.model.generate(features, prompts, **self.generate_kwargs)
-
         texts = self.tokenizer.decode_batch([x[0] for x in result])
-
         response = []
         for idx, _r in enumerate(result):
             response.append({"text": texts[idx].strip()})

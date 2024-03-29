@@ -7,7 +7,7 @@ name = "wordcab-transcribe"
 dynamic = ["version"]
 description = "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering for diarization."
 readme = "README.md"
-requires-python = ">=3.8,<3.12"
+requires-python = "==3.10.12"
 keywords = ["asr", "fastapi", "faster-whisper", "diarization", "wordcab"]
 authors = [
   { name = "Aleksander Smechov", email = "aleks@wordcab.com" },
@@ -27,6 +27,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
+  "tensorrt_llm==0.9.0.dev2024032600",
   "aiohttp==3.9.3",
   "aiofiles==23.2.1",
   "boto3",
@@ -42,8 +43,8 @@ dependencies = [
   "pydantic==2.6.4",
   "python-dotenv==1.0.1",
   "tensorshare==0.1.1",
-  "torch==2.2.0",
-  "torchaudio==2.2.0",
+  "torch==2.2.2",
+  "torchaudio==2.2.2",
   "wget==3.2.0",
   "yt-dlp==2024.3.10",
   "tiktoken==0.6.0",
@@ -53,6 +54,7 @@ dependencies = [
   "soundfile==0.12.1",
   "safetensors==0.4.2",
   "janus==1.0.0",
+  "backports.lzma",
 ]
 
 [project.urls]
@@ -65,6 +67,9 @@ path = "src/wordcab_transcribe/__init__.py"
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.hatch.envs.default.env-vars]
+PIP_EXTRA_INDEX_URL = "https://pypi.nvidia.com"
 
 [project.optional-dependencies]
 runtime = [
@@ -125,6 +130,7 @@ ignore = [
   "E501", # line too long, handled by black
   "B008", # do not perform function calls in argument defaults
   "C901", # too complex
+  "B905", # use of assert
 ]
 select = [
   "E", # pycodestyle errors

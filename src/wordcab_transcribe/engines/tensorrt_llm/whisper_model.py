@@ -57,7 +57,7 @@ class WhisperModel(ABC):
 
     def __init__(
         self,
-        speech_segmenter_options: dict,
+        speech_segmenter_options=None,
         tokenizer=None,
         vad_model=None,
         n_mels=80,
@@ -68,8 +68,8 @@ class WhisperModel(ABC):
         dta_padding=3.0,
         use_dynamic_time_axis=False,
         max_speech_len=29.0,
-        max_text_token_len=448,
-        without_timestamps=True,
+        max_text_token_len=1024,
+        without_timestamps=False,
     ):
         self.device = device
         self.device_index = device_index
@@ -86,7 +86,9 @@ class WhisperModel(ABC):
         self.max_text_token_len = max_text_token_len
 
         self.vad_model = vad_model
-        self.speech_segmenter_options = speech_segmenter_options
+        self.speech_segmenter_options = (
+            {} if speech_segmenter_options is None else speech_segmenter_options
+        )
         self.speech_segmenter_options["max_seg_len"] = self.max_speech_len
 
         if tokenizer is None:
@@ -134,12 +136,13 @@ class WhisperModel(ABC):
         initial_prompts=None,
         batch_size=8,
         use_vad=True,
+        generate_kwargs=None,
     ):
         lang_codes = fix_batch_param(lang_codes, "en", len(audio_data))
         tasks = fix_batch_param(tasks, "transcribe", len(audio_data))
         initial_prompts = fix_batch_param(initial_prompts, None, len(audio_data))
         responses = [[] for _ in audio_data]
-        for signals, prompts, seq_len, seg_metadata in self.data_loader(
+        for signals, prompts, seq_lens, seg_metadata in self.data_loader(
             audio_data,
             lang_codes,
             tasks,
@@ -147,9 +150,9 @@ class WhisperModel(ABC):
             batch_size=batch_size,
             use_vad=use_vad,
         ):
-            mels, seq_len = self.preprocessor(signals, seq_len)
+            mels, seq_lens = self.preprocessor(signals, seq_lens)
             res = self.generate_segment_batched(
-                mels.to(self.device), prompts, seq_len, seg_metadata
+                mels.to(self.device), prompts, seq_lens, seg_metadata, generate_kwargs
             )
             for res_idx, _seg_metadata in enumerate(seg_metadata):
                 responses[_seg_metadata["file_id"]].append(

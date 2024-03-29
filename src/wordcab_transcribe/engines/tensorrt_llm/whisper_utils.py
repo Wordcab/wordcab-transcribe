@@ -116,9 +116,7 @@ def mel_filters(device, n_mels: int, mel_filters_dir: str = None) -> torch.Tenso
     """
     assert n_mels in {80, 128}, f"Unsupported n_mels: {n_mels}"
     if mel_filters_dir is None:
-        mel_filters_path = os.path.join(
-            os.path.dirname(__file__), "assets", "mel_filters.npz"
-        )
+        mel_filters_path = Path(__file__) / "assets/mel_filters.npz"
     else:
         mel_filters_path = os.path.join(mel_filters_dir, "mel_filters.npz")
     with np.load(mel_filters_path) as f:

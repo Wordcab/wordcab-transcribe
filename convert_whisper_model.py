@@ -24,7 +24,8 @@ def check_dependency(module_name: str) -> None:
 
     except ImportError:
         print(
-            f"Error: {module_name} module not found. Please make sure it is installed and try again."
+            f"Error: {module_name} module not found. Please make sure it is installed"
+            " and try again."
         )
         exit(1)
 

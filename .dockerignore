@@ -1,6 +1,7 @@
 __pycache__
 .coverage
 .darglint
+.env_dev
 .flake8
 .gitignore
 .nox

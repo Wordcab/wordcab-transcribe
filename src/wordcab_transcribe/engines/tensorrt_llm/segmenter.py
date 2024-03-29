@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -35,16 +36,20 @@ class FrameVAD(VADBaseClass):
         self.device = device
 
         if self.device == "cpu":
-            # This is a JIT Scripted model of Nvidia's NeMo Framewise Marblenet Model: https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/vad_multilingual_frame_marblenet
-            self.vad_pp = torch.jit.load("assets/vad_pp_cpu.ts").to(self.device)
-            self.vad_model = torch.jit.load("assets/frame_vad_model_cpu.ts").to(
-                self.device
-            )
+            # This is a JIT Scripted model of Nvidia's NeMo Marblenet Model: https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/vad_multilingual_marblenet
+            self.vad_pp = torch.jit.load(
+                Path(__file__).parent / "assets/vad_pp_cpu.ts"
+            ).to(self.device)
+            self.vad_model = torch.jit.load(
+                Path(__file__).parent / "assets/frame_vad_model_cpu.ts"
+            ).to(self.device)
         else:
-            self.vad_pp = torch.jit.load("assets/vad_pp_gpu.ts").to(self.device)
-            self.vad_model = torch.jit.load("assets/frame_vad_model_gpu.ts").to(
-                self.device
-            )
+            self.vad_pp = torch.jit.load(
+                Path(__file__).parent / "assets/vad_pp_gpu.ts"
+            ).to(self.device)
+            self.vad_model = torch.jit.load(
+                Path(__file__).parent / "assets/frame_vad_model_gpu.ts"
+            ).to(self.device)
 
         self.vad_pp.eval()
         self.vad_model.eval()
@@ -128,10 +133,8 @@ class FrameVAD(VADBaseClass):
 
     def __call__(self, audio_signal):
         audio_duration = len(audio_signal) / self.sampling_rate
-
         input_signal, input_signal_length = self.prepare_input_batch(audio_signal)
         speech_probs = self.forward(input_signal, input_signal_length)
-
         vad_times = []
         for idx, prob in enumerate(speech_probs):
             s_time = idx * self.frame_size
@@ -163,18 +166,26 @@ class SegmentVAD(VADBaseClass):
 
         if self.device == "cpu":
             # This is a JIT Scripted model of Nvidia's NeMo Marblenet Model: https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/vad_multilingual_marblenet
-            self.vad_pp = torch.jit.load("assets/vad_pp_cpu.ts").to(self.device)
-            self.vad_model = torch.jit.load("assets/seg_vad_model_cpu.ts").to(
-                self.device
-            )
+            self.vad_pp = torch.jit.load(
+                Path(__file__).parent / "assets/vad_pp_cpu.ts"
+            ).to(self.device)
+            self.vad_model = torch.jit.load(
+                Path(__file__).parent / "assets/seg_vad_model_cpu.ts"
+            ).to(self.device)
         else:
-            self.vad_pp = torch.jit.load("assets/vad_pp_gpu.ts").to(self.device)
-            self.vad_model = torch.jit.load("assets/seg_vad_model_gpu.ts").to(
-                self.device
-            )
+            self.vad_pp = torch.jit.load(
+                Path(__file__).parent / "assets/vad_pp_gpu.ts"
+            ).to(self.device)
+            self.vad_model = torch.jit.load(
+                Path(__file__).parent / "assets/seg_vad_model_gpu.ts"
+            ).to(self.device)
 
-        self.vad_pp = torch.jit.load("assets/vad_pp.ts")
-        self.vad_model = torch.jit.load("assets/segment_vad_model.ts")
+        self.vad_pp = torch.jit.load(Path(__file__).parent / "assets/vad_pp.ts").to(
+            self.device
+        )
+        self.vad_model = torch.jit.load(
+            Path(__file__).parent / "assets/segment_vad_model.ts"
+        ).to(self.device)
 
         self.vad_model.eval()
         self.vad_model.to(self.device)

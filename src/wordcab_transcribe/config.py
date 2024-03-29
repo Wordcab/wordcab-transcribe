@@ -1,6 +1,6 @@
 # Copyright 2024 The Wordcab Team. All rights reserved.
 #
-# Licensed under the Wordcab Transcribe License 0.1 (the "License");
+# Licensed under the MIT License (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -262,8 +262,8 @@ settings = Settings(
     debug=getenv("DEBUG", True),
     # Models configuration
     # Transcription
-    whisper_model=getenv("WHISPER_MODEL", "large-v2"),
-    whisper_engine=getenv("WHISPER_ENGINE", "faster-whisper"),
+    whisper_model=getenv("WHISPER_MODEL", "distil-large-v2"),
+    whisper_engine=getenv("WHISPER_ENGINE", "tensorrt-llm"),
     compute_type=getenv("COMPUTE_TYPE", "float16"),
     extra_languages=extra_languages,
     extra_languages_model_paths=extra_languages_model_paths,

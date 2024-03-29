@@ -225,20 +225,6 @@ with open("youtube_video_output.json", "w", encoding="utf-8") as f:
   json.dump(r_json, f, indent=4, ensure_ascii=False)
 ```
 
-## Local testing
-
-Before launching the API, be sure to install torch and torchaudio on your machine.
-
-```bash
-pip install --upgrade torch==1.13.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
-```
-
-Then, you can launch the API using the following command.
-
-```bash
-poetry run uvicorn wordcab_transcribe.main:app --reload
-```
-
 ## 🚀 Contributing
 
 ### Getting started

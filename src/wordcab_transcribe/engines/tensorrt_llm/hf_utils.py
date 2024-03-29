@@ -1,15 +1,10 @@
 # https://github.com/guillaumekln/faster-whisper/blob/master/faster_whisper/utils.py
-
-import os
 import re
+from pathlib import PosixPath
 from typing import List, Optional
 
 import huggingface_hub
 import requests
-from __init__ import CACHE_DIR
-
-os.makedirs(f"{CACHE_DIR}/models", exist_ok=True)
-
 
 _MODELS = {
     "tiny.en": "Systran/faster-whisper-tiny.en",
@@ -27,6 +22,7 @@ _MODELS = {
     "distil-small.en": "Systran/faster-distil-whisper-small.en",
     "distil-medium.en": "Systran/faster-distil-whisper-medium.en",
     "distil-large-v2": "Systran/faster-distil-whisper-large-v2",
+    "distil-large-v3": "Systran/faster-distil-whisper-large-v3",
 }
 
 
@@ -37,9 +33,8 @@ def available_models() -> List[str]:
 
 def download_model(
     size_or_id: str,
-    output_dir: Optional[str] = None,
+    output_dir: Optional[PosixPath] = None,
     local_files_only: bool = False,
-    cache_dir: Optional[str] = None,
 ):
     """Downloads a CTranslate2 Whisper model from the Hugging Face Hub.
 
@@ -52,7 +47,6 @@ def download_model(
         the cache directory.
       local_files_only:  If True, avoid downloading the file and return the path to the local
         cached file if it exists.
-      cache_dir: Path to the folder where cached files are stored.
 
     Returns:
       The path to the downloaded model.
@@ -83,13 +77,8 @@ def download_model(
     }
 
     if output_dir is not None:
-        kwargs["local_dir"] = output_dir
+        kwargs["local_dir"] = str(output_dir)
         kwargs["local_dir_use_symlinks"] = False
-
-    if cache_dir is not None:
-        kwargs["cache_dir"] = cache_dir
-    else:
-        kwargs["cache_dir"] = f"{CACHE_DIR}/models"
 
     try:
         return huggingface_hub.snapshot_download(repo_id, **kwargs)

@@ -56,8 +56,8 @@ class BasicSegmenter:
         self.max_seg_len = max_seg_len
         self.sampling_rate = sampling_rate
 
-    def __call__(self, input_file=None, audio_signal=None):
-        audio_duration = len(audio_signal) / self.sampling_rate
+    def __call__(self, audio_data=None):
+        audio_duration = len(audio_data) / self.sampling_rate
 
         start_ends = []
         for i in range(0, int(audio_duration), int(self.max_seg_len)):
@@ -65,7 +65,7 @@ class BasicSegmenter:
 
         start_ends[-1][1] = min(audio_duration, start_ends[-1][1])  # fix edge
 
-        return start_ends, audio_signal
+        return start_ends, audio_data
 
 
 class WhisperTRTDataLoader:
@@ -77,7 +77,7 @@ class WhisperTRTDataLoader:
         tokenizer,
         speech_segmenter,
         dta_padding=3.0,
-        without_timestamps=True,
+        without_timestamps=False,
         max_speech_len=29.0,
         max_initial_prompt_len=223,
         merge_chunks=True,
@@ -217,9 +217,9 @@ class WhisperTRTDataLoader:
             zip(audio_data, lang_codes, tasks, initial_prompts)
         ):
             start_ends, audio_signal = (
-                self.speech_segmenter(audio_signal=audio_signal)
+                self.speech_segmenter(audio_data=audio_signal)
                 if use_vad
-                else self.basic_segmenter(audio_signal=audio_signal)
+                else self.basic_segmenter(audio_data=audio_signal)
             )
             segmented_audio_signal.extend(
                 self.get_segmented_audio_signal(
@@ -227,6 +227,13 @@ class WhisperTRTDataLoader:
                 )
             )
 
+            if not use_vad:
+                while len(segmented_audio_signal) >= batch_size:
+                    batch = segmented_audio_signal[:batch_size]
+                    segmented_audio_signal = segmented_audio_signal[batch_size:]
+                    yield self.data_collate_fn(batch)
+
+        if use_vad:
             while len(segmented_audio_signal) >= batch_size:
                 batch = segmented_audio_signal[:batch_size]
                 segmented_audio_signal = segmented_audio_signal[batch_size:]

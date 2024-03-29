@@ -1,6 +1,6 @@
 # Copyright 2024 The Wordcab Team. All rights reserved.
 #
-# Licensed under the Wordcab Transcribe License 0.1 (the "License");
+# Licensed under the MIT License (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -414,7 +414,8 @@ class BaseRequest(BaseModel):
 
     @field_validator("vocab")
     def validate_each_vocab_value(
-        cls, value: Union[List[str], None]  # noqa: B902, N805
+        cls,
+        value: Union[List[str], None],  # noqa: B902, N805
     ) -> List[str]:
         """Validate the value of each vocab field."""
         if value == []:

@@ -71,6 +71,7 @@ def parse_arguments():
             "base.en",
             "tiny.en",
             "distil-large-v2",
+            "distil-large-v3",
             "distil-medium.en",
             "distil-small.en",
         ],
@@ -78,10 +79,10 @@ def parse_arguments():
     parser.add_argument("--quantize_dir", type=str, default="quantize/1-gpu")
     parser.add_argument("--dtype", type=str, default="float16", choices=["float16"])
     parser.add_argument("--log_level", type=str, default="info")
-    parser.add_argument("--max_batch_size", type=int, default=8)
-    parser.add_argument("--max_input_len", type=int, default=14)
-    parser.add_argument("--max_output_len", type=int, default=100)
-    parser.add_argument("--max_beam_width", type=int, default=4)
+    parser.add_argument("--max_batch_size", type=int, default=32)
+    parser.add_argument("--max_input_len", type=int, default=64)
+    parser.add_argument("--max_output_len", type=int, default=2048)
+    parser.add_argument("--max_beam_width", type=int, default=5)
     parser.add_argument(
         "--use_gpt_attention_plugin",
         nargs="?",

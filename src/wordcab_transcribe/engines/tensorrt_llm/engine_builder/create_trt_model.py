@@ -1,6 +1,7 @@
 import hashlib
 import os
 import subprocess
+from pathlib import Path
 
 import requests
 from loguru import logger
@@ -18,6 +19,8 @@ _MODELS = {
     "large-v1": "https://openaipublic.azureedge.net/main/whisper/models/e4b87e7e0bf463eb8e6956e646f1e277e901512310def2c24bf0e11bd3c28e9a/large-v1.pt",
     "large-v2": "https://openaipublic.azureedge.net/main/whisper/models/81f7c96c852ee8fc832187b0132e569d6c3065a3252ed18e56effd0b6a73e524/large-v2.pt",
     "large-v3": "https://openaipublic.azureedge.net/main/whisper/models/e5b1a55b89c1367dacf97e3e19bfd829a01529dbfdeefa8caeb59b3f1b81dadb/large-v3.pt",
+    "distil-large-v2": "https://openaipublic.azureedge.net/main/whisper/models/81f7c96c852ee8fc832187b0132e569d6c3065a3252ed18e56effd0b6a73e524/large-v2.pt",
+    "distil-large-v3": "https://openaipublic.azureedge.net/main/whisper/models/e5b1a55b89c1367dacf97e3e19bfd829a01529dbfdeefa8caeb59b3f1b81dadb/large-v3.pt",
     "large": "https://openaipublic.azureedge.net/main/whisper/models/e5b1a55b89c1367dacf97e3e19bfd829a01529dbfdeefa8caeb59b3f1b81dadb/large-v3.pt",
 }
 
@@ -53,6 +56,8 @@ _TOKENIZERS = {
     "large-v3": (
         "https://huggingface.co/Systran/faster-whisper-large-v3/raw/main/tokenizer.json"
     ),
+    "distil-large-v2": "https://huggingface.co/Systran/faster-distil-whisper-large-v2/raw/main/tokenizer.json",
+    "distil-large-v3": "https://huggingface.co/Systran/faster-distil-whisper-large-v3/raw/main/tokenizer.json",
     "large": (
         "https://huggingface.co/Systran/faster-whisper-large-v3/raw/main/tokenizer.json"
     ),
@@ -66,7 +71,7 @@ def build_whisper_trt_model(
     use_bert_attention_plugin=True,
     enable_context_fmha=True,
     use_weight_only=False,
-    model_name="large-v3",
+    model_name="distil-large-v2",
 ):
     """
     Build a Whisper model using the specified configuration.
@@ -85,14 +90,12 @@ def build_whisper_trt_model(
     """
     model_url = _MODELS[model_name]
     expected_sha256 = model_url.split("/")[-2]
-    model_ckpt_path = f"assets/{model_name}.pt"
-    tokenizer_path = f"{output_dir}/tokenizer.json"
+    model_ckpt_dir = Path(__file__).parent.parent / "assets"
+    model_ckpt_path = model_ckpt_dir / f"{model_name}.pt"
+    tokenizer_path = output_dir / "tokenizer.json"
 
-    if not os.path.exists(model_ckpt_path):
-        os.makedirs("assets", exist_ok=True)
-
+    if not output_dir.exists() and not model_ckpt_path.exists():
         logger.info(f"Downloading model '{model_name}' from {model_url}...")
-
         response = requests.get(model_url, stream=True)
         total_size = int(response.headers.get("Content-Length", 0))
 
@@ -117,16 +120,19 @@ def build_whisper_trt_model(
                 )
         logger.info(f"Model '{model_name}' has been downloaded successfully.")
 
-    print(output_dir, os.path.exists(output_dir))
-    if not os.path.exists(output_dir):
+    logger.info(f"output_dir: {output_dir} | Exists: {os.path.exists(output_dir)}")
+    if not output_dir.exists():
         logger.info("Building the model...")
+        build_file = Path(__file__).parent / "build.py"
         command = [
-            "python3",
-            "build.py",
+            "python",
+            str(build_file),
             "--output_dir",
-            output_dir,
+            str(output_dir),
             "--model_name",
             model_name,
+            "--model_dir",
+            model_ckpt_dir,
         ]
 
         if use_gpt_attention_plugin:
@@ -147,7 +153,7 @@ def build_whisper_trt_model(
             raise
         logger.info("Model has been built successfully.")
 
-    if not os.path.exists(tokenizer_path):
+    if not tokenizer_path.exists():
         logger.info(f"Downloading tokenizer for model '{model_name}'...")
         response = requests.get(_TOKENIZERS[model_name], stream=True)
         total_size = int(response.headers.get("Content-Length", 0))

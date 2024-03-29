@@ -29,7 +29,6 @@ class WhisperEncoding:
         self.num_languages = num_languages
 
         serialize_path = engine_dir / "encoder.engine"
-        print(serialize_path)
         with open(serialize_path, "rb") as f:
             session = Session.from_serialized_engine(f.read())
 
