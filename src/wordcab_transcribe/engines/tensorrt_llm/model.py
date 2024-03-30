@@ -276,6 +276,7 @@ class WhisperModelTRT(WhisperModel):
     ):
         if generate_kwargs is not None:
             self.update_generation_kwargs(generate_kwargs)
+
         result = self.model.generate(features, prompts, **self.generate_kwargs)
         texts = self.tokenizer.decode_batch([x[0] for x in result])
         response = []

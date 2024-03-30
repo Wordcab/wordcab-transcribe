@@ -51,11 +51,11 @@ def main():
 
     if cache_dir is not None:
         model = AutoModel.from_pretrained(
-            model_name, cache_dir=cache_dir, use_safetensors=False, from_flax=True
+            model_name, cache_dir=cache_dir, use_safetensors=True, from_flax=False
         )
     else:
         model = AutoModel.from_pretrained(
-            model_name, use_safetensors=False, from_flax=True
+            model_name, use_safetensors=True, from_flax=False
         )
 
     config = model.config

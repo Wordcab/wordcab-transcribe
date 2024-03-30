@@ -117,7 +117,7 @@ class WhisperDecoding:
 
     def generate(self, decoder_input_ids, encoder_outputs, sampling_config):
         encoder_input_lengths = torch.tensor(
-            [encoder_outputs.shape[1] for x in range(encoder_outputs.shape[0])],
+            [encoder_outputs.shape[1] for _ in range(encoder_outputs.shape[0])],
             dtype=torch.int32,
             device="cuda",
         )
@@ -178,9 +178,7 @@ class WhisperTRT:
             features = self.encode(features)
 
         decoder_input_ids = torch.tensor(prompts)
-
         sampling_config = SamplingConfig(**generate_kwargs)
-
         output_ids = self.decoder.generate(decoder_input_ids, features, sampling_config)
 
         return output_ids
