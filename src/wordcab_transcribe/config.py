@@ -50,6 +50,7 @@ class Settings:
     extra_languages: Union[List[str], None]
     extra_languages_model_paths: Union[Dict[str, str], None]
     # Diarization
+    diarization_backend: str
     window_lengths: List[float]
     shift_lengths: List[float]
     multiscale_weights: List[float]
@@ -132,6 +133,17 @@ class Settings:
             raise ValueError(
                 "The whisper engine must be one of `tiny`, `small`, `base`, or"
                 " `medium`."
+            )
+
+        return value
+
+    @field_validator("diarization_backend")
+    def diarization_backend_compatibility_check(cls, value: str):  # noqa: B902, N805
+        """Check that the diarization engine is compatible."""
+        if value.lower() not in ["default_diarizer", "longform_diarizer"]:
+            raise ValueError(
+                "The diarization backend must be one of `default_diarizer` or"
+                " `longform_diarizer`."
             )
 
         return value
@@ -309,6 +321,7 @@ settings = Settings(
     extra_languages=extra_languages,
     extra_languages_model_paths=extra_languages_model_paths,
     # Diarization
+    diarization_backend=getenv("DIARIZATION_BACKEND", "longform_diarizer"),
     window_lengths=window_lengths,
     shift_lengths=shift_lengths,
     multiscale_weights=multiscale_weights,

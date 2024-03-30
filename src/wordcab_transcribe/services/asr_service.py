@@ -49,6 +49,9 @@ from wordcab_transcribe.models import (
 )
 from wordcab_transcribe.services.concurrency_services import GPUService, URLService
 from wordcab_transcribe.services.diarization.diarize_service import DiarizeService
+from wordcab_transcribe.services.longform_diarization.diarize_service import (
+    LongFormDiarizeService,
+)
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
 from wordcab_transcribe.services.vad_service import VadService
@@ -145,7 +148,7 @@ class TranscriptionTask(BaseModel):
 class LocalServiceRegistry:
     """Registry for local services."""
 
-    diarization: Union[DiarizeService, None] = None
+    diarization: Union[DiarizeService, LongFormDiarizeService, None] = None
     post_processing: PostProcessingService = PostProcessingService()
     transcription: Union[TranscribeService, None] = None
     vad: VadService = VadService()
@@ -331,13 +334,18 @@ class ASRAsyncService(ASRService):
 
     def create_diarization_local_service(self) -> None:
         """Create a local diarization service."""
-        self.local_services.diarization = DiarizeService(
-            device=self.device,
-            device_index=self.device_index,
-            window_lengths=self.window_lengths,
-            shift_lengths=self.shift_lengths,
-            multiscale_weights=self.multiscale_weights,
-        )
+        if settings.diarization_backend == "longform_diarizer":
+            self.local_services.diarization = LongFormDiarizeService(
+                device=self.device,
+            )
+        else:
+            self.local_services.diarization = DiarizeService(
+                device=self.device,
+                device_index=self.device_index,
+                window_lengths=self.window_lengths,
+                shift_lengths=self.shift_lengths,
+                multiscale_weights=self.multiscale_weights,
+            )
 
     def create_local_service(
         self, task: Literal["transcription", "diarization"]
@@ -639,18 +647,29 @@ class ASRAsyncService(ASRService):
         """
         try:
             if isinstance(task.diarization.execution, LocalExecution):
-                out = await time_and_tell_async(
-                    lambda: self.local_services.diarization(
-                        waveform=task.audio,
-                        audio_duration=task.duration,
-                        oracle_num_speakers=task.diarization.num_speakers,
-                        model_index=task.diarization.execution.index,
-                        vad_service=self.local_services.vad,
-                    ),
-                    func_name="diarization",
-                    debug_mode=debug_mode,
-                )
-                result, process_time = out
+                if settings.diarization_backend == "longform_diarizer":
+                    out = await time_and_tell_async(
+                        lambda: self.local_services.diarization(
+                            waveform=task.audio,
+                            oracle_num_speakers=task.diarization.num_speakers,
+                        ),
+                        func_name="diarization",
+                        debug_mode=debug_mode,
+                    )
+                    result, process_time = out
+                else:
+                    out = await time_and_tell_async(
+                        lambda: self.local_services.diarization(
+                            waveform=task.audio,
+                            audio_duration=task.duration,
+                            oracle_num_speakers=task.diarization.num_speakers,
+                            model_index=task.diarization.execution.index,
+                            vad_service=self.local_services.vad,
+                        ),
+                        func_name="diarization",
+                        debug_mode=debug_mode,
+                    )
+                    result, process_time = out
 
             elif isinstance(task.diarization.execution, RemoteExecution):
                 if task.url:
@@ -1064,13 +1083,18 @@ class ASRDiarizationOnly(ASRService):
         """Initialize the ASRDiarizationOnly class."""
         super().__init__()
 
-        self.diarization_service = DiarizeService(
-            device=self.device,
-            device_index=self.device_index,
-            window_lengths=window_lengths,
-            shift_lengths=shift_lengths,
-            multiscale_weights=multiscale_weights,
-        )
+        if settings.diarization_backend == "longform_diarizer":
+            self.diarization_service = LongFormDiarizeService(
+                device=self.device,
+            )
+        else:
+            self.diarization_service = DiarizeService(
+                device=self.device,
+                device_index=self.device_index,
+                window_lengths=window_lengths,
+                shift_lengths=shift_lengths,
+                multiscale_weights=multiscale_weights,
+            )
         self.vad_service = VadService()
         self.debug_mode = debug_mode
 
