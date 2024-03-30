@@ -89,7 +89,7 @@ class TranscribeService:
             )
         elif self.model_engine == "tensorrt-llm":
             logger.info("Using tensorrt-llm model engine.")
-            if "distil" in self.model_path:
+            if "v3" in self.model_path:
                 n_mels = 128
             else:
                 n_mels = 80
