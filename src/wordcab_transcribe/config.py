@@ -45,6 +45,7 @@ class Settings:
     # Whisper
     whisper_model: str
     whisper_engine: str
+    align_model: str
     compute_type: str
     extra_languages: Union[List[str], None]
     extra_languages_model_paths: Union[Dict[str, str], None]
@@ -86,12 +87,51 @@ class Settings:
 
         return value
 
+    @field_validator("whisper_model")
+    def whisper_model_compatibility_check(cls, value: str):  # noqa: B902, N805
+        """Check that the whisper engine is compatible."""
+        if value.lower() not in [
+            "tiny",
+            "tiny.en",
+            "base",
+            "base.en",
+            "small",
+            "small.en",
+            "medium",
+            "medium.en",
+            "large",
+            "large-v1",
+            "large-v2",
+            "large-v3",
+            "distil-large-v2",
+            "distil-large-v3",
+        ]:
+            raise ValueError(
+                "The whisper models must be one of `tiny`, `tiny.en`, `base`,"
+                " `base.en`, `small`, `small.en`, `medium`, `medium.en`, `large`,"
+                " `large-v1`, `large-v2`, `large-v3`, `distil-large-v2`, or"
+                " `distil-large-v3`."
+            )
+
+        return value
+
     @field_validator("whisper_engine")
     def whisper_engine_compatibility_check(cls, value: str):  # noqa: B902, N805
         """Check that the whisper engine is compatible."""
         if value.lower() not in ["faster-whisper", "tensorrt-llm"]:
             raise ValueError(
                 "The whisper engine must be one of `faster-whisper` or `tensorrt-llm`."
+            )
+
+        return value
+
+    @field_validator("align_model")
+    def align_model_compatibility_check(cls, value: str):  # noqa: B902, N805
+        """Check that the whisper engine is compatible."""
+        if value.lower() not in ["tiny", "small", "base", "medium"]:
+            raise ValueError(
+                "The whisper engine must be one of `tiny`, `small`, `base`, or"
+                " `medium`."
             )
 
         return value
@@ -264,6 +304,7 @@ settings = Settings(
     # Transcription
     whisper_model=getenv("WHISPER_MODEL", "distil-large-v2"),
     whisper_engine=getenv("WHISPER_ENGINE", "tensorrt-llm"),
+    align_model=getenv("ALIGN_MODEL", "tiny"),
     compute_type=getenv("COMPUTE_TYPE", "float16"),
     extra_languages=extra_languages,
     extra_languages_model_paths=extra_languages_model_paths,

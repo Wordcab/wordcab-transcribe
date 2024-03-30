@@ -25,6 +25,7 @@ from faster_whisper import WhisperModel
 from loguru import logger
 from tensorshare import Backend, TensorShare
 
+from wordcab_transcribe.config import settings
 from wordcab_transcribe.engines.tensorrt_llm.model import WhisperModelTRT
 from wordcab_transcribe.models import (
     MultiChannelSegment,
@@ -93,6 +94,9 @@ class TranscribeService:
                 device=self.device,
                 device_index=device_index,
                 compute_type=self.compute_type,
+                asr_options={
+                    "word_align_model": settings.align_model,
+                },
             )
         else:
             self.model = WhisperModel(

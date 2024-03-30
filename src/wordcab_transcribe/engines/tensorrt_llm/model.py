@@ -53,7 +53,7 @@ FAST_ASR_OPTIONS = {
     "sampling_temperature": 1.0,
     "return_scores": True,
     "return_no_speech_prob": True,
-    "word_aligner_model": "tiny",
+    "word_align_model": "tiny",
 }
 
 BEST_ASR_CONFIG = {
@@ -75,7 +75,7 @@ BEST_ASR_CONFIG = {
     "sampling_temperature": 1.0,
     "return_scores": True,
     "return_no_speech_prob": True,
-    "word_aligner_model": "tiny",
+    "word_align_model": "tiny",
 }
 
 
@@ -97,6 +97,8 @@ class WhisperModelTRT(WhisperModel):
         if asr_options == "best":
             self.asr_options = BEST_ASR_CONFIG
         elif asr_options in ["fast", "default"]:
+            self.asr_options = FAST_ASR_OPTIONS
+        else:
             self.asr_options = FAST_ASR_OPTIONS
 
         if isinstance(asr_options, dict):
@@ -123,17 +125,17 @@ class WhisperModelTRT(WhisperModel):
         )
 
         if self.asr_options["word_timestamps"]:
-            aligner_model = self.model_dir / self.asr_options["word_aligner_model"]
-            if not aligner_model.exists():
-                self.aligner_model_path = download_model(
-                    self.asr_options["word_aligner_model"],
-                    output_dir=aligner_model,
+            align_model = self.model_dir / self.asr_options["word_align_model"]
+            if not align_model.exists():
+                self.align_model_path = download_model(
+                    self.asr_options["word_align_model"],
+                    output_dir=align_model,
                 )
             else:
-                self.aligner_model_path = aligner_model
+                self.align_model_path = align_model
 
-            self.aligner_model = ctranslate2.models.Whisper(
-                str(self.aligner_model_path),
+            self.align_model = ctranslate2.models.Whisper(
+                str(self.align_model_path),
                 device=device,
                 device_index=device_index,
                 compute_type=compute_type,
@@ -223,7 +225,7 @@ class WhisperModelTRT(WhisperModel):
 
         token_alignments = [[] for _ in seg_metadata]
         for start_seq, req_idx in start_seq_wise_req.items():
-            res = self.aligner_model.align(
+            res = self.align_model.align(
                 ctranslate2.StorageView.from_array(features[req_idx]),
                 start_sequence=list(start_seq),
                 text_tokens=[text_tokens[_] for _ in req_idx],
@@ -264,7 +266,13 @@ class WhisperModelTRT(WhisperModel):
         return word_timings
 
     def generate_segment_batched(
-        self, features, prompts, seq_lens, seg_metadata, generate_kwargs=None
+        self,
+        features,
+        prompts,
+        seg_metadata,
+        align_features,
+        align_seq_lens,
+        generate_kwargs=None,
     ):
         if generate_kwargs is not None:
             self.update_generation_kwargs(generate_kwargs)
@@ -281,7 +289,12 @@ class WhisperModelTRT(WhisperModel):
             ]
             sot_seqs = [tuple(_[-4:]) for _ in prompts]
             word_timings = self.align_words(
-                features, texts, text_tokens, sot_seqs, seq_lens, seg_metadata
+                align_features,
+                texts,
+                text_tokens,
+                sot_seqs,
+                align_seq_lens,
+                seg_metadata,
             )
 
             for _response, _word_timings in zip(response, word_timings):

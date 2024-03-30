@@ -95,12 +95,13 @@ class WhisperModel(ABC):
             tokenizer = NoneTokenizer()
 
         self.tokenizer = tokenizer
-        self._init_dependables()
+        self._init_dependencies()
 
-    def _init_dependables(self):
+    def _init_dependencies(self):
         self.dta_padding = int(self.dta_padding * 16000)
         self.max_initial_prompt_len = self.max_text_token_len // 2 - 1
         self.preprocessor = LogMelSpectogram(n_mels=self.n_mels).to(self.device)
+        self.align_preprocessor = LogMelSpectogram(n_mels=80).to(self.device)
         self.speech_segmenter = SpeechSegmenter(
             self.vad_model, device=self.device, **self.speech_segmenter_options
         )
@@ -121,7 +122,7 @@ class WhisperModel(ABC):
         for key, value in params.items():
             setattr(self, key, value)
 
-        self._init_dependables()
+        self._init_dependencies()
 
     @abstractmethod
     def generate_segment_batched(self, features, prompts):
@@ -150,9 +151,15 @@ class WhisperModel(ABC):
             batch_size=batch_size,
             use_vad=use_vad,
         ):
-            mels, seq_lens = self.preprocessor(signals, seq_lens)
+            mels, _ = self.preprocessor(signals, seq_lens)
+            align_mels, align_seq_lens = self.align_preprocessor(signals, seq_lens)
             res = self.generate_segment_batched(
-                mels.to(self.device), prompts, seq_lens, seg_metadata, generate_kwargs
+                mels.to(self.device),
+                prompts,
+                seg_metadata,
+                align_mels.to(self.device),
+                align_seq_lens,
+                generate_kwargs,
             )
             for res_idx, _seg_metadata in enumerate(seg_metadata):
                 responses[_seg_metadata["file_id"]].append(
