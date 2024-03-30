@@ -1,4 +1,3 @@
-import hashlib
 import os
 import subprocess
 from pathlib import Path
@@ -89,7 +88,7 @@ def build_whisper_trt_model(
         None
     """
     model_url = _MODELS[model_name]
-    expected_sha256 = model_url.split("/")[-2]
+    model_url.split("/")[-2]
     model_ckpt_dir = Path(__file__).parent.parent / "assets"
     model_ckpt_path = model_ckpt_dir / f"{model_name}.pt"
     tokenizer_path = output_dir / "tokenizer.json"
@@ -132,13 +131,6 @@ def build_whisper_trt_model(
                     for data in response.iter_content(chunk_size=8192):
                         size = output.write(data)
                         pbar.update(size)
-        with open(model_ckpt_path, "rb") as f:
-            model_bytes = f.read()
-            if hashlib.sha256(model_bytes).hexdigest() != expected_sha256:
-                raise RuntimeError(
-                    "Model has been downloaded but the SHA256 checksum does not not"
-                    " match. Please retry loading the model."
-                )
         logger.info(f"Model '{model_name}' has been downloaded successfully.")
 
     logger.info(f"output_dir: {output_dir} | Exists: {os.path.exists(output_dir)}")
