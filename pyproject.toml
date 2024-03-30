@@ -27,6 +27,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
+  "Cython==3.0.10",
   "deepmultilingualpunctuation==1.0.1",
   "nemo_toolkit[asr]==1.23.0",
   "tensorrt_llm==0.9.0.dev2024032600",

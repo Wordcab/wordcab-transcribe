@@ -233,8 +233,11 @@ class TranscribeService:
 
                 for ix, segment in enumerate(segments):
                     segment["words"] = segment.pop("word_timestamps")
-                    segment["start"] = segment.pop("start_time")
-                    segment["end"] = segment.pop("end_time")
+                    for word in segment["words"]:
+                        word["start"] = round(word["start"], 2)
+                        word["end"] = round(word["end"], 2)
+                    segment["start"] = round(segment.pop("start_time"), 2)
+                    segment["end"] = round(segment.pop("end_time"), 2)
                     extra = {
                         "seek": 1,
                         "id": 1,
