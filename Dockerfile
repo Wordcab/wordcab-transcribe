@@ -26,6 +26,7 @@ RUN apt update && apt install -y \
     python3-pip \
     libbz2-dev \
     python3-dev \
+    liblzma-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN apt update && apt install -y \

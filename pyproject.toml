@@ -54,7 +54,7 @@ dependencies = [
   "soundfile==0.12.1",
   "safetensors==0.4.2",
   "janus==1.0.0",
-  "backports.lzma",
+  "backports.lzma==0.0.14",
 ]
 
 [project.urls]

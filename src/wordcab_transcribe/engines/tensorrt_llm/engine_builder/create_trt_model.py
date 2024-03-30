@@ -95,22 +95,43 @@ def build_whisper_trt_model(
     tokenizer_path = output_dir / "tokenizer.json"
 
     if not output_dir.exists() and not model_ckpt_path.exists():
-        logger.info(f"Downloading model '{model_name}' from {model_url}...")
-        response = requests.get(model_url, stream=True)
-        total_size = int(response.headers.get("Content-Length", 0))
+        if "distil" in model_name:
+            logger.info(f"Downloading and converting distilled model '{model_name}'...")
+            convert_file = Path(__file__).parent / "convert_from_distil_whisper.py"
+            command = [
+                "python",
+                str(convert_file),
+                "--output_dir",
+                str(model_ckpt_dir),
+                "--model_name",
+                f"distil-whisper/{model_name}",
+                "--output_name",
+                model_name,
+            ]
 
-        with open(model_ckpt_path, "wb") as output:
-            with tqdm(
-                total=total_size,
-                ncols=80,
-                unit="B",
-                unit_scale=True,
-                unit_divisor=1024,
-            ) as pbar:
-                for data in response.iter_content(chunk_size=8192):
-                    size = output.write(data)
-                    pbar.update(size)
+            try:
+                subprocess.run(command, check=True)
+            except subprocess.CalledProcessError as e:
+                logger.error(
+                    f"Error occurred while converting the distilled model: {e}"
+                )
+                raise
+        else:
+            logger.info(f"Downloading model '{model_name}' from {model_url}...")
+            response = requests.get(model_url, stream=True)
+            total_size = int(response.headers.get("Content-Length", 0))
 
+            with open(model_ckpt_path, "wb") as output:
+                with tqdm(
+                    total=total_size,
+                    ncols=80,
+                    unit="B",
+                    unit_scale=True,
+                    unit_divisor=1024,
+                ) as pbar:
+                    for data in response.iter_content(chunk_size=8192):
+                        size = output.write(data)
+                        pbar.update(size)
         with open(model_ckpt_path, "rb") as f:
             model_bytes = f.read()
             if hashlib.sha256(model_bytes).hexdigest() != expected_sha256:
