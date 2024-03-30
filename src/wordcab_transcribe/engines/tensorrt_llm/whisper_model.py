@@ -68,7 +68,7 @@ class WhisperModel(ABC):
         dta_padding=3.0,
         use_dynamic_time_axis=False,
         max_speech_len=29.0,
-        max_text_token_len=1024,
+        max_text_token_len=448,
         without_timestamps=False,
     ):
         self.device = device

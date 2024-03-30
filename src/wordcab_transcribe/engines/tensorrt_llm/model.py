@@ -24,7 +24,7 @@ N_MELS = 80
 HOP_LENGTH = 160
 CHUNK_LENGTH = 30
 SAMPLE_RATE = 16000
-MAX_TEXT_TOKEN_LENGTH = 1024
+MAX_TEXT_TOKEN_LENGTH = 448
 N_SAMPLES = CHUNK_LENGTH * SAMPLE_RATE  # 480000 samples in a 30-second chunk
 N_FRAMES = exact_div(N_SAMPLES, HOP_LENGTH)  # 3000 frames in a mel spectrogram input
 
@@ -91,7 +91,7 @@ class WhisperModelTRT(WhisperModel):
         device="cuda",
         device_index=0,
         compute_type="float16",
-        max_text_token_len=1024,
+        max_text_token_len=448,
         **model_kwargs,
     ):
         if asr_options == "best":
@@ -105,6 +105,10 @@ class WhisperModelTRT(WhisperModel):
         self.model_name = model_name
         self.model_dir = Path(__file__).parent.parent.parent / "whisper_models"
         self.model_path = self.model_dir / self.model_name
+
+        if "distil" in self.model_name:
+            model_kwargs["max_speech_len"] = 15.0
+            max_text_token_len = 128
 
         if not self.model_path.exists():
             self.model_path = build_whisper_trt_model(
