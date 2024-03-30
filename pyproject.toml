@@ -55,9 +55,6 @@ dependencies = [
   "safetensors==0.4.2",
   "janus==1.0.0",
   "backports.lzma==0.0.14",
-  "jax==0.4.25",
-  "jaxlib==0.4.25",
-  "flax==0.8.2",
 ]
 
 [project.urls]
