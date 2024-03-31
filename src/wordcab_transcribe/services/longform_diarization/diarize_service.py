@@ -19,6 +19,7 @@
 # and limitations under the License.
 """Longform diarization Service for audio files."""
 
+import json
 import tempfile
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
@@ -27,6 +28,7 @@ import shortuuid
 import torch
 import torchaudio
 from nemo.collections.asr.models import NeuralDiarizer
+from omegaconf import OmegaConf
 from tensorshare import Backend, TensorShare
 
 from wordcab_transcribe.models import DiarizationOutput
@@ -43,6 +45,7 @@ class LongFormDiarizeService:
     def __init__(
         self,
         device: str,
+        domain: str = "telephonic",
     ) -> None:
         """
         Initialize the DiarizeService.
@@ -53,9 +56,15 @@ class LongFormDiarizeService:
         Returns:
             None
         """
+        config_path = Path(__file__).parent / "configs" / f"{domain}.json"
+        with open(config_path, "r") as f:
+            general_conf = json.load(f)
+
+        config = OmegaConf.create(general_conf)
         self.diarization_model = NeuralDiarizer.from_pretrained(
             model_name="diar_msdd_telephonic"
         ).to(device)
+        self.diarization_model._cfg = config
         # TODO: Ability to modify config
 
     def __call__(

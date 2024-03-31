@@ -54,6 +54,8 @@ class Settings:
     window_lengths: List[float]
     shift_lengths: List[float]
     multiscale_weights: List[float]
+    # Post-processing
+    enable_punctuation_based_alignment: bool
     # ASR type configuration
     asr_type: Literal["async", "live", "only_transcription", "only_diarization"]
     # Endpoint configuration
@@ -325,6 +327,10 @@ settings = Settings(
     window_lengths=window_lengths,
     shift_lengths=shift_lengths,
     multiscale_weights=multiscale_weights,
+    # Post-processing
+    enable_punctuation_based_alignment=getenv(
+        "ENABLE_PUNCTUATION_BASED_ALIGNMENT", True
+    ),
     # ASR type
     asr_type=getenv("ASR_TYPE", "async"),
     # Endpoints configuration

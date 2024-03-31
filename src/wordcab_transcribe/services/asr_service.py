@@ -764,6 +764,17 @@ class ASRAsyncService(ASRService):
                 else:
                     utterances = formatted_segments
 
+            if settings.enable_punctuation_based_alignment:
+                utterances, process_time = time_and_tell(
+                    self.local_services.post_processing.punctuation_based_alignment(
+                        utterances=utterances,
+                        speaker_timestamps=task.diarization.result,
+                    ),
+                    func_name="punctuation_based_alignment",
+                    debug_mode=self.debug_mode,
+                )
+                total_post_process_time += process_time
+
             final_utterances, process_time = time_and_tell(
                 self.local_services.post_processing.final_processing_before_returning(
                     utterances=utterances,
