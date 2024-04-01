@@ -27,11 +27,11 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
+  "tensorrt_llm==0.9.0.dev2024032600",
   "Cython==3.0.10",
   "youtokentome @ git+https://github.com/gburlet/YouTokenToMe.git@dependencies",
   "deepmultilingualpunctuation==1.0.1",
   "nemo_toolkit[asr]==1.23.0",
-  "tensorrt_llm==0.9.0.dev2024032600",
   "aiohttp==3.9.3",
   "aiofiles==23.2.1",
   "boto3",

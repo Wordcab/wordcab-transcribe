@@ -124,7 +124,7 @@ class LongFormDiarizeService:
             str(processed_audio_filepath),
             num_speakers=oracle_num_speakers,
             out_dir=temp_dir,
-            num_workers=1,
+            num_workers=0,
         )
 
         segments = self.convert_annotation_to_segments(annotation)

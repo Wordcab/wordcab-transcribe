@@ -225,6 +225,21 @@ with open("youtube_video_output.json", "w", encoding="utf-8") as f:
   json.dump(r_json, f, indent=4, ensure_ascii=False)
 ```
 
+## Running Local Models
+
+To run the API with local models, you need to mount a volume to the container or
+include the models in the image. You then need to modify the `.env` file to point to the local model,
+as shown below:
+
+```
+WHISPER_MODEL="/app/models/custom" 
+```
+
+Note that if you're using the `tensorrt_llm` whisper engine, and these are not located in the
+container, the default directory these models will be saved to is `/app/src/wordcab_transcribe/whisper_models`.
+If you're saving/mounting models to this directory, be sure to see the supported models in the `.env` file, 
+so your self-hosted model does not conflict with the default model names.
+
 ## 🚀 Contributing
 
 ### Getting started
