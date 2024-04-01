@@ -27,6 +27,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
+  "numpy==1.24.4",
   "tensorrt_llm==0.9.0.dev2024032600",
   "Cython==3.0.10",
   "youtokentome @ git+https://github.com/gburlet/YouTokenToMe.git@dependencies",
