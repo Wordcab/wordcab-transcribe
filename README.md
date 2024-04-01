@@ -30,8 +30,8 @@ and [Auto-Tuning-Spectral-Clustering](https://arxiv.org/pdf/2003.02405.pdf) for 
 - 🔥 Batch requests: You can transcribe multiple audio files at once because batch requests are implemented in the API.
 - 💸 Cost-effective: As an open-source solution, you won't have to pay for costly ASR platforms.
 - 🫶 Easy-to-use API: With just a few lines of code, you can use the API to transcribe audio files or even YouTube videos.
-- 🤗 Open-source (commercial-use under [WTLv0.1 license](https://github.com/Wordcab/wordcab-transcribe/blob/main/LICENSE), please reach out to `info@wordcab.com`): Our project is open-source and based on open-source libraries, allowing you to customize and extend it as needed until you don't sell this as a hosted service.
-
+- 🤗 MIT License: You can use the project for commercial purposes without any restrictions.
+ 
 ## Requirements
 
 ### Local development
