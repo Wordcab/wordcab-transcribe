@@ -28,6 +28,7 @@ classifiers = [
 ]
 dependencies = [
   "numpy==1.24.4",
+  "pandas==2.0.3",
   "tensorrt_llm==0.9.0.dev2024032600",
   "Cython==3.0.10",
   "youtokentome @ git+https://github.com/gburlet/YouTokenToMe.git@dependencies",
@@ -43,7 +44,6 @@ dependencies = [
   "loguru==0.7.2",
   "nltk==3.8.1",
   "onnxruntime==1.17.1",
-  "pandas==2.2.1",
   "pydantic==2.6.4",
   "python-dotenv==1.0.1",
   "tensorshare==0.1.1",
