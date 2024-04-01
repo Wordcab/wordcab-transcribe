@@ -1,6 +1,6 @@
-# Copyright 2023 The Wordcab Team. All rights reserved.
+# Copyright 2024 The Wordcab Team. All rights reserved.
 #
-# Licensed under the Wordcab Transcribe License 0.1 (the "License");
+# Licensed under the MIT License (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -19,4 +19,4 @@
 # and limitations under the License.
 """Main module of the Wordcab ASR API."""
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"

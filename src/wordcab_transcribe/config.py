@@ -1,6 +1,6 @@
-# Copyright 2023 The Wordcab Team. All rights reserved.
+# Copyright 2024 The Wordcab Team. All rights reserved.
 #
-# Licensed under the Wordcab Transcribe License 0.1 (the "License");
+# Licensed under the MIT License (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -44,13 +44,18 @@ class Settings:
     # Models configuration
     # Whisper
     whisper_model: str
+    whisper_engine: str
+    align_model: str
     compute_type: str
     extra_languages: Union[List[str], None]
     extra_languages_model_paths: Union[Dict[str, str], None]
     # Diarization
+    diarization_backend: str
     window_lengths: List[float]
     shift_lengths: List[float]
     multiscale_weights: List[float]
+    # Post-processing
+    enable_punctuation_based_alignment: bool
     # ASR type configuration
     asr_type: Literal["async", "live", "only_transcription", "only_diarization"]
     # Endpoint configuration
@@ -81,6 +86,66 @@ class Settings:
         if value is None:
             raise ValueError(
                 "`project_name` must not be None, please verify the `.env` file."
+            )
+
+        return value
+
+    @field_validator("whisper_model")
+    def whisper_model_compatibility_check(cls, value: str):  # noqa: B902, N805
+        """Check that the whisper engine is compatible."""
+        if value.lower() not in [
+            "tiny",
+            "tiny.en",
+            "base",
+            "base.en",
+            "small",
+            "small.en",
+            "medium",
+            "medium.en",
+            "large",
+            "large-v1",
+            "large-v2",
+            "large-v3",
+            "distil-large-v2",
+            "distil-large-v3",
+        ]:
+            raise ValueError(
+                "The whisper models must be one of `tiny`, `tiny.en`, `base`,"
+                " `base.en`, `small`, `small.en`, `medium`, `medium.en`, `large`,"
+                " `large-v1`, `large-v2`, `large-v3`, `distil-large-v2`, or"
+                " `distil-large-v3`."
+            )
+
+        return value
+
+    @field_validator("whisper_engine")
+    def whisper_engine_compatibility_check(cls, value: str):  # noqa: B902, N805
+        """Check that the whisper engine is compatible."""
+        if value.lower() not in ["faster-whisper", "tensorrt-llm"]:
+            raise ValueError(
+                "The whisper engine must be one of `faster-whisper` or `tensorrt-llm`."
+            )
+
+        return value
+
+    @field_validator("align_model")
+    def align_model_compatibility_check(cls, value: str):  # noqa: B902, N805
+        """Check that the whisper engine is compatible."""
+        if value.lower() not in ["tiny", "small", "base", "medium"]:
+            raise ValueError(
+                "The whisper engine must be one of `tiny`, `small`, `base`, or"
+                " `medium`."
+            )
+
+        return value
+
+    @field_validator("diarization_backend")
+    def diarization_backend_compatibility_check(cls, value: str):  # noqa: B902, N805
+        """Check that the diarization engine is compatible."""
+        if value.lower() not in ["default_diarizer", "longform_diarizer"]:
+            raise ValueError(
+                "The diarization backend must be one of `default_diarizer` or"
+                " `longform_diarizer`."
             )
 
         return value
@@ -251,14 +316,21 @@ settings = Settings(
     debug=getenv("DEBUG", True),
     # Models configuration
     # Transcription
-    whisper_model=getenv("WHISPER_MODEL", "large-v2"),
+    whisper_model=getenv("WHISPER_MODEL", "distil-large-v2"),
+    whisper_engine=getenv("WHISPER_ENGINE", "tensorrt-llm"),
+    align_model=getenv("ALIGN_MODEL", "tiny"),
     compute_type=getenv("COMPUTE_TYPE", "float16"),
     extra_languages=extra_languages,
     extra_languages_model_paths=extra_languages_model_paths,
     # Diarization
+    diarization_backend=getenv("DIARIZATION_BACKEND", "longform_diarizer"),
     window_lengths=window_lengths,
     shift_lengths=shift_lengths,
     multiscale_weights=multiscale_weights,
+    # Post-processing
+    enable_punctuation_based_alignment=getenv(
+        "ENABLE_PUNCTUATION_BASED_ALIGNMENT", True
+    ),
     # ASR type
     asr_type=getenv("ASR_TYPE", "async"),
     # Endpoints configuration

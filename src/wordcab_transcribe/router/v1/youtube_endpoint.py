@@ -1,6 +1,6 @@
-# Copyright 2023 The Wordcab Team. All rights reserved.
+# Copyright 2024 The Wordcab Team. All rights reserved.
 #
-# Licensed under the Wordcab Transcribe License 0.1 (the "License");
+# Licensed under the MIT License (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -58,6 +58,7 @@ async def inference_with_youtube(
                 offset_end=data.offset_end,
                 num_speakers=data.num_speakers,
                 diarization=data.diarization,
+                batch_size=data.batch_size,
                 multi_channel=False,
                 source_lang=data.source_lang,
                 timestamps_format=data.timestamps,
@@ -90,6 +91,7 @@ async def inference_with_youtube(
             offset_end=data.offset_end,
             num_speakers=data.num_speakers,
             diarization=data.diarization,
+            batch_size=data.batch_size,
             source_lang=data.source_lang,
             timestamps=data.timestamps,
             vocab=data.vocab,

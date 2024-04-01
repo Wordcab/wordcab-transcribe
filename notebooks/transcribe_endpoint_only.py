@@ -37,14 +37,10 @@ def read_audio(
         wav, sr = torchaudio.load(audio)
     elif isinstance(audio, bytes):
         with io.BytesIO(audio) as buffer:
-            wav, sr = sf.read(
-                buffer, format="RAW", channels=1, samplerate=16000, subtype="PCM_16"
-            )
+            wav, sr = sf.read(buffer, format="RAW", channels=1, samplerate=16000, subtype="PCM_16")
         wav = torch.from_numpy(wav).unsqueeze(0)
     else:
-        raise ValueError(
-            f"Invalid audio type. Must be either str or bytes, got: {type(audio)}."
-        )
+        raise ValueError(f"Invalid audio type. Must be either str or bytes, got: {type(audio)}.")
 
     if wav.size(0) > 1:
         wav = wav.mean(dim=0, keepdim=True)
@@ -88,7 +84,6 @@ class TranscribeRequest(BaseModel):
 
 
 async def main():
-
     audio, _ = read_audio("data/HL_Podcast_1.mp3")
     ts = TensorShare.from_dict({"audio": audio}, backend=Backend.TORCH)
 
@@ -111,9 +106,7 @@ async def main():
             headers={"Content-Type": "application/json"},
         ) as response:
             if response.status != 200:
-                raise Exception(
-                    f"Remote transcription failed with status {response.status}."
-                )
+                raise Exception(f"Remote transcription failed with status {response.status}.")
             else:
                 r = await response.json()
 

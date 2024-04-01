@@ -1,6 +1,6 @@
-# Copyright 2023 The Wordcab Team. All rights reserved.
+# Copyright 2024 The Wordcab Team. All rights reserved.
 #
-# Licensed under the Wordcab Transcribe License 0.1 (the "License");
+# Licensed under the MIT License (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -122,6 +122,7 @@ class AudioResponse(BaseResponse):
                     },
                 ],
                 "audio_duration": 2.678,
+                "batch_size": 1,
                 "offset_start": None,
                 "offset_end": None,
                 "num_speakers": -1,
@@ -176,6 +177,7 @@ class YouTubeResponse(BaseResponse):
                     },
                 ],
                 "audio_duration": 2.0,
+                "batch_size": 1,
                 "offset_start": None,
                 "offset_end": None,
                 "num_speakers": -1,
@@ -399,6 +401,7 @@ class BaseRequest(BaseModel):
     offset_end: Union[float, None] = None
     num_speakers: int = -1
     diarization: bool = False
+    batch_size: int = 1
     source_lang: str = "en"
     timestamps: Timestamps = Timestamps.seconds
     vocab: Union[List[str], None] = None
@@ -414,7 +417,8 @@ class BaseRequest(BaseModel):
 
     @field_validator("vocab")
     def validate_each_vocab_value(
-        cls, value: Union[List[str], None]  # noqa: B902, N805
+        cls,
+        value: Union[List[str], None],  # noqa: B902, N805
     ) -> List[str]:
         """Validate the value of each vocab field."""
         if value == []:
@@ -461,6 +465,7 @@ class AudioRequest(BaseRequest):
 
         json_schema_extra = {
             "example": {
+                "batch_size": 1,
                 "offset_start": None,
                 "offset_end": None,
                 "num_speakers": -1,

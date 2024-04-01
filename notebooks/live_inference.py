@@ -1,7 +1,9 @@
 """Test the live endpoint."""
 
 import asyncio
+
 import websockets
+
 
 async def test_websocket_endpoint():
     uri = "ws://localhost:5001/api/v1/live?source_lang=en"  # Replace with the actual WebSocket URL
@@ -15,6 +17,7 @@ async def test_websocket_endpoint():
                 print(f"Received message: {message}")
         except websockets.exceptions.ConnectionClosed:
             print("WebSocket connection closed")
+
 
 if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(test_websocket_endpoint())

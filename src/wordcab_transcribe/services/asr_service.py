@@ -1,6 +1,6 @@
-# Copyright 2023 The Wordcab Team. All rights reserved.
+# Copyright 2024 The Wordcab Team. All rights reserved.
 #
-# Licensed under the Wordcab Transcribe License 0.1 (the "License");
+# Licensed under the MIT License (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -49,6 +49,9 @@ from wordcab_transcribe.models import (
 )
 from wordcab_transcribe.services.concurrency_services import GPUService, URLService
 from wordcab_transcribe.services.diarization.diarize_service import DiarizeService
+from wordcab_transcribe.services.longform_diarization.diarize_service import (
+    LongFormDiarizeService,
+)
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
 from wordcab_transcribe.services.vad_service import VadService
@@ -95,6 +98,7 @@ class ASRTask(BaseModel):
     url_type: Union[str, None]
     diarization: "DiarizationTask"
     duration: float
+    batch_size: int
     multi_channel: bool
     offset_start: Union[float, None]
     post_processing: "PostProcessingTask"
@@ -145,7 +149,7 @@ class TranscriptionTask(BaseModel):
 class LocalServiceRegistry:
     """Registry for local services."""
 
-    diarization: Union[DiarizeService, None] = None
+    diarization: Union[DiarizeService, LongFormDiarizeService, None] = None
     post_processing: PostProcessingService = PostProcessingService()
     transcription: Union[TranscribeService, None] = None
     vad: VadService = VadService()
@@ -275,7 +279,7 @@ class ASRAsyncService(ASRService):
         self.local_services: LocalServiceRegistry = LocalServiceRegistry()
         self.remote_services: RemoteServiceRegistry = RemoteServiceRegistry()
         self.dual_channel_transcribe_options: dict = {
-            "beam_size": 5,
+            "beam_size": 1,
             "patience": 1,
             "length_penalty": 1,
             "suppress_blank": False,
@@ -321,6 +325,7 @@ class ASRAsyncService(ASRService):
         """Create a local transcription service."""
         self.local_services.transcription = TranscribeService(
             model_path=self.whisper_model,
+            model_engine=settings.whisper_engine,
             compute_type=self.compute_type,
             device=self.device,
             device_index=self.device_index,
@@ -330,13 +335,18 @@ class ASRAsyncService(ASRService):
 
     def create_diarization_local_service(self) -> None:
         """Create a local diarization service."""
-        self.local_services.diarization = DiarizeService(
-            device=self.device,
-            device_index=self.device_index,
-            window_lengths=self.window_lengths,
-            shift_lengths=self.shift_lengths,
-            multiscale_weights=self.multiscale_weights,
-        )
+        if settings.diarization_backend == "longform_diarizer":
+            self.local_services.diarization = LongFormDiarizeService(
+                device=self.device,
+            )
+        else:
+            self.local_services.diarization = DiarizeService(
+                device=self.device,
+                device_index=self.device_index,
+                window_lengths=self.window_lengths,
+                shift_lengths=self.shift_lengths,
+                multiscale_weights=self.multiscale_weights,
+            )
 
     def create_local_service(
         self, task: Literal["transcription", "diarization"]
@@ -357,6 +367,7 @@ class ASRAsyncService(ASRService):
             logger.info(f"Warmup GPU {gpu_index}.")
             await self.process_input(
                 filepath=str(sample_path),
+                batch_size=1,
                 offset_start=None,
                 offset_end=None,
                 num_speakers=1,
@@ -377,6 +388,7 @@ class ASRAsyncService(ASRService):
     async def process_input(  # noqa: C901
         self,
         filepath: Union[str, List[str]],
+        batch_size: Union[int, None],
         offset_start: Union[float, None],
         offset_end: Union[float, None],
         num_speakers: int,
@@ -406,6 +418,8 @@ class ASRAsyncService(ASRService):
         Args:
             filepath (Union[str, List[str]]):
                 Path to the audio file or list of paths to the audio files to process.
+            batch_size (Union[int, None]):
+                The batch size to use for the transcription. For tensorrt-llm whisper engine only.
             offset_start (Union[float, None]):
                 The start time of the audio file to process.
             offset_end (Union[float, None]):
@@ -493,6 +507,7 @@ class ASRAsyncService(ASRService):
                 execution=diarization_execution, num_speakers=num_speakers
             ),
             duration=duration,
+            batch_size=batch_size,
             multi_channel=multi_channel,
             offset_start=offset_start,
             post_processing=PostProcessingTask(),
@@ -638,18 +653,29 @@ class ASRAsyncService(ASRService):
         """
         try:
             if isinstance(task.diarization.execution, LocalExecution):
-                out = await time_and_tell_async(
-                    lambda: self.local_services.diarization(
-                        waveform=task.audio,
-                        audio_duration=task.duration,
-                        oracle_num_speakers=task.diarization.num_speakers,
-                        model_index=task.diarization.execution.index,
-                        vad_service=self.local_services.vad,
-                    ),
-                    func_name="diarization",
-                    debug_mode=debug_mode,
-                )
-                result, process_time = out
+                if settings.diarization_backend == "longform_diarizer":
+                    out = await time_and_tell_async(
+                        lambda: self.local_services.diarization(
+                            waveform=task.audio,
+                            oracle_num_speakers=task.diarization.num_speakers,
+                        ),
+                        func_name="diarization",
+                        debug_mode=debug_mode,
+                    )
+                    result, process_time = out
+                else:
+                    out = await time_and_tell_async(
+                        lambda: self.local_services.diarization(
+                            waveform=task.audio,
+                            audio_duration=task.duration,
+                            oracle_num_speakers=task.diarization.num_speakers,
+                            model_index=task.diarization.execution.index,
+                            vad_service=self.local_services.vad,
+                        ),
+                        func_name="diarization",
+                        debug_mode=debug_mode,
+                    )
+                    result, process_time = out
 
             elif isinstance(task.diarization.execution, RemoteExecution):
                 if task.url:
@@ -743,6 +769,17 @@ class ASRAsyncService(ASRService):
                     total_post_process_time += process_time
                 else:
                     utterances = formatted_segments
+
+            if settings.enable_punctuation_based_alignment:
+                utterances, process_time = time_and_tell(
+                    self.local_services.post_processing.punctuation_based_alignment(
+                        utterances=utterances,
+                        speaker_timestamps=task.diarization.result,
+                    ),
+                    func_name="punctuation_based_alignment",
+                    debug_mode=self.debug_mode,
+                )
+                total_post_process_time += process_time
 
             final_utterances, process_time = time_and_tell(
                 self.local_services.post_processing.final_processing_before_returning(
@@ -909,6 +946,7 @@ class ASRLiveService(ASRService):
 
         self.transcription_service = TranscribeService(
             model_path=whisper_model,
+            model_engine=settings.model_engine,
             compute_type=compute_type,
             device=self.device,
             device_index=self.device_index,
@@ -973,6 +1011,7 @@ class ASRTranscriptionOnly(ASRService):
 
         self.transcription_service = TranscribeService(
             model_path=whisper_model,
+            model_engine=settings.model_engine,
             compute_type=compute_type,
             device=self.device,
             device_index=self.device_index,
@@ -1023,6 +1062,7 @@ class ASRTranscriptionOnly(ASRService):
         try:
             result = self.transcription_service(
                 audio=data.audio,
+                batch_size=data.batch_size,
                 source_lang=data.source_lang,
                 model_index=gpu_index,
                 suppress_blank=False,
@@ -1061,13 +1101,18 @@ class ASRDiarizationOnly(ASRService):
         """Initialize the ASRDiarizationOnly class."""
         super().__init__()
 
-        self.diarization_service = DiarizeService(
-            device=self.device,
-            device_index=self.device_index,
-            window_lengths=window_lengths,
-            shift_lengths=shift_lengths,
-            multiscale_weights=multiscale_weights,
-        )
+        if settings.diarization_backend == "longform_diarizer":
+            self.diarization_service = LongFormDiarizeService(
+                device=self.device,
+            )
+        else:
+            self.diarization_service = DiarizeService(
+                device=self.device,
+                device_index=self.device_index,
+                window_lengths=window_lengths,
+                shift_lengths=shift_lengths,
+                multiscale_weights=multiscale_weights,
+            )
         self.vad_service = VadService()
         self.debug_mode = debug_mode
 

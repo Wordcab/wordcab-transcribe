@@ -7,11 +7,11 @@ name = "wordcab-transcribe"
 dynamic = ["version"]
 description = "💬 ASR FastAPI server using faster-whisper and Auto-Tuning Spectral Clustering for diarization."
 readme = "README.md"
-requires-python = ">=3.8,<3.12"
+requires-python = "==3.10.12"
 keywords = ["asr", "fastapi", "faster-whisper", "diarization", "wordcab"]
 authors = [
   { name = "Aleksander Smechov", email = "aleks@wordcab.com" },
-  { name = "Thomas Chaigneau", email = "thomas@wordcab.com" },
+  { name = "Thomas Chaigneau", email = "info@wordcab.com" },
 ]
 classifiers = [
   "Topic :: Internet",
@@ -27,26 +27,38 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  "aiohttp>=3.8.4",
-  "aiofiles>=23.1.0",
+  "tensorrt_llm==0.9.0.dev2024032600",
+  "Cython==3.0.10",
+  "youtokentome @ git+https://github.com/gburlet/YouTokenToMe.git@dependencies",
+  "deepmultilingualpunctuation==1.0.1",
+  "nemo_toolkit[asr]==1.23.0",
+  "aiohttp==3.9.3",
+  "aiofiles==23.2.1",
   "boto3",
-  "ctranslate2>=3.18.0",
-  "faster-whisper @ git+https://github.com/Wordcab/faster-whisper@master",
-  "ffmpeg-python>=0.2.0",
-  "transformers@git+https://github.com/huggingface/transformers.git@assistant_decoding_batch",
-  "librosa>=0.9.0",
-  "loguru>=0.6.0",
-  "nltk>=3.8.1",
-  "numpy==1.23.1",
-  "onnxruntime>=1.15.0",
-  "pandas>=2.1.2",
-  "pydantic>=1.10.9",
-  "python-dotenv>=1.0.0",
-  "tensorshare>=0.1.1",
-  "torch>=2.0.0",
-  "torchaudio>=2.0.1",
-  "wget>=3.2.0",
-  "yt-dlp>=2023.3.4",
+  "faster-whisper @ https://github.com/SYSTRAN/faster-whisper/archive/refs/heads/master.tar.gz",
+  "ffmpeg-python==0.2.0",
+  "transformers==4.38.2",
+  "librosa==0.10.1",
+  "loguru==0.7.2",
+  "nltk==3.8.1",
+  "numpy==1.26.4",
+  "onnxruntime==1.17.1",
+  "pandas==2.2.1",
+  "pydantic==2.6.4",
+  "python-dotenv==1.0.1",
+  "tensorshare==0.1.1",
+  "torch==2.2.2",
+  "torchaudio==2.2.2",
+  "wget==3.2.0",
+  "yt-dlp==2024.3.10",
+  "tiktoken==0.6.0",
+  "datasets==2.18.0",
+  "kaldialign==0.9.0",
+  "openai-whisper==v20231117",
+  "soundfile==0.12.1",
+  "safetensors==0.4.2",
+  "janus==1.0.0",
+  "backports.lzma==0.0.14",
 ]
 
 [project.urls]
@@ -60,33 +72,36 @@ path = "src/wordcab_transcribe/__init__.py"
 [tool.hatch.metadata]
 allow-direct-references = true
 
+[tool.hatch.envs.default.env-vars]
+PIP_EXTRA_INDEX_URL = "https://pypi.nvidia.com"
+
 [project.optional-dependencies]
 runtime = [
-  "argon2-cffi>=21.3.0",
-  "fastapi>=0.96.0",
-  "python-jose[cryptography]>=3.3.0",
-  "python-multipart>=0.0.6",
-  "shortuuid>=1.0.0",
-  "svix>=0.85.1",
-  "uvicorn>=0.21.1",
-  "websockets>=11.0.3",
+  "argon2-cffi==23.1.0",
+  "fastapi==0.110.0",
+  "python-jose[cryptography]==3.3.0",
+  "python-multipart==0.0.9",
+  "shortuuid==1.0.13",
+  "svix==1.21.0",
+  "uvicorn==0.29.0",
+  "websockets==12.0",
 ]
 docs = [
-  "mkdocs>=1.4.0",
-  "mkdocs-material>=8.5.4",
-  "mkdocs-git-revision-date-localized-plugin>=1.1.0",
-  "mkdocstrings[python]>=0.20.0",
+  "mkdocs==1.5.3",
+  "mkdocs-material==9.5.14",
+  "mkdocs-git-revision-date-localized-plugin==1.2.4",
+  "mkdocstrings[python]==0.24.1",
 ]
 quality = [
-  "black>=22.10.0",
-  "ruff>=0.0.263",
-  "pre-commit>=2.20.0",
+  "black==24.3.0",
+  "ruff==0.3.4",
+  "pre-commit==3.6.2",
 ]
 tests = [
-  "httpx>=0.23.3",
-  "pytest>=7.4",
-  "pytest-asyncio>=0.21.1",
-  "pytest-cov>=4.1",
+  "httpx==0.27.0",
+  "pytest==8.1.1",
+  "pytest-asyncio==0.23.6",
+  "pytest-cov==4.1.0",
 ]
 dev = ["wordcab_transcribe[quality,runtime,tests]"]
 
@@ -119,6 +134,7 @@ ignore = [
   "E501", # line too long, handled by black
   "B008", # do not perform function calls in argument defaults
   "C901", # too complex
+  "B905", # use of assert
 ]
 select = [
   "E", # pycodestyle errors

@@ -1,6 +1,6 @@
-# Copyright 2023 The Wordcab Team. All rights reserved.
+# Copyright 2024 The Wordcab Team. All rights reserved.
 #
-# Licensed under the Wordcab Transcribe License 0.1 (the "License");
+# Licensed under the MIT License (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -21,6 +21,7 @@
 
 from typing import List, Tuple, Union
 
+from wordcab_transcribe.config import settings
 from wordcab_transcribe.models import (
     DiarizationOutput,
     DiarizationSegment,
@@ -39,6 +40,13 @@ class PostProcessingService:
     def __init__(self) -> None:
         """Initialize the PostProcessingService."""
         self.sample_rate = 16000
+
+        if settings.enable_punctuation_based_alignment:
+            from deepmultilingualpunctuation import PunctuationModel
+
+            self.punct_model = PunctuationModel(model="kredor/punctuate-all")
+        else:
+            self.punct_model = None
 
     def single_channel_speaker_mapping(
         self,
@@ -378,6 +386,36 @@ class PostProcessingService:
             sentence["text"] = sentence["text"].strip()
 
         return [Utterance(**sentence) for sentence in sentences]
+
+    def punctuation_based_alignment(
+        self,
+        utterances: List[Utterance],
+        speaker_timestamps: DiarizationOutput,
+    ):
+        pass
+        # word_list = []
+        # for utterance in utterances:
+        #     for word in utterance.words:
+        #         word_list.append(word.word)
+        #
+        # labled_words = self.punct_model.predict(word_list)
+        #
+        # ending_puncts = ".?!"
+        # model_puncts = ".,;:!?"
+        #
+        # def is_acronym(w):
+        #     return re.fullmatch(r"\b(?:[a-zA-Z]\.){2,}", w)
+        #
+        # for ix, (word, labeled_tuple) in enumerate(zip(word_list, labled_words)):
+        #     if (
+        #             word
+        #             and labeled_tuple[1] in ending_puncts
+        #             and (word[-1] not in model_puncts or is_acronym(word))
+        #     ):
+        #         word += labeled_tuple[1]
+        #         if word.endswith(".."):
+        #             word = word.rstrip(".")
+        #         word_dict["word"] = word
 
     def final_processing_before_returning(
         self,
