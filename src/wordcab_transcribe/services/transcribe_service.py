@@ -126,7 +126,7 @@ class TranscribeService:
         ],
         source_lang: str,
         model_index: int,
-        batch_size: int = 1,
+        batch_size: int = 64,
         num_beams: int = 1,
         suppress_blank: bool = False,
         vocab: Union[List[str], None] = None,
