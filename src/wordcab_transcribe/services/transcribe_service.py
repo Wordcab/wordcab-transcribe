@@ -126,7 +126,7 @@ class TranscribeService:
         ],
         source_lang: str,
         model_index: int,
-        batch_size: int = 24,
+        batch_size: int = 1,
         num_beams: int = 1,
         suppress_blank: bool = False,
         vocab: Union[List[str], None] = None,
@@ -150,7 +150,7 @@ class TranscribeService:
             model_index (int):
                 Index of the model to use.
             batch_size (int):
-                Batch size to use during generation.
+                Batch size to use during generation. Only used for tensorrt_llm engine.
             num_beams (int):
                 Number of beams to use during generation.
             suppress_blank (bool):

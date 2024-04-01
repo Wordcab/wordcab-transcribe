@@ -122,6 +122,7 @@ class AudioResponse(BaseResponse):
                     },
                 ],
                 "audio_duration": 2.678,
+                "batch_size": 1,
                 "offset_start": None,
                 "offset_end": None,
                 "num_speakers": -1,
@@ -176,6 +177,7 @@ class YouTubeResponse(BaseResponse):
                     },
                 ],
                 "audio_duration": 2.0,
+                "batch_size": 1,
                 "offset_start": None,
                 "offset_end": None,
                 "num_speakers": -1,
@@ -399,6 +401,7 @@ class BaseRequest(BaseModel):
     offset_end: Union[float, None] = None
     num_speakers: int = -1
     diarization: bool = False
+    batch_size: int = 1
     source_lang: str = "en"
     timestamps: Timestamps = Timestamps.seconds
     vocab: Union[List[str], None] = None
@@ -462,6 +465,7 @@ class AudioRequest(BaseRequest):
 
         json_schema_extra = {
             "example": {
+                "batch_size": 1,
                 "offset_start": None,
                 "offset_end": None,
                 "num_speakers": -1,

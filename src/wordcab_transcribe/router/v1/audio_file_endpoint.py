@@ -45,6 +45,7 @@ router = APIRouter()
 )
 async def inference_with_audio(  # noqa: C901
     background_tasks: BackgroundTasks,
+    batch_size: Union[int, None] = Form(None),  # noqa: B008
     offset_start: Union[float, None] = Form(None),  # noqa: B008
     offset_end: Union[float, None] = Form(None),  # noqa: B008
     num_speakers: int = Form(-1),  # noqa: B008
@@ -77,6 +78,7 @@ async def inference_with_audio(  # noqa: C901
         offset_end=offset_end,
         num_speakers=num_speakers,
         diarization=diarization,
+        batch_size=batch_size,
         source_lang=source_lang,
         timestamps=timestamps,
         vocab=vocab,
@@ -115,6 +117,7 @@ async def inference_with_audio(  # noqa: C901
             offset_end=data.offset_end,
             num_speakers=data.num_speakers,
             diarization=data.diarization,
+            batch_size=data.batch_size,
             multi_channel=data.multi_channel,
             source_lang=data.source_lang,
             timestamps_format=data.timestamps,
@@ -147,6 +150,7 @@ async def inference_with_audio(  # noqa: C901
             offset_end=data.offset_end,
             num_speakers=data.num_speakers,
             diarization=data.diarization,
+            batch_size=batch_size,
             multi_channel=data.multi_channel,
             source_lang=data.source_lang,
             timestamps=data.timestamps,

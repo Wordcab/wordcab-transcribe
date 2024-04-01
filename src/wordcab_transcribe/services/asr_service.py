@@ -98,6 +98,7 @@ class ASRTask(BaseModel):
     url_type: Union[str, None]
     diarization: "DiarizationTask"
     duration: float
+    batch_size: int
     multi_channel: bool
     offset_start: Union[float, None]
     post_processing: "PostProcessingTask"
@@ -278,7 +279,7 @@ class ASRAsyncService(ASRService):
         self.local_services: LocalServiceRegistry = LocalServiceRegistry()
         self.remote_services: RemoteServiceRegistry = RemoteServiceRegistry()
         self.dual_channel_transcribe_options: dict = {
-            "beam_size": 5,
+            "beam_size": 1,
             "patience": 1,
             "length_penalty": 1,
             "suppress_blank": False,
@@ -366,6 +367,7 @@ class ASRAsyncService(ASRService):
             logger.info(f"Warmup GPU {gpu_index}.")
             await self.process_input(
                 filepath=str(sample_path),
+                batch_size=1,
                 offset_start=None,
                 offset_end=None,
                 num_speakers=1,
@@ -386,6 +388,7 @@ class ASRAsyncService(ASRService):
     async def process_input(  # noqa: C901
         self,
         filepath: Union[str, List[str]],
+        batch_size: Union[int, None],
         offset_start: Union[float, None],
         offset_end: Union[float, None],
         num_speakers: int,
@@ -415,6 +418,8 @@ class ASRAsyncService(ASRService):
         Args:
             filepath (Union[str, List[str]]):
                 Path to the audio file or list of paths to the audio files to process.
+            batch_size (Union[int, None]):
+                The batch size to use for the transcription. For tensorrt-llm whisper engine only.
             offset_start (Union[float, None]):
                 The start time of the audio file to process.
             offset_end (Union[float, None]):
@@ -502,6 +507,7 @@ class ASRAsyncService(ASRService):
                 execution=diarization_execution, num_speakers=num_speakers
             ),
             duration=duration,
+            batch_size=batch_size,
             multi_channel=multi_channel,
             offset_start=offset_start,
             post_processing=PostProcessingTask(),
@@ -1056,6 +1062,7 @@ class ASRTranscriptionOnly(ASRService):
         try:
             result = self.transcription_service(
                 audio=data.audio,
+                batch_size=data.batch_size,
                 source_lang=data.source_lang,
                 model_index=gpu_index,
                 suppress_blank=False,
