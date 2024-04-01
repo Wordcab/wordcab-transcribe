@@ -42,7 +42,6 @@ dependencies = [
   "librosa==0.10.1",
   "loguru==0.7.2",
   "nltk==3.8.1",
-  "numpy==1.26.4",
   "onnxruntime==1.17.1",
   "pandas==2.2.1",
   "pydantic==2.6.4",
