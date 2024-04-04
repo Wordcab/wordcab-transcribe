@@ -93,22 +93,26 @@ class Settings:
     @field_validator("whisper_model")
     def whisper_model_compatibility_check(cls, value: str):  # noqa: B902, N805
         """Check that the whisper engine is compatible."""
-        if value.lower() not in [
-            "tiny",
-            "tiny.en",
-            "base",
-            "base.en",
-            "small",
-            "small.en",
-            "medium",
-            "medium.en",
-            "large",
-            "large-v1",
-            "large-v2",
-            "large-v3",
-            "distil-large-v2",
-            "distil-large-v3",
-        ]:
+        if (
+            value.lower()
+            not in [
+                "tiny",
+                "tiny.en",
+                "base",
+                "base.en",
+                "small",
+                "small.en",
+                "medium",
+                "medium.en",
+                "large",
+                "large-v1",
+                "large-v2",
+                "large-v3",
+                "distil-large-v2",
+                "distil-large-v3",
+            ]
+            and "/" not in value
+        ):
             raise ValueError(
                 "The whisper models must be one of `tiny`, `tiny.en`, `base`,"
                 " `base.en`, `small`, `small.en`, `medium`, `medium.en`, `large`,"

@@ -227,18 +227,18 @@ with open("youtube_video_output.json", "w", encoding="utf-8") as f:
 
 ## Running Local Models
 
-To run the API with local models, you need to mount a volume to the container or
-include the models in the image. You then need to modify the `.env` file to point to the local model,
-as shown below:
+You can link a local folder path to use a custom model. If you do so, you should mount the folder in the
+docker run command as a volume, or include the model directory in your Dockerfile to bake it into the image.
 
-```
-WHISPER_MODEL="/app/models/custom" 
-```
+**Note** that for the default `tensorrt-llm` whisper engine, the simplest way to get a converted model is to use
+`hatch` to start the server locally once. Specify the `WHISPER_MODEL` and `ALIGN_MODEL` in `.env`, then run
+`hatch run runtime:launch` in your terminal. This will download and convert these models.
 
-Note that if you're using the `tensorrt_llm` whisper engine, and these are not located in the
-container, the default directory these models will be saved to is `/app/src/wordcab_transcribe/whisper_models`.
-If you're saving/mounting models to this directory, be sure to see the supported models in the `.env` file, 
-so your self-hosted model does not conflict with the default model names.
+You'll then find the converted models in `cloned_wordcab_transcribe_repo/src/wordcab_transcribe/whisper_models`.
+Then in your Dockerfile, copy the converted models to the `/app/src/wordcab_transcribe/whisper_models` directory.
+
+Example Dockerfile line for `WHISPER_MODEL`: `COPY cloned_wordcab_transcribe_repo/src/wordcab_transcribe/whisper_models/large-v3 /app/src/wordcab_transcribe/whisper_models/large-v3`
+Example Dockerfile line for `ALIGN_MODEL`: `COPY cloned_wordcab_transcribe_repo/src/wordcab_transcribe/whisper_models/tiny /app/src/wordcab_transcribe/whisper_models/tiny`
 
 ## 🚀 Contributing
 
