@@ -111,7 +111,7 @@ features = [
 ]
 
 [tool.hatch.envs.runtime.scripts]
-launch = "uvicorn --host=0.0.0.0 --port=5001 src.wordcab_transcribe.main:app"
+launch = "uvicorn --host='::' --port=5001 src.wordcab_transcribe.main:app"
 
 [tool.hatch.envs.quality]
 features = [
