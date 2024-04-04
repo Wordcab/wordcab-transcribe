@@ -142,7 +142,7 @@ class Settings:
     @field_validator("diarization_backend")
     def diarization_backend_compatibility_check(cls, value: str):  # noqa: B902, N805
         """Check that the diarization engine is compatible."""
-        if value.lower() not in ["default_diarizer", "longform_diarizer"]:
+        if value.lower() not in ["default-diarizer", "longform-diarizer"]:
             raise ValueError(
                 "The diarization backend must be one of `default_diarizer` or"
                 " `longform_diarizer`."
@@ -323,7 +323,7 @@ settings = Settings(
     extra_languages=extra_languages,
     extra_languages_model_paths=extra_languages_model_paths,
     # Diarization
-    diarization_backend=getenv("DIARIZATION_BACKEND", "longform_diarizer"),
+    diarization_backend=getenv("DIARIZATION_BACKEND", "longform-diarizer"),
     window_lengths=window_lengths,
     shift_lengths=shift_lengths,
     multiscale_weights=multiscale_weights,

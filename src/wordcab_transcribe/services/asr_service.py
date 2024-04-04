@@ -335,7 +335,7 @@ class ASRAsyncService(ASRService):
 
     def create_diarization_local_service(self) -> None:
         """Create a local diarization service."""
-        if settings.diarization_backend == "longform_diarizer":
+        if settings.diarization_backend == "longform-diarizer":
             self.local_services.diarization = LongFormDiarizeService(
                 device=self.device,
             )
@@ -653,7 +653,7 @@ class ASRAsyncService(ASRService):
         """
         try:
             if isinstance(task.diarization.execution, LocalExecution):
-                if settings.diarization_backend == "longform_diarizer":
+                if settings.diarization_backend == "longform-diarizer":
                     out = await time_and_tell_async(
                         lambda: self.local_services.diarization(
                             waveform=task.audio,
@@ -1101,7 +1101,7 @@ class ASRDiarizationOnly(ASRService):
         """Initialize the ASRDiarizationOnly class."""
         super().__init__()
 
-        if settings.diarization_backend == "longform_diarizer":
+        if settings.diarization_backend == "longform-diarizer":
             self.diarization_service = LongFormDiarizeService(
                 device=self.device,
             )
