@@ -132,16 +132,16 @@ class Settings:
 
         return value
 
-    @field_validator("align_model")
-    def align_model_compatibility_check(cls, value: str):  # noqa: B902, N805
-        """Check that the whisper engine is compatible."""
-        if value.lower() not in ["tiny", "small", "base", "medium"]:
-            raise ValueError(
-                "The whisper engine must be one of `tiny`, `small`, `base`, or"
-                " `medium`."
-            )
-
-        return value
+    # @field_validator("align_model")
+    # def align_model_compatibility_check(cls, value: str):  # noqa: B902, N805
+    #     """Check that the whisper engine is compatible."""
+    #     if value.lower() not in ["tiny", "small", "base", "medium"]:
+    #         raise ValueError(
+    #             "The whisper engine must be one of `tiny`, `small`, `base`, or"
+    #             " `medium`."
+    #         )
+    #
+    #     return value
 
     @field_validator("diarization_backend")
     def diarization_backend_compatibility_check(cls, value: str):  # noqa: B902, N805

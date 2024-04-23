@@ -1,3 +1,4 @@
+import os
 from abc import ABC, abstractmethod
 
 import torch
@@ -83,7 +84,9 @@ class WhisperModel(ABC):
         self.use_dynamic_time_axis = use_dynamic_time_axis
 
         self.without_timestamps = without_timestamps
-        self.max_text_token_len = max_text_token_len
+
+        max_text_token_len = os.getenv("TRT_BUILD_MAX_OUTPUT_LEN", max_text_token_len)
+        self.max_text_token_len = int(max_text_token_len)
 
         self.vad_model = vad_model
         self.speech_segmenter_options = (

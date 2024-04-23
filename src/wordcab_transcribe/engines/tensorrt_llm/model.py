@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import ctranslate2
@@ -111,6 +112,8 @@ class WhisperModelTRT(WhisperModel):
         if "distil" in self.model_name:
             model_kwargs["max_speech_len"] = 15.0
             max_text_token_len = 128
+        else:
+            max_text_token_len = int(os.getenv("TRT_BUILD_MAX_OUTPUT_LEN", 448))
 
         if not self.model_path.exists():
             self.model_path = build_whisper_trt_model(

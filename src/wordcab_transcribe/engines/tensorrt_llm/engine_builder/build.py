@@ -80,9 +80,12 @@ def parse_arguments():
     parser.add_argument("--dtype", type=str, default="float16", choices=["float16"])
     parser.add_argument("--log_level", type=str, default="info")
     parser.add_argument("--max_batch_size", type=int, default=24)
-    parser.add_argument("--max_input_len", type=int, default=4)
-    parser.add_argument("--max_output_len", type=int, default=448)
-    parser.add_argument("--max_beam_width", type=int, default=1)
+    max_input_len = os.getenv("TRT_BUILD_MAX_INPUT_LEN", 4)
+    parser.add_argument("--max_input_len", type=int, default=max_input_len)
+    max_output_len = os.getenv("TRT_BUILD_MAX_OUTPUT_LEN", 448)
+    parser.add_argument("--max_output_len", type=int, default=max_output_len)
+    max_beam_width = os.getenv("TRT_BUILD_MAX_BEAM_WIDTH", 1)
+    parser.add_argument("--max_beam_width", type=int, default=max_beam_width)
     parser.add_argument(
         "--use_gpt_attention_plugin",
         nargs="?",

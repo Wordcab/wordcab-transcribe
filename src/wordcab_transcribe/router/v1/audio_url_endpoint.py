@@ -81,9 +81,13 @@ async def inference_with_audio_url(
             async with download_limit:
                 _filepath = await download_audio_file("url", url, filename)
 
-                num_channels = await check_num_channels(_filepath)
-                if num_channels > 1 and data.multi_channel is False:
-                    num_channels = 1  # Force mono channel if more than 1 channel
+                try:
+                    num_channels = await check_num_channels(_filepath)
+                    if num_channels > 1 and data.multi_channel is False:
+                        num_channels = 1  # Force mono channel if more than 1 channel
+                except Exception as e:
+                    logger.warning(f"Error detecting the number of channels: {e}")
+                    num_channels = 1
 
                 try:
                     filepath: Union[str, List[str]] = await process_audio_file(
@@ -122,8 +126,14 @@ async def inference_with_audio_url(
                     )
                 )
 
-                result = await task
-                utterances, process_times, audio_duration = result
+                try:
+                    result = await task
+                    utterances, process_times, audio_duration = result
+                except Exception as e:
+                    error_message = f"Error processing audio: {e} | {result}"
+                    logger.error(error_message)
+                    raise
+
                 result = AudioResponse(
                     utterances=utterances,
                     audio_duration=audio_duration,
@@ -175,6 +185,12 @@ async def inference_with_audio_url(
             }
 
             await send_update_with_svix(data.job_name, "error", error_payload)
+
+            try:
+                background_tasks.add_task(delete_file, filepath=filepath)
+            except Exception as e:
+                logger.error(f"Error deleting file: {e}")
+                pass
 
     # Add the process_audio function to background tasks
     background_tasks.add_task(process_audio)

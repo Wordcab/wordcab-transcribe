@@ -233,9 +233,6 @@ class TranscribeService:
 
                 for ix, segment in enumerate(segments):
                     segment["words"] = segment.pop("word_timestamps")
-                    for word in segment["words"]:
-                        word["start"] = round(word["start"], 2)
-                        word["end"] = round(word["end"], 2)
                     segment["start"] = round(segment.pop("start_time"), 2)
                     segment["end"] = round(segment.pop("end_time"), 2)
                     extra = {
@@ -247,6 +244,12 @@ class TranscribeService:
                         "compression_ratio": 0.0,
                         "no_speech_prob": 0.0,
                     }
+                    for word in segment["words"]:
+                        word["word"] = word["word"].strip()
+                        word["word"] = f" {word['word']}"
+                    segment["text"] = "".join(
+                        [word["word"] for word in segment["words"]]
+                    ).strip()
                     segments[ix] = Segment(**{**segment, **extra})
 
             _outputs = [segment._asdict() for segment in segments]
