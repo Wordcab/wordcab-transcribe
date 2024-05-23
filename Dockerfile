@@ -65,10 +65,12 @@ RUN curl -L ${RELEASE_URL} | tar -zx -C /tmp \
     && pip install /tmp/mpi4py-${MPI4PY_VERSION} \
     && rm -rf /tmp/mpi4py*
 
-RUN python -m pip install pip --upgrade \
-    && python -m pip install hatch
+RUN python -m pip install pip --upgrade
 
 WORKDIR /app
+
 COPY . .
 
-CMD ["hatch", "run", "runtime:launch"]
+RUN pip install --no-cache-dir --extra-index-url https://pypi.nvidia.com .[runtime]
+
+CMD ["uvicorn", "--host=0.0.0.0", "--port=5001", "src.wordcab_transcribe.main:app"]
