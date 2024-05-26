@@ -436,7 +436,6 @@ class TranscribeService:
                         word["start"] = round(word["start"], 2)
                         word["end"] = round(word["end"], 2)
                     segment["text"] = segment["text"].strip()
-
                     segment["start"] = round(segment.pop("start_time"), 2)
                     segment["end"] = round(segment.pop("end_time"), 2)
                     extra = {
