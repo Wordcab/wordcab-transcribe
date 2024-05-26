@@ -22,10 +22,10 @@ from tensorrt_llm import str_dtype_to_torch, str_dtype_to_trt
 from tensorrt_llm.builder import Builder
 from tensorrt_llm.functional import LayerNormPositionType, LayerNormType
 from tensorrt_llm.logger import logger
-from tensorrt_llm.models import quantize_model
 from tensorrt_llm.network import net_guard
 from tensorrt_llm.plugin.plugin import ContextFMHAType
 from tensorrt_llm.quantization import QuantMode
+from tensorrt_llm.quantization.quantize_by_modelopt import quantize_model
 from weight import load_decoder_weight, load_encoder_weight
 
 MODEL_ENCODER_NAME = "whisper_encoder"
@@ -316,32 +316,49 @@ def build_decoder(model, args):
     )
 
     tensorrt_llm_whisper_decoder = tensorrt_llm.models.DecoderModel(
-        num_layers=model_metadata["n_text_layer"],
-        num_heads=model_metadata["n_text_head"],
-        hidden_size=model_metadata["n_text_state"],
-        ffn_hidden_size=4 * model_metadata["n_text_state"],
-        encoder_hidden_size=model_metadata["n_text_state"],
-        encoder_num_heads=model_metadata["n_text_head"],
-        vocab_size=model_metadata["n_vocab"],
-        head_size=model_metadata["n_text_state"] // model_metadata["n_text_head"],
-        max_position_embeddings=model_metadata["n_text_ctx"],
-        has_position_embedding=True,
-        relative_attention=False,
-        max_distance=0,
-        num_buckets=0,
-        has_embedding_layernorm=False,
-        has_embedding_scale=False,
-        q_scaling=1.0,
-        has_attention_qkvo_bias=True,
-        has_mlp_bias=True,
-        has_model_final_layernorm=True,
-        layernorm_eps=1e-5,
-        layernorm_position=LayerNormPositionType.pre_layernorm,
-        layernorm_type=LayerNormType.LayerNorm,
-        hidden_act="gelu",
-        rescale_before_lm_head=False,
-        dtype=str_dtype_to_trt(args.dtype),
-        logits_dtype=str_dtype_to_trt(args.dtype),
+        tensorrt_llm.models.modeling_utils.PretrainedConfig(
+            architecture="whisper",
+            dtype=str_dtype_to_trt(args.dtype),
+            logits_dtype=str_dtype_to_trt(args.dtype),
+            vocab_size=model_metadata["n_vocab"],
+            max_position_embeddings=model_metadata["n_text_ctx"],
+            hidden_size=model_metadata["n_text_state"],
+            num_hidden_layers=model_metadata["n_text_layer"],
+            num_attention_heads=model_metadata["n_text_head"],
+            num_key_value_heads=model_metadata["n_text_head"],
+            hidden_act="gelu",
+            intermediate_size=4 * model_metadata["n_text_state"],
+            norm_epsilon=1e-5,
+            position_embedding_type="learned_absolute",
+            world_size=1,
+            tp_size=1,
+            pp_size=1,
+            gpus_per_node=1,
+            quantization=tensorrt_llm.models.modeling_utils.QuantConfig(),
+            head_size=model_metadata["n_text_state"] // model_metadata["n_text_head"],
+            num_layers=model_metadata["n_text_layer"],
+            num_heads=model_metadata["n_text_head"],
+            ffn_hidden_size=4 * model_metadata["n_text_state"],
+            encoder_hidden_size=model_metadata["n_text_state"],
+            encoder_num_heads=model_metadata["n_text_head"],
+            has_position_embedding=True,
+            relative_attention=False,
+            max_distance=0,
+            num_buckets=0,
+            has_embedding_layernorm=False,
+            has_embedding_scale=False,
+            q_scaling=1.0,
+            has_attention_qkvo_bias=True,
+            has_mlp_bias=True,
+            has_model_final_layernorm=True,
+            layernorm_eps=1e-5,
+            layernorm_position=LayerNormPositionType.pre_layernorm,
+            layernorm_type=LayerNormType.LayerNorm,
+            rescale_before_lm_head=False,
+            encoder_head_size=model_metadata["n_text_state"]
+            // model_metadata["n_text_head"],  # Added missing variable
+            skip_cross_qkv=False,
+        )
     )
 
     if args.use_weight_only:
@@ -377,7 +394,7 @@ def build_decoder(model, args):
             model_metadata["n_audio_ctx"],
         )
 
-        tensorrt_llm_whisper_decoder(*inputs)
+        tensorrt_llm_whisper_decoder(**inputs)
 
         if args.debug_mode:
             for k, v in tensorrt_llm_whisper_decoder.named_network_outputs():

@@ -251,7 +251,6 @@ class TranscribeService:
 
             _outputs = [segment._asdict() for segment in segments]
             outputs = TranscriptionOutput(segments=_outputs)
-
         else:
             outputs = self.multi_channel(
                 audio,
@@ -319,6 +318,7 @@ class TranscribeService:
         self,
         audio_list: List[Union[str, torch.Tensor, TensorShare]],
         source_lang: str,
+        speaker_id: int,
         suppress_blank: bool = False,
         word_timestamps: bool = True,
         internal_vad: bool = True,
@@ -335,6 +335,7 @@ class TranscribeService:
         Args:
             audio_list (List[Union[str, torch.Tensor, TensorShare]]): List of audio file paths or audio tensors.
             source_lang (str): Language of the audio file.
+            speaker_id (int): Speaker ID used in the diarization.
             suppress_blank (bool):
                 Whether to suppress blank at the beginning of the sampling.
             word_timestamps (bool):
@@ -436,6 +437,7 @@ class TranscribeService:
                         word["start"] = round(word["start"], 2)
                         word["end"] = round(word["end"], 2)
                     segment["text"] = segment["text"].strip()
+
                     segment["start"] = round(segment.pop("start_time"), 2)
                     segment["end"] = round(segment.pop("end_time"), 2)
                     extra = {

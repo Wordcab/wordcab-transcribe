@@ -5,6 +5,7 @@ __pycache__/
 .coverage.*
 .DS_Store
 .env_dev
+.env_*
 .nox/
 .pytest_cache/
 .python-version
