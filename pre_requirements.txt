@@ -1,0 +1,13 @@
+argon2-cffi==23.1.0
+fastapi==0.110.0
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.9
+shortuuid==1.0.13
+svix==1.21.0
+uvicorn==0.29.0
+websockets==12.0
+tensorrt_llm==0.11.0.dev2024052100
+Cython==3.0.10
+youtokentome @ git+https://github.com/gburlet/YouTokenToMe.git@dependencies
+deepmultilingualpunctuation==1.0.1
+pyannote.audio==3.2.0

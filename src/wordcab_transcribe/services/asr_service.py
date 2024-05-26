@@ -336,10 +336,12 @@ class ASRAsyncService(ASRService):
     def create_diarization_local_service(self) -> None:
         """Create a local diarization service."""
         if settings.diarization_backend == "longform-diarizer":
+            logger.info("Using LongFormDiarizeService for diarization.")
             self.local_services.diarization = LongFormDiarizeService(
                 device=self.device,
             )
         else:
+            logger.info("Using DiarizeService for diarization.")
             self.local_services.diarization = DiarizeService(
                 device=self.device,
                 device_index=self.device_index,

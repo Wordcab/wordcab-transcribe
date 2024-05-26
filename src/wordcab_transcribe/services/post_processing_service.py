@@ -362,6 +362,7 @@ class PostProcessingService:
         sentences = []
         for speaker, word in transcript_words:
             start_t, end_t, text = word.start, word.end, word.word
+            print(speaker, previous_speaker, text)
 
             if speaker != previous_speaker:
                 sentences.append(current_sentence)
