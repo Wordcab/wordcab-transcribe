@@ -93,8 +93,8 @@ class WhisperDecoding:
 
         # TODO: Make dynamic max_batch_size and max_beam_width
         decoder_model_config = ModelConfig(
-            max_batch_size=24,
-            max_beam_width=1,
+            max_batch_size=16,
+            max_beam_width=5,
             num_heads=self.decoder_config["num_heads"],
             num_kv_heads=self.decoder_config["num_heads"],
             hidden_size=self.decoder_config["hidden_size"],

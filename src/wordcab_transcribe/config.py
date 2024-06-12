@@ -69,6 +69,7 @@ class Settings:
     # Cortex configuration
     cortex_api_key: str
     # AWS configuration
+    send_results_to_s3: bool
     aws_access_key_id: str
     aws_secret_access_key: str
     aws_storage_bucket_name: str
@@ -137,7 +138,7 @@ class Settings:
         """Check that the whisper engine is compatible."""
         if value.lower() not in ["tiny", "small", "base", "medium"]:
             raise ValueError(
-                "The whisper engine must be one of `tiny`, `small`, `base`, or"
+                "The align model must be one of `tiny`, `small`, `base`, or"
                 " `medium`."
             )
 
@@ -348,6 +349,7 @@ settings = Settings(
     # Cortex configuration
     cortex_api_key=getenv("WORDCAB_TRANSCRIBE_API_KEY", ""),
     # AWS configuration
+    send_results_to_s3=getenv("SEND_RESULTS_TO_S3", False),
     aws_access_key_id=getenv("AWS_ACCESS_KEY_ID", ""),
     aws_secret_access_key=getenv("AWS_SECRET_ACCESS_KEY", ""),
     aws_storage_bucket_name=getenv("AWS_STORAGE_BUCKET_NAME", ""),

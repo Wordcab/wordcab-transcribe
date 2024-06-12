@@ -19,21 +19,24 @@
 # and limitations under the License.
 """ASR Service module that handle all AI interactions."""
 
-import asyncio
+
 import time
+import aiohttp
+import asyncio
 import traceback
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from abc import ABC, abstractmethod
+
 from enum import Enum
 from pathlib import Path
+from typing_extensions import Literal
+from pydantic import BaseModel, ConfigDict
 from typing import Iterable, List, Optional, Tuple, Union
 
-import aiohttp
 import torch
-from loguru import logger
-from pydantic import BaseModel, ConfigDict
 from tensorshare import Backend, TensorShare
-from typing_extensions import Literal
+
+from loguru import logger
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.logging import time_and_tell, time_and_tell_async
@@ -56,6 +59,18 @@ from wordcab_transcribe.services.post_processing_service import PostProcessingSe
 from wordcab_transcribe.services.transcribe_service import TranscribeService
 from wordcab_transcribe.services.vad_service import VadService
 from wordcab_transcribe.utils import early_return, format_segments, read_audio
+
+
+class AsyncLocationTrustedRedirectSession(aiohttp.ClientSession):
+    async def _request(self, method, url, location_trusted, *args, **kwargs):
+        if not location_trusted:
+            return await super(AsyncLocationTrustedRedirectSession, self)._request(method, url, *args, **kwargs)
+        kwargs["allow_redirects"] = False
+        response = await super(AsyncLocationTrustedRedirectSession, self)._request(method, url, *args, **kwargs)
+        if response.status in (301, 302, 303, 307, 308) and "Location" in response.headers:
+            new_url = response.headers["Location"]
+            return await super(AsyncLocationTrustedRedirectSession, self)._request(method, new_url, *args, **kwargs)
+        return response
 
 
 class ExceptionSource(str, Enum):
@@ -132,6 +147,7 @@ class TranscriptionOptions(BaseModel):
     no_speech_threshold: float
     repetition_penalty: float
     source_lang: str
+    num_beams: int
     vocab: Union[List[str], None]
 
 
@@ -376,6 +392,7 @@ class ASRAsyncService(ASRService):
                 diarization=True,
                 multi_channel=False,
                 source_lang="en",
+                num_beams=1,
                 timestamps_format="s",
                 vocab=None,
                 word_timestamps=False,
@@ -397,6 +414,7 @@ class ASRAsyncService(ASRService):
         diarization: bool,
         multi_channel: bool,
         source_lang: str,
+        num_beams: int,
         timestamps_format: str,
         vocab: Union[List[str], None],
         word_timestamps: bool,
@@ -434,6 +452,8 @@ class ASRAsyncService(ASRService):
                 Whether to do multi-channel diarization or not.
             source_lang (str):
                 Source language of the audio file.
+            num_beams (int):
+                The number of beams to use for the beam search.
             timestamps_format (str):
                 Timestamps format to use.
             vocab (Union[List[str], None]):
@@ -525,6 +545,7 @@ class ASRAsyncService(ASRService):
                     no_speech_threshold=no_speech_threshold,
                     repetition_penalty=repetition_penalty,
                     source_lang=source_lang,
+                    num_beams=num_beams,
                     vocab=vocab,
                 ),
             ),
@@ -809,19 +830,42 @@ class ASRAsyncService(ASRService):
         return None
 
     async def remote_transcription(
-        self,
-        url: str,
-        data: TranscribeRequest,
+            self,
+            url: str,
+            data: TranscribeRequest,
     ) -> TranscriptionOutput:
         """Remote transcription method."""
-        async with aiohttp.ClientSession() as session:
+        headers = {"Content-Type": "application/json"}
+
+        if not settings.debug:
+            headers = {"Content-Type": "application/x-www-form-urlencoded"}
+            auth_url = f"{url}/api/v1/auth"
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                        url=auth_url,
+                        data={"username": settings.username, "password": settings.password},
+                        headers=headers,
+                ) as response:
+                    if response.status != 200:
+                        raise Exception(response.status)
+                    else:
+                        token = await response.json()
+                        headers = {
+                            "Content-Type": "application/json",
+                            "Authorization": f"Bearer {token['access_token']}",
+                        }
+
+        transcription_timeout = aiohttp.ClientTimeout(total=1200)
+        async with AsyncLocationTrustedRedirectSession(timeout=transcription_timeout) as session:
             async with session.post(
-                url=f"{url}/api/v1/transcribe",
-                data=data.model_dump_json(),
-                headers={"Content-Type": "application/json"},
+                    url=f"{url}/api/v1/transcribe",
+                    data=data.model_dump_json(),
+                    headers=headers,
+                    location_trusted=True,
             ) as response:
                 if response.status != 200:
-                    raise Exception(response.status)
+                    r = await response.json()
+                    raise Exception(r["detail"])
                 else:
                     return TranscriptionOutput(**await response.json())
 
@@ -851,11 +895,12 @@ class ASRAsyncService(ASRService):
                             "Authorization": f"Bearer {token['access_token']}",
                         }
         diarization_timeout = aiohttp.ClientTimeout(total=1200)
-        async with aiohttp.ClientSession(timeout=diarization_timeout) as session:
+        async with AsyncLocationTrustedRedirectSession(timeout=diarization_timeout) as session:
             async with session.post(
                 url=f"{url}/api/v1/diarize",
                 data=data.model_dump_json(),
                 headers=headers,
+                location_trusted=True,
             ) as response:
                 if response.status != 200:
                     r = await response.json()
@@ -948,7 +993,7 @@ class ASRLiveService(ASRService):
 
         self.transcription_service = TranscribeService(
             model_path=whisper_model,
-            model_engine=settings.model_engine,
+            model_engine=settings.whisper_engine,
             compute_type=compute_type,
             device=self.device,
             device_index=self.device_index,
@@ -1013,7 +1058,7 @@ class ASRTranscriptionOnly(ASRService):
 
         self.transcription_service = TranscribeService(
             model_path=whisper_model,
-            model_engine=settings.model_engine,
+            model_engine=settings.whisper_engine,
             compute_type=compute_type,
             device=self.device,
             device_index=self.device_index,
@@ -1066,6 +1111,7 @@ class ASRTranscriptionOnly(ASRService):
                 audio=data.audio,
                 batch_size=data.batch_size,
                 source_lang=data.source_lang,
+                num_beams=data.num_beams,
                 model_index=gpu_index,
                 suppress_blank=False,
                 word_timestamps=True,

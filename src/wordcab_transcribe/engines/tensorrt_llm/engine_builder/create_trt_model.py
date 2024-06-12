@@ -63,6 +63,21 @@ _TOKENIZERS = {
 }
 
 
+TRT_BUILD_MAX_OUTPUT_LEN = os.getenv("TRT_BUILD_MAX_OUTPUT_LEN", None)
+TRT_BUILD_MAX_BEAM_WIDTH = os.getenv("TRT_BUILD_MAX_BEAM_WIDTH", None)
+if not TRT_BUILD_MAX_OUTPUT_LEN:
+    TRT_BUILD_MAX_OUTPUT_LEN = 448
+else:
+    TRT_BUILD_MAX_OUTPUT_LEN = int(TRT_BUILD_MAX_OUTPUT_LEN)
+logger.info(f"TRT_BUILD_MAX_OUTPUT_LEN: {TRT_BUILD_MAX_OUTPUT_LEN}")
+
+if not TRT_BUILD_MAX_BEAM_WIDTH:
+    TRT_BUILD_MAX_BEAM_WIDTH = 1
+else:
+    TRT_BUILD_MAX_BEAM_WIDTH = int(TRT_BUILD_MAX_BEAM_WIDTH)
+logger.info(f"TRT_BUILD_MAX_BEAM_WIDTH: {TRT_BUILD_MAX_BEAM_WIDTH}")
+
+
 def build_whisper_trt_model(
     output_dir,
     use_gpt_attention_plugin=True,
@@ -70,7 +85,9 @@ def build_whisper_trt_model(
     use_bert_attention_plugin=True,
     enable_context_fmha=True,
     use_weight_only=False,
-    model_name="distil-large-v2",
+    max_output_len=TRT_BUILD_MAX_OUTPUT_LEN,
+    max_beam_width=TRT_BUILD_MAX_BEAM_WIDTH,
+    model_name="large-v3",
 ):
     """
     Build a Whisper model using the specified configuration.
@@ -158,6 +175,10 @@ def build_whisper_trt_model(
             command.append("--enable_context_fmha")
         if use_weight_only:
             command.append("--use_weight_only")
+        if max_output_len:
+            command.extend(["--max_output_len", str(max_output_len)])
+        if max_beam_width:
+            command.extend(["--max_beam_width", str(max_beam_width)])
 
         try:
             subprocess.run(command, check=True)

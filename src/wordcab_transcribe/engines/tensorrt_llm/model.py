@@ -39,11 +39,11 @@ FAST_ASR_OPTIONS = {
     "best_of": 5,
     "patience": 1,
     "length_penalty": 1,
-    "repetition_penalty": 1.01,
+    "repetition_penalty": 1.05,
     "no_repeat_ngram_size": 0,
     "compression_ratio_threshold": 2.4,
     "log_prob_threshold": -1.0,
-    "no_speech_threshold": 0.3,
+    "no_speech_threshold": 0.4,
     "prefix": None,
     "suppress_blank": False,
     "suppress_tokens": [-1],
@@ -61,7 +61,7 @@ BEST_ASR_CONFIG = {
     "best_of": 1,
     "patience": 2,
     "length_penalty": 1,
-    "repetition_penalty": 1.01,
+    "repetition_penalty": 1.05,
     "no_repeat_ngram_size": 0,
     "compression_ratio_threshold": 2.4,
     "log_prob_threshold": -1.0,
@@ -224,7 +224,9 @@ class WhisperModelTRT(WhisperModel):
                 start_seq_wise_req[_sot_seq] = [_idx]
 
         token_alignments = [[] for _ in seg_metadata]
+
         for start_seq, req_idx in start_seq_wise_req.items():
+
             res = self.align_model.align(
                 ctranslate2.StorageView.from_array(features[req_idx]),
                 start_sequence=list(start_seq),
