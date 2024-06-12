@@ -52,6 +52,7 @@ async def inference_with_audio(  # noqa: C901
     diarization: bool = Form(False),  # noqa: B008
     multi_channel: bool = Form(False),  # noqa: B008
     source_lang: str = Form("en"),  # noqa: B008
+    num_beams: int = Form(1),  # noqa: B008
     timestamps: str = Form("s"),  # noqa: B008
     vocab: Union[List[str], None] = Form(None),  # noqa: B008
     word_timestamps: bool = Form(False),  # noqa: B008
@@ -73,6 +74,28 @@ async def inference_with_audio(  # noqa: C901
 
     await save_file_locally(filename=filename, file=file)
 
+    num_channels = await check_num_channels(filename)
+    if (num_channels > 1 and multi_channel is False) or (num_channels == 1 and multi_channel is True):
+        num_channels = 1  # Force mono channel if more than 1 channel or vice versa
+        if multi_channel:
+            diarization = True
+        multi_channel = False
+
+    try:
+        filepath: Union[str, List[str]] = await process_audio_file(
+            filename, num_channels=num_channels
+        )
+    except Exception as e:
+        try:
+            background_tasks.add_task(delete_file, filepath=filename)
+            background_tasks.add_task(delete_file, filepath=filepath)
+        except:
+            pass
+        raise HTTPException(  # noqa: B904
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Process failed: {e}",
+        )
+
     data = AudioRequest(
         offset_start=offset_start,
         offset_end=offset_end,
@@ -80,6 +103,7 @@ async def inference_with_audio(  # noqa: C901
         diarization=diarization,
         batch_size=batch_size,
         source_lang=source_lang,
+        num_beams=num_beams,
         timestamps=timestamps,
         vocab=vocab,
         word_timestamps=word_timestamps,
@@ -91,22 +115,6 @@ async def inference_with_audio(  # noqa: C901
         condition_on_previous_text=condition_on_previous_text,
         multi_channel=multi_channel,
     )
-
-    num_channels = await check_num_channels(filename)
-
-    if num_channels > 1 and data.multi_channel is False:
-        num_channels = 1  # Force mono channel if more than 1 channel
-
-    try:
-        filepath: Union[str, List[str]] = await process_audio_file(
-            filename, num_channels=num_channels
-        )
-
-    except Exception as e:
-        raise HTTPException(  # noqa: B904
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Process failed: {e}",
-        )
 
     background_tasks.add_task(delete_file, filepath=filename)
 
@@ -120,6 +128,7 @@ async def inference_with_audio(  # noqa: C901
             batch_size=data.batch_size,
             multi_channel=data.multi_channel,
             source_lang=data.source_lang,
+            num_beams=data.num_beams,
             timestamps_format=data.timestamps,
             vocab=data.vocab,
             word_timestamps=data.word_timestamps,

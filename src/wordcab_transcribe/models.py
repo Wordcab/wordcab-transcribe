@@ -403,6 +403,7 @@ class BaseRequest(BaseModel):
     diarization: bool = False
     batch_size: int = 1
     source_lang: str = "en"
+    num_beams: int = 1
     timestamps: Timestamps = Timestamps.seconds
     vocab: Union[List[str], None] = None
     word_timestamps: bool = False

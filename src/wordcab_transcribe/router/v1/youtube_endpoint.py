@@ -61,6 +61,7 @@ async def inference_with_youtube(
                 batch_size=data.batch_size,
                 multi_channel=False,
                 source_lang=data.source_lang,
+                num_beams=data.num_beams,
                 timestamps_format=data.timestamps,
                 vocab=data.vocab,
                 word_timestamps=data.word_timestamps,

@@ -203,6 +203,7 @@ class TranscribeService:
                     audio,
                     language=source_lang,
                     initial_prompt=prompt,
+                    beam_size=num_beams,
                     repetition_penalty=repetition_penalty,
                     compression_ratio_threshold=compression_ratio_threshold,
                     log_prob_threshold=log_prob_threshold,
@@ -227,13 +228,21 @@ class TranscribeService:
                     initial_prompts=[prompt],
                     batch_size=batch_size,
                     use_vad=internal_vad,
-                    generate_kwargs={"num_beams": num_beams},
+                    generate_kwargs={
+                        "num_beams": num_beams,
+                        "length_penalty": 1,
+                        "repetition_penalty": repetition_penalty,
+                        "stop_words_list": suppress_blank,
+                        "bad_words_list": [-1],
+                        "temperature": 1.0,
+                    },
                 )[0]
                 #  TODO: make batch compatible
 
                 for ix, segment in enumerate(segments):
                     segment["words"] = segment.pop("word_timestamps")
                     for word in segment["words"]:
+                        word["word"] = f" {word['word']}"
                         word["start"] = round(word["start"], 2)
                         word["end"] = round(word["end"], 2)
                     segment["start"] = round(segment.pop("start_time"), 2)
@@ -255,6 +264,7 @@ class TranscribeService:
             outputs = self.multi_channel(
                 audio,
                 source_lang=source_lang,
+                num_beams=num_beams,
                 suppress_blank=suppress_blank,
                 word_timestamps=word_timestamps,
                 internal_vad=internal_vad,
@@ -318,7 +328,7 @@ class TranscribeService:
         self,
         audio_list: List[Union[str, torch.Tensor, TensorShare]],
         source_lang: str,
-        speaker_id: int,
+        num_beams: int = 1,
         suppress_blank: bool = False,
         word_timestamps: bool = True,
         internal_vad: bool = True,
@@ -335,6 +345,7 @@ class TranscribeService:
         Args:
             audio_list (List[Union[str, torch.Tensor, TensorShare]]): List of audio file paths or audio tensors.
             source_lang (str): Language of the audio file.
+            num_beams (int): Number of beams to use during generation.
             speaker_id (int): Speaker ID used in the diarization.
             suppress_blank (bool):
                 Whether to suppress blank at the beginning of the sampling.
@@ -375,6 +386,7 @@ class TranscribeService:
                     _audio,
                     language=source_lang,
                     initial_prompt=prompt,
+                    beam_size=num_beams,
                     repetition_penalty=repetition_penalty,
                     compression_ratio_threshold=compression_ratio_threshold,
                     log_prob_threshold=log_prob_threshold,
@@ -402,7 +414,7 @@ class TranscribeService:
                     )
                     final_segments.append(_segment)
 
-                outputs.append(final_segments)
+                outputs.append(MultiChannelTranscriptionOutput(segments=final_segments))
         elif self.model_engine == "tensorrt-llm":
             audio_channels = []
             speaker_ids = []
@@ -422,9 +434,16 @@ class TranscribeService:
                 lang_codes=[source_lang] * channels_len,
                 tasks=["transcribe"] * channels_len,
                 initial_prompts=[prompt] * channels_len,
-                batch_size=channels_len,
+                batch_size=1,
                 use_vad=internal_vad,
-                generate_kwargs={"num_beams": 1},
+                generate_kwargs={
+                    "num_beams": num_beams,
+                    "length_penalty": 1,
+                    "repetition_penalty": repetition_penalty,
+                    "stop_words_list": suppress_blank,
+                    "bad_words_list": [-1],
+                    "temperature": 1.0,
+                },
             )
 
             for speaker_id, segments in enumerate(segments_list):

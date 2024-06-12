@@ -56,14 +56,15 @@ def retrieve_service(service, aws_creds):
     )
 
 
-s3_client = retrieve_service(
-    "s3",
-    {
-        "aws_access_key_id": settings.aws_access_key_id,
-        "aws_secret_access_key": settings.aws_secret_access_key,
-        "region_name": settings.aws_region_name,
-    },
-)
+if settings.send_results_to_s3:
+    s3_client = retrieve_service(
+        "s3",
+        {
+            "aws_access_key_id": settings.aws_access_key_id,
+            "aws_secret_access_key": settings.aws_secret_access_key,
+            "region_name": settings.aws_region_name,
+        },
+    )
 
 
 @router.post("", status_code=http_status.HTTP_202_ACCEPTED)
@@ -76,21 +77,34 @@ async def inference_with_audio_url(
     filename = f"audio_url_{shortuuid.ShortUUID().random(length=32)}"
     data = AudioRequest() if data is None else AudioRequest(**data.dict())
 
-    async def process_audio():
+    async def process_audio(data):
         try:
             async with download_limit:
                 _filepath = await download_audio_file("url", url, filename)
 
                 num_channels = await check_num_channels(_filepath)
-                if num_channels > 1 and data.multi_channel is False:
-                    num_channels = 1  # Force mono channel if more than 1 channel
+                if (
+                        num_channels > 1 and data.multi_channel is False
+                ) or (
+                        num_channels == 1 and data.multi_channel is True
+                ):
+                    num_channels = 1  # Force mono channel if more than 1 channel or vice versa
+                    new_data = data.dict()
+                    if data.multi_channel:
+                        new_data["diarization"] = True
+                    new_data["multi_channel"] = False
+                    data = AudioRequest(**new_data)
 
                 try:
                     filepath: Union[str, List[str]] = await process_audio_file(
                         _filepath, num_channels=num_channels
                     )
-
                 except Exception as e:
+                    try:
+                        background_tasks.add_task(delete_file, filepath=filename)
+                        background_tasks.add_task(delete_file, filepath=filepath)
+                    except:
+                        pass
                     raise HTTPException(  # noqa: B904
                         status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
                         detail=f"Process failed: {e}",
@@ -110,6 +124,7 @@ async def inference_with_audio_url(
                         batch_size=data.batch_size,
                         multi_channel=data.multi_channel,
                         source_lang=data.source_lang,
+                        num_beams=data.num_beams,
                         timestamps_format=data.timestamps,
                         vocab=data.vocab,
                         word_timestamps=data.word_timestamps,
@@ -123,6 +138,7 @@ async def inference_with_audio_url(
                 )
 
                 result = await task
+
                 utterances, process_times, audio_duration = result
                 result = AudioResponse(
                     utterances=utterances,
@@ -148,24 +164,39 @@ async def inference_with_audio_url(
                     process_times=process_times,
                 )
 
-                upload_file(
-                    s3_client,
-                    file=bytes(json.dumps(result.model_dump()).encode("UTF-8")),
-                    bucket=settings.aws_storage_bucket_name,
-                    object_name=f"responses/{data.task_token}_{data.job_name}.json",
-                )
+                if settings.debug:
+                    logger.debug(f"Result: {result.model_dump()}")
+                else:
+                    if settings.send_results_to_s3:
+                        upload_file(
+                            s3_client,
+                            file=bytes(json.dumps(result.model_dump()).encode("UTF-8")),
+                            bucket=settings.aws_storage_bucket_name,
+                            object_name=f"responses/{data.task_token}_{data.job_name}.json",
+                        )
+
+                    if settings.svix_api_key and settings.svix_app_id:
+                        await send_update_with_svix(
+                            data.job_name,
+                            "finished",
+                            {
+                                "job_name": data.job_name,
+                                "task_token": data.task_token,
+                            },
+                        )
 
                 background_tasks.add_task(delete_file, filepath=filepath)
-                await send_update_with_svix(
-                    data.job_name,
-                    "finished",
-                    {
-                        "job_name": data.job_name,
-                        "task_token": data.task_token,
-                    },
-                )
         except Exception as e:
+            try:
+                background_tasks.add_task(delete_file, filepath=filename)
+                background_tasks.add_task(delete_file, filepath=filepath)
+            except:
+                pass
             error_message = f"Error during transcription: {e}"
+            try:
+                logger.error(result.message)
+            except:
+                pass
             logger.error(error_message)
 
             error_payload = {
@@ -177,7 +208,7 @@ async def inference_with_audio_url(
             await send_update_with_svix(data.job_name, "error", error_payload)
 
     # Add the process_audio function to background tasks
-    background_tasks.add_task(process_audio)
+    background_tasks.add_task(process_audio, data)
 
     # Return the job name and task token immediately
     return {"job_name": data.job_name, "task_token": data.task_token}
