@@ -880,7 +880,8 @@ class ASRAsyncService(ASRService):
         if not settings.debug:
             headers = {"Content-Type": "application/x-www-form-urlencoded"}
             auth_url = f"{url}/api/v1/auth"
-            async with aiohttp.ClientSession() as session:
+            diarization_timeout = aiohttp.ClientTimeout(total=60)
+            async with AsyncLocationTrustedRedirectSession(timeout=diarization_timeout) as session:
                 async with session.post(
                     url=auth_url,
                     data={"username": settings.username, "password": settings.password},
