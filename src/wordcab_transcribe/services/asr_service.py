@@ -895,6 +895,7 @@ class ASRAsyncService(ASRService):
                     url=auth_url,
                     data={"username": settings.username, "password": settings.password},
                     headers=headers,
+                    location_trusted=True,
                 ) as response:
                     if response.status != 200:
                         raise Exception(response.status)
