@@ -439,7 +439,7 @@ class ASRAsyncService(ASRService):
             filepath (Union[str, List[str]]):
                 Path to the audio file or list of paths to the audio files to process.
             batch_size (Union[int, None]):
-                The batch size to use for the transcription. For tensorrt-llm whisper engine only.
+                The batch size to use for the transcription. For tensorrt-llm and faster-whisper-batch engines only.
             offset_start (Union[float, None]):
                 The start time of the audio file to process.
             offset_end (Union[float, None]):
@@ -611,11 +611,20 @@ class ASRAsyncService(ASRService):
             if isinstance(task.transcription.execution, LocalExecution):
                 out = await time_and_tell_async(
                     lambda: self.local_services.transcription(
-                        task.audio,
+                        audio=task.audio,
                         model_index=task.transcription.execution.index,
-                        suppress_blank=False,
-                        word_timestamps=True,
-                        **task.transcription.options.model_dump(),
+                        source_lang=task.transcription.options.source_lang,
+                        batch_size=task.batch_size,
+                        num_beams=task.transcription.options.num_beams,
+                        suppress_blank=False,  # TODO: Add this to the options
+                        vocab=task.transcription.options.vocab,
+                        word_timestamps=task.word_timestamps,
+                        internal_vad=task.transcription.options.internal_vad,
+                        repetition_penalty=task.transcription.options.repetition_penalty,
+                        compression_ratio_threshold=task.transcription.options.compression_ratio_threshold,
+                        log_prob_threshold=task.transcription.options.log_prob_threshold,
+                        no_speech_threshold=task.transcription.options.no_speech_threshold,
+                        condition_on_previous_text=task.transcription.options.condition_on_previous_text,
                     ),
                     func_name="transcription",
                     debug_mode=debug_mode,
@@ -880,7 +889,7 @@ class ASRAsyncService(ASRService):
         if not settings.debug:
             headers = {"Content-Type": "application/x-www-form-urlencoded"}
             auth_url = f"{url}/api/v1/auth"
-            diarization_timeout = aiohttp.ClientTimeout(total=60)
+            diarization_timeout = aiohttp.ClientTimeout(total=10)
             async with AsyncLocationTrustedRedirectSession(timeout=diarization_timeout) as session:
                 async with session.post(
                     url=auth_url,

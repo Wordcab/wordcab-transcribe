@@ -11,3 +11,4 @@ Cython==3.0.10
 youtokentome @ git+https://github.com/gburlet/YouTokenToMe.git@dependencies
 deepmultilingualpunctuation==1.0.1
 pyannote.audio==3.2.0
+ipython==8.24.0

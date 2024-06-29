@@ -126,9 +126,9 @@ class Settings:
     @field_validator("whisper_engine")
     def whisper_engine_compatibility_check(cls, value: str):  # noqa: B902, N805
         """Check that the whisper engine is compatible."""
-        if value.lower() not in ["faster-whisper", "tensorrt-llm"]:
+        if value.lower() not in ["faster-whisper", "faster-whisper-batched", "tensorrt-llm"]:
             raise ValueError(
-                "The whisper engine must be one of `faster-whisper` or `tensorrt-llm`."
+                "The whisper engine must be one of `faster-whisper`, `faster-whisper-batched`, or `tensorrt-llm`."
             )
 
         return value

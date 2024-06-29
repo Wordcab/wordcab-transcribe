@@ -62,6 +62,8 @@ RUN curl -L ${RELEASE_URL} | tar -zx -C /tmp \
 
 RUN python -m pip install pip --upgrade
 
+COPY faster-whisper /app/faster-whisper
+
 COPY pre_requirements.txt .
 COPY requirements.txt .
 

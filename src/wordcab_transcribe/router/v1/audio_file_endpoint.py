@@ -117,7 +117,6 @@ async def inference_with_audio(  # noqa: C901
     )
 
     background_tasks.add_task(delete_file, filepath=filename)
-
     task = asyncio.create_task(
         asr.process_input(
             filepath=filepath,

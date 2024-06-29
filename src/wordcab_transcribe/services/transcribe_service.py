@@ -21,9 +21,9 @@
 from typing import Iterable, List, NamedTuple, Optional, Union
 
 import torch
-from faster_whisper import WhisperModel
 from loguru import logger
 from tensorshare import Backend, TensorShare
+from faster_whisper import WhisperModel, BatchedInferencePipeline
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.engines.tensorrt_llm.model import WhisperModelTRT
@@ -87,6 +87,16 @@ class TranscribeService:
                 device_index=device_index,
                 compute_type=self.compute_type,
             )
+        elif self.model_engine == "faster-whisper-batched":
+            logger.info("Using faster-whisper-batched model engine.")
+            self.model = BatchedInferencePipeline(
+                model=WhisperModel(
+                    self.model_path,
+                    device=self.device,
+                    device_index=device_index,
+                    compute_type=self.compute_type,
+                )
+            )
         elif self.model_engine == "tensorrt-llm":
             logger.info("Using tensorrt-llm model engine.")
             if "v3" in self.model_path:
@@ -126,7 +136,7 @@ class TranscribeService:
         ],
         source_lang: str,
         model_index: int,
-        batch_size: int = 1,
+        batch_size: int,
         num_beams: int = 1,
         suppress_blank: bool = False,
         vocab: Union[List[str], None] = None,
@@ -219,6 +229,21 @@ class TranscribeService:
                         "speech_pad_ms": 30,
                         "window_size_samples": 512,
                     },
+                )
+            elif self.model_engine == "faster-whisper-batched":
+                print("Batch size: ", batch_size)
+                segments, _ = self.model.transcribe(
+                    audio,
+                    language=source_lang,
+                    hotwords=prompt,
+                    beam_size=num_beams,
+                    repetition_penalty=repetition_penalty,
+                    compression_ratio_threshold=compression_ratio_threshold,
+                    log_prob_threshold=log_prob_threshold,
+                    no_speech_threshold=no_speech_threshold,
+                    suppress_blank=suppress_blank,
+                    word_timestamps=word_timestamps,
+                    batch_size=batch_size,
                 )
             elif self.model_engine == "tensorrt-llm":
                 segments = self.model.transcribe(
