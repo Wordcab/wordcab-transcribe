@@ -109,6 +109,7 @@ class Settings:
                 "large-v1",
                 "large-v2",
                 "large-v3",
+                "distil-medium.en",
                 "distil-large-v2",
                 "distil-large-v3",
             ]
@@ -117,7 +118,7 @@ class Settings:
             raise ValueError(
                 "The whisper models must be one of `tiny`, `tiny.en`, `base`,"
                 " `base.en`, `small`, `small.en`, `medium`, `medium.en`, `large`,"
-                " `large-v1`, `large-v2`, `large-v3`, `distil-large-v2`, or"
+                " `large-v1`, `large-v2`, `large-v3`, `distil-medium.en`, `distil-large-v2`, or"
                 " `distil-large-v3`."
             )
 
