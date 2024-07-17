@@ -55,6 +55,8 @@ elif settings.asr_type == "async":
         window_lengths=settings.window_lengths,
         shift_lengths=settings.shift_lengths,
         multiscale_weights=settings.multiscale_weights,
+        pyannote_ai_api_key=settings.pyannote_ai_api_key,
+        pyannote_ai_api_url=settings.pyannote_ai_api_url,
         extra_languages=settings.extra_languages,
         extra_languages_model_paths=settings.extra_languages_model_paths,
         transcribe_server_urls=settings.transcribe_server_urls,
@@ -115,7 +117,8 @@ async def lifespan(app: FastAPI) -> None:
                 except Exception as e:
                     logger.error(f"Error downloading model for {model}: {e}")
 
-    logger.info("Warmup initialization...")
-    await asr.inference_warmup()
+    if not settings.diarization_backend == "pyannote-ai":
+        logger.info("Warmup initialization...")
+        await asr.inference_warmup()
 
     yield  # This is where the execution of the application starts

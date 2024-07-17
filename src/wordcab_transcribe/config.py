@@ -54,6 +54,8 @@ class Settings:
     window_lengths: List[float]
     shift_lengths: List[float]
     multiscale_weights: List[float]
+    pyannote_ai_api_key: str
+    pyannote_ai_api_url: str
     # Post-processing
     enable_punctuation_based_alignment: bool
     # ASR type configuration
@@ -148,10 +150,10 @@ class Settings:
     @field_validator("diarization_backend")
     def diarization_backend_compatibility_check(cls, value: str):  # noqa: B902, N805
         """Check that the diarization engine is compatible."""
-        if value.lower() not in ["default-diarizer", "longform-diarizer"]:
+        if value.lower() not in ["default-diarizer", "longform-diarizer", "pyannote-ai"]:
             raise ValueError(
-                "The diarization backend must be one of `default_diarizer` or"
-                " `longform_diarizer`."
+                "The diarization backend must be one of `default-diarizer`,"
+                " `longform-diarizer` or `pyannote-ai`."
             )
 
         return value
@@ -251,7 +253,6 @@ class Settings:
                     " Please change it in the `.env` file. You can generate a new key"
                     " with `openssl rand -hex 32`."
                 )
-
         if (
             len(self.window_lengths)
             != len(self.shift_lengths)
@@ -261,6 +262,11 @@ class Settings:
                 "Length of window_lengths, shift_lengths and multiscale_weights must"
                 f" be the same.\nFound: {len(self.window_lengths)},"
                 f" {len(self.shift_lengths)}, {len(self.multiscale_weights)}"
+            )
+        if not self.pyannote_ai_api_key.strip() and self.diarization_backend == "pyannote-ai":
+            raise ValueError(
+                "The `pyannote-ai` diarization_backend needs an API key. Please"
+                " verify the `.env` file has PYANNOTE_AI_API_KEY set."
             )
 
 
@@ -333,6 +339,8 @@ settings = Settings(
     window_lengths=window_lengths,
     shift_lengths=shift_lengths,
     multiscale_weights=multiscale_weights,
+    pyannote_ai_api_key=getenv("PYANNOTE_AI_API_KEY", ""),
+    pyannote_ai_api_url=getenv("PYANNOTE_AI_API_URL", "https://api.pyannote.ai/v1"),
     # Post-processing
     enable_punctuation_based_alignment=getenv(
         "ENABLE_PUNCTUATION_BASED_ALIGNMENT", True

@@ -55,6 +55,9 @@ from wordcab_transcribe.services.diarization.diarize_service import DiarizeServi
 from wordcab_transcribe.services.longform_diarization.diarize_service import (
     LongFormDiarizeService,
 )
+from wordcab_transcribe.services.pyannote_ai_diarization.diarize_service import (
+    PyannoteAIDiarizeService,
+)
 from wordcab_transcribe.services.post_processing_service import PostProcessingService
 from wordcab_transcribe.services.transcribe_service import TranscribeService
 from wordcab_transcribe.services.vad_service import VadService
@@ -165,7 +168,7 @@ class TranscriptionTask(BaseModel):
 class LocalServiceRegistry:
     """Registry for local services."""
 
-    diarization: Union[DiarizeService, LongFormDiarizeService, None] = None
+    diarization: Union[DiarizeService, LongFormDiarizeService, PyannoteAIDiarizeService, None] = None
     post_processing: PostProcessingService = PostProcessingService()
     transcription: Union[TranscribeService, None] = None
     vad: VadService = VadService()
@@ -247,6 +250,8 @@ class ASRAsyncService(ASRService):
         window_lengths: List[float],
         shift_lengths: List[float],
         multiscale_weights: List[float],
+        pyannote_ai_api_key: str,
+        pyannote_ai_api_url: str,
         extra_languages: Union[List[str], None],
         extra_languages_model_paths: Union[List[str], None],
         transcribe_server_urls: Union[List[str], None],
@@ -267,6 +272,10 @@ class ASRAsyncService(ASRService):
                 The shift lengths to use for diarization.
             multiscale_weights (List[float]):
                 The multiscale weights to use for diarization.
+            pyannote_ai_api_key (str):
+                The Pyannote AI API key.
+            pyannote_ai_api_url (str):
+                The Pyannote AI API URL.
             extra_languages (Union[List[str], None]):
                 The list of extra languages to support.
             extra_languages_model_paths (Union[List[str], None]):
@@ -287,6 +296,8 @@ class ASRAsyncService(ASRService):
         self.window_lengths: List[float] = window_lengths
         self.shift_lengths: List[float] = shift_lengths
         self.multiscale_weights: List[float] = multiscale_weights
+        self.pyannote_ai_api_key: str = pyannote_ai_api_key
+        self.pyannote_ai_api_url: str = pyannote_ai_api_url
         self.extra_languages: Union[List[str], None] = extra_languages
         self.extra_languages_model_paths: Union[
             List[str], None
@@ -324,6 +335,8 @@ class ASRAsyncService(ASRService):
                 "You provided URLs for remote diarization server, no local model will"
                 " be used."
             )
+            if pyannote_ai_api_key:
+                logger.warning("You are using a remote diarization server, Pyannote AI will not be used.")
             self.remote_services.diarization = RemoteServiceConfig(
                 use_remote=True,
                 url_handler=URLService(remote_urls=diarize_server_urls),
@@ -355,6 +368,12 @@ class ASRAsyncService(ASRService):
             logger.info("Using LongFormDiarizeService for diarization.")
             self.local_services.diarization = LongFormDiarizeService(
                 device=self.device,
+            )
+        elif settings.diarization_backend == "pyannote-ai":
+            logger.info("Using Pyannote AI for diarization.")
+            self.local_services.diarization = PyannoteAIDiarizeService(
+                pyannote_ai_api_key=self.pyannote_ai_api_key,
+                pyannote_ai_api_url=self.pyannote_ai_api_url
             )
         else:
             logger.info("Using DiarizeService for diarization.")
@@ -685,11 +704,22 @@ class ASRAsyncService(ASRService):
         """
         try:
             if isinstance(task.diarization.execution, LocalExecution):
+                logger.info(f"Using local diarization service: {settings.diarization_backend}")
                 if settings.diarization_backend == "longform-diarizer":
                     out = await time_and_tell_async(
                         lambda: self.local_services.diarization(
                             waveform=task.audio,
                             oracle_num_speakers=task.diarization.num_speakers,
+                        ),
+                        func_name="diarization",
+                        debug_mode=debug_mode,
+                    )
+                    result, process_time = out
+                elif settings.diarization_backend == "pyannote-ai":
+                    out = await time_and_tell_async(
+                        lambda: self.local_services.diarization(
+                            oracle_num_speakers=task.diarization.num_speakers,
+                            url=task.url
                         ),
                         func_name="diarization",
                         debug_mode=debug_mode,

@@ -27,6 +27,14 @@ from pydantic import BaseModel, HttpUrl, field_validator
 from tensorshare import TensorShare
 
 
+class PyannoteWebhookPayload(BaseModel):
+    """Webhook payload model for the API."""
+
+    jobId: str
+    status: str
+    output: dict
+
+
 class ProcessTimes(BaseModel):
     """The execution times of the different processes."""
 

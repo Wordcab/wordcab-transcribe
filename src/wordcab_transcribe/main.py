@@ -20,21 +20,25 @@
 
 """Main API module of the Wordcab Transcribe."""
 
-from fastapi import Depends, FastAPI
+from loguru import logger
+
 from fastapi import status as http_status
 from fastapi.responses import HTMLResponse
+from fastapi import Depends, FastAPI, HTTPException
 
 from wordcab_transcribe.config import settings
 from wordcab_transcribe.dependencies import lifespan
 from wordcab_transcribe.logging import LoggingMiddleware
+from wordcab_transcribe.models import PyannoteWebhookPayload
 from wordcab_transcribe.router.authentication import get_current_user
 from wordcab_transcribe.router.v1.endpoints import (
     api_router,
     auth_router,
     cortex_router,
 )
+from wordcab_transcribe.services.pyannote_ai_diarization.shared_state import diarization_results
 
-# Main application instance creation
+
 app = FastAPI(
     title=settings.project_name,
     version=settings.version,
@@ -87,6 +91,19 @@ async def home() -> HTMLResponse:
     </html>
     """
     return HTMLResponse(content=content, media_type="text/html")
+
+
+@app.post("/diarization-webhook/{job_id}")
+def webhook(job_id: str, payload: PyannoteWebhookPayload):
+    try:
+        annotation = payload.output["diarization"]
+        status = payload.status
+    except KeyError:
+        raise HTTPException(status_code=400, detail="No diarization output")
+
+    result = {"status": status, "job_id": job_id, "annotation": annotation}
+    diarization_results[job_id] = result
+    return {"status": "success"}
 
 
 @app.get("/healthz", status_code=http_status.HTTP_200_OK, tags=["status"])

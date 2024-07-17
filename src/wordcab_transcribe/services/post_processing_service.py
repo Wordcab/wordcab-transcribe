@@ -115,161 +115,49 @@ class PostProcessingService:
         transcript_segments: List[Utterance],
         speaker_timestamps: List[DiarizationSegment],
     ) -> List[dict]:
-        """Function to map transcription and diarization results.
-
-        Map each segment to its corresponding speaker based on the speaker timestamps and reconstruct the utterances
-        when the speaker changes in the middle of a segment.
+        """Map each word to its corresponding speaker based on speaker timestamps.
 
         Args:
-            transcript_segments (List[dict]): List of transcript segments.
-            speaker_timestamps (List[dict]): List of speaker timestamps.
+            transcript_words (List[Word]): List of transcribed words with timing information.
+            speaker_timestamps (List[DiarizationSegment]): List of speaker timestamps.
 
         Returns:
-            List[dict]: List of sentences with speaker mapping.
+            List[Utterance]: List of utterances with speaker mapping.
         """
 
-        def _assign_speaker(
-            mapping: list,
-            seg_index: int,
-            split: bool,
-            current_speaker: str,
-            current_split_len: int,
-        ):
-            """Assign speaker to the segment."""
-            if split and len(mapping) > 1:
-                last_split_len = len(mapping[seg_index - 1].text)
-                if last_split_len > current_split_len:
-                    current_speaker = mapping[seg_index - 1].speaker
-                elif last_split_len < current_split_len:
-                    mapping[seg_index - 1].speaker = current_speaker
-            return current_speaker
-
-        threshold = 0.3
-        turn_idx = 0
-        was_split = False
-        _, end, speaker = speaker_timestamps[turn_idx]
-
-        segment_index = 0
-        segment_speaker_mapping = []
-        while segment_index < len(transcript_segments):
-            segment: Utterance = transcript_segments[segment_index]
-            segment_start, segment_end, segment_text = (
-                segment.start,
-                segment.end,
-                segment.text,
+        def _create_utterance(start_word: Word, end_word: Word, words: List[Word], speaker: str) -> Utterance:
+            return Utterance(
+                start=start_word.start,
+                end=end_word.end,
+                text=" ".join(word.word for word in words),
+                speaker=speaker,
+                words=words
             )
-            while (
-                segment_start > float(end)
-                or abs(segment_start - float(end)) < threshold
-            ):
-                turn_idx += 1
-                turn_idx = min(turn_idx, len(speaker_timestamps) - 1)
-                _, end, speaker = speaker_timestamps[turn_idx]
-                if turn_idx == len(speaker_timestamps) - 1:
-                    end = segment_end
-                    break
 
-            if segment_end > float(end) and abs(segment_end - float(end)) > threshold:
-                words = segment.words
-                word_index = next(
-                    (
-                        i
-                        for i, word in enumerate(words)
-                        if word.start > float(end)
-                        or abs(word.start - float(end)) < threshold
-                    ),
-                    None,
-                )
+        utterances = []
+        current_speaker = None
+        current_words = []
+        speaker_index = 0
+        _, speaker_end, speaker = speaker_timestamps[speaker_index]
 
-                if word_index is not None:
-                    _split_segment = segment_text.split()
+        for segment in transcript_segments:
+            for word in segment.words:
+                while word.start >= speaker_end and speaker_index < len(speaker_timestamps) - 1:
+                    speaker_index += 1
+                    _, speaker_end, speaker = speaker_timestamps[speaker_index]
 
-                    if word_index > 0:
-                        text = " ".join(_split_segment[:word_index])
-                        speaker = _assign_speaker(
-                            segment_speaker_mapping,
-                            segment_index,
-                            was_split,
-                            speaker,
-                            len(text),
-                        )
+                if speaker != current_speaker:
+                    if current_words:
+                        utterances.append(_create_utterance(current_words[0], current_words[-1], current_words, current_speaker))
+                        current_words = []
+                    current_speaker = speaker
 
-                        _segment_to_add = Utterance(
-                            start=words[0].start,
-                            end=words[word_index - 1].end,
-                            text=text,
-                            speaker=speaker,
-                            words=words[:word_index],
-                        )
-                    else:
-                        text = _split_segment[0]
-                        speaker = _assign_speaker(
-                            segment_speaker_mapping,
-                            segment_index,
-                            was_split,
-                            speaker,
-                            len(text),
-                        )
+                current_words.append(word)
 
-                        _segment_to_add = Utterance(
-                            start=words[0].start,
-                            end=words[0].end,
-                            text=_split_segment[0],
-                            speaker=speaker,
-                            words=words[:1],
-                        )
-                    segment_speaker_mapping.append(_segment_to_add)
-                    transcript_segments.insert(
-                        segment_index + 1,
-                        Utterance(
-                            start=words[word_index].start,
-                            end=segment_end,
-                            text=" ".join(_split_segment[word_index:]),
-                            words=words[word_index:],
-                        ),
-                    )
-                    was_split = True
-                else:
-                    speaker = _assign_speaker(
-                        segment_speaker_mapping,
-                        segment_index,
-                        was_split,
-                        speaker,
-                        len(segment_text),
-                    )
-                    was_split = False
+        if current_words:
+            utterances.append(_create_utterance(current_words[0], current_words[-1], current_words, current_speaker))
 
-                    segment_speaker_mapping.append(
-                        Utterance(
-                            start=segment_start,
-                            end=segment_end,
-                            text=segment_text,
-                            speaker=speaker,
-                            words=words,
-                        )
-                    )
-            else:
-                speaker = _assign_speaker(
-                    segment_speaker_mapping,
-                    segment_index,
-                    was_split,
-                    speaker,
-                    len(segment_text),
-                )
-                was_split = False
-
-                segment_speaker_mapping.append(
-                    Utterance(
-                        start=segment_start,
-                        end=segment_end,
-                        text=segment_text,
-                        speaker=speaker,
-                        words=segment.words,
-                    )
-                )
-            segment_index += 1
-
-        return segment_speaker_mapping
+        return utterances
 
     def reconstruct_utterances(
         self,
